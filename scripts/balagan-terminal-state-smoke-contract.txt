@@ -1,0 +1,5 @@
+# Stable strings that must appear in terminal-state-capture.json and in the
+# SQLite BoardSnapshot payload produced by terminal-state-smoke.
+surface-fake-terminal-main
+fake terminal ready
+BALAGAN_TERMINAL_STATE_CAPTURE

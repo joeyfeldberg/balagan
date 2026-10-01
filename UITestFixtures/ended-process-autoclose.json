@@ -1,0 +1,92 @@
+{
+  "schemaVersion": 1,
+  "fixtureName": "ended-process-autoclose",
+  "description": "A short-lived startup command surface used to verify ended libghostty processes auto-close.",
+  "frozenAt": "2026-06-09T12:00:00Z",
+  "board": {
+    "columns": [
+      {
+        "id": "todo",
+        "title": "Todo",
+        "position": 0
+      },
+      {
+        "id": "doing",
+        "title": "Doing",
+        "position": 1
+      },
+      {
+        "id": "done",
+        "title": "Done",
+        "position": 2
+      },
+      {
+        "id": "parked",
+        "title": "Parked",
+        "position": 3
+      }
+    ]
+  },
+  "projects": [
+    {
+      "id": "project-ended-autoclose",
+      "name": "Ended Autoclose Project",
+      "repoPath": "/tmp/balagan-fixtures/ended-autoclose",
+      "defaultBranch": "main"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "task-ended-autoclose",
+      "projectId": "project-ended-autoclose",
+      "title": "Ended process auto-close",
+      "description": "The command exits quickly; the terminal tab should close without a keypress.",
+      "status": "doing",
+      "priority": 1,
+      "tags": [
+        "terminal",
+        "autoclose"
+      ],
+      "repoPathOverride": "/tmp/balagan-fixtures/ended-autoclose",
+      "branch": "ended-autoclose",
+      "createdAt": "2026-06-09T12:00:00Z",
+      "updatedAt": "2026-06-09T12:00:00Z"
+    }
+  ],
+  "workspaces": [
+    {
+      "id": "workspace-ended-autoclose",
+      "taskId": "task-ended-autoclose",
+      "selectedSurfaceId": "surface-ended-autoclose",
+      "lastOpenedAt": "2026-06-09T12:00:00Z",
+      "layout": {
+        "kind": "surface",
+        "surfaceId": "surface-ended-autoclose"
+      },
+      "surfaces": [
+        {
+          "id": "surface-ended-autoclose",
+          "title": "short command",
+          "kind": "terminal",
+          "cwd": "/tmp/balagan-fixtures/ended-autoclose",
+          "startupCommand": "printf 'BALAGAN_ENDED_AUTOCLOSE_READY\\n'",
+          "fakeTerminalOutput": [
+            "$ printf 'BALAGAN_ENDED_AUTOCLOSE_READY\\n'",
+            "BALAGAN_ENDED_AUTOCLOSE_READY"
+          ],
+          "scrollbackSnapshot": [
+            "$ printf 'BALAGAN_ENDED_AUTOCLOSE_READY\\n'",
+            "BALAGAN_ENDED_AUTOCLOSE_READY"
+          ]
+        }
+      ]
+    }
+  ],
+  "uiState": {
+    "activeView": "taskDetail",
+    "selectedProjectId": "project-ended-autoclose",
+    "selectedTaskId": "task-ended-autoclose",
+    "selectedWorkspaceId": "workspace-ended-autoclose",
+    "selectedSurfaceId": "surface-ended-autoclose"
+  }
+}

@@ -1,0 +1,115 @@
+{
+  "schemaVersion": 1,
+  "fixtureName": "reload-prompt-resume",
+  "description": "A trusted resume surface used to verify restart does not leak session suffix text into the live prompt.",
+  "frozenAt": "2026-05-29T12:00:00Z",
+  "board": {
+    "columns": [
+      {
+        "id": "todo",
+        "title": "Todo",
+        "position": 0
+      },
+      {
+        "id": "doing",
+        "title": "Doing",
+        "position": 1
+      },
+      {
+        "id": "done",
+        "title": "Done",
+        "position": 2
+      },
+      {
+        "id": "parked",
+        "title": "Parked",
+        "position": 3
+      }
+    ]
+  },
+  "projects": [
+    {
+      "id": "project-reload-prompt",
+      "name": "Reload Prompt Project",
+      "repoPath": "/tmp/balagan-fixtures/reload-prompt",
+      "defaultBranch": "main",
+      "defaultAgentCommandTemplates": {
+        "codex": "balagan-agent codex"
+      }
+    }
+  ],
+  "tasks": [
+    {
+      "id": "task-reload-prompt",
+      "projectId": "project-reload-prompt",
+      "title": "Reload prompt terminal",
+      "description": "Verify trusted resume metadata does not become shell input after app restart.",
+      "status": "doing",
+      "priority": 1,
+      "tags": [
+        "resume",
+        "terminal",
+        "restart"
+      ],
+      "repoPathOverride": "/tmp/balagan-fixtures/reload-prompt",
+      "branch": "reload-prompt",
+      "createdAt": "2026-05-29T12:00:00Z",
+      "updatedAt": "2026-05-29T12:00:00Z"
+    }
+  ],
+  "workspaces": [
+    {
+      "id": "workspace-reload-prompt",
+      "taskId": "task-reload-prompt",
+      "selectedSurfaceId": "surface-reload-prompt",
+      "lastOpenedAt": "2026-05-29T12:00:00Z",
+      "layout": {
+        "kind": "surface",
+        "surfaceId": "surface-reload-prompt"
+      },
+      "surfaces": [
+        {
+          "id": "surface-reload-prompt",
+          "title": "codex resume",
+          "kind": "terminal",
+          "cwd": "/tmp/balagan-fixtures/reload-prompt",
+          "envAllowlist": [
+            "PATH",
+            "HOME",
+            "SHELL"
+          ],
+          "sanitizedEnv": {
+            "PATH": "/tmp/balagan-harness-smoke/fake-bin:/usr/bin:/bin:/usr/sbin:/sbin"
+          },
+          "startupCommand": null,
+          "resumeBinding": {
+            "kind": "agent",
+            "agentName": "codex",
+            "capturedSessionId": "s018",
+            "resumeCommand": "codex resume s018",
+            "trustStatus": "trusted",
+            "autoResume": true,
+            "sanitizedEnv": {},
+            "createdAt": "2026-05-29T12:00:00Z",
+            "updatedAt": "2026-05-29T12:00:00Z"
+          },
+          "fakeTerminalOutput": [
+            "$ codex resume s018",
+            "Ready to resume after restart."
+          ],
+          "scrollbackSnapshot": [
+            "$ codex resume s018",
+            "Ready to resume after restart."
+          ]
+        }
+      ]
+    }
+  ],
+  "uiState": {
+    "activeView": "taskDetail",
+    "selectedProjectId": "project-reload-prompt",
+    "selectedTaskId": "task-reload-prompt",
+    "selectedWorkspaceId": "workspace-reload-prompt",
+    "selectedSurfaceId": "surface-reload-prompt"
+  }
+}

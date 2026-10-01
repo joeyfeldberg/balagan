@@ -1,0 +1,160 @@
+{
+  "schemaVersion": 1,
+  "fixtureName": "resumable-task",
+  "description": "A selected task with deterministic trusted and untrusted resume bindings.",
+  "frozenAt": "2026-05-29T12:00:00Z",
+  "board": {
+    "columns": [
+      {
+        "id": "todo",
+        "title": "Todo",
+        "position": 0
+      },
+      {
+        "id": "doing",
+        "title": "Doing",
+        "position": 1
+      },
+      {
+        "id": "done",
+        "title": "Done",
+        "position": 2
+      },
+      {
+        "id": "parked",
+        "title": "Parked",
+        "position": 3
+      }
+    ]
+  },
+  "projects": [
+    {
+      "id": "project-balagan",
+      "name": "Balagan",
+      "repoPath": "/tmp/balagan-fixtures/balagan",
+      "defaultBranch": "main",
+      "defaultAgentCommandTemplates": {
+        "codex": "balagan-agent codex",
+        "tmux": "tmux new-session -A -s task_{taskId} -c {repoPath}"
+      }
+    }
+  ],
+  "tasks": [
+    {
+      "id": "task-resume-codex",
+      "projectId": "project-balagan",
+      "title": "Resume agent workspace after relaunch",
+      "description": "Verify the task detail view can show resumable terminal surfaces without launching real agents in UI test mode.",
+      "status": "doing",
+      "priority": 1,
+      "tags": [
+        "resume",
+        "codex",
+        "tmux"
+      ],
+      "repoPathOverride": null,
+      "branch": "resume-workspace",
+      "createdAt": "2026-05-29T12:00:00Z",
+      "updatedAt": "2026-05-29T12:00:00Z"
+    }
+  ],
+  "workspaces": [
+    {
+      "id": "workspace-resume-codex",
+      "taskId": "task-resume-codex",
+      "selectedSurfaceId": "surface-codex-resume",
+      "lastOpenedAt": "2026-05-29T12:00:00Z",
+      "layout": {
+        "kind": "split",
+        "axis": "horizontal",
+        "children": [
+          {
+            "kind": "surface",
+            "surfaceId": "surface-codex-resume",
+            "weight": 0.65
+          },
+          {
+            "kind": "surface",
+            "surfaceId": "surface-tmux-review",
+            "weight": 0.35
+          }
+        ]
+      },
+      "surfaces": [
+        {
+          "id": "surface-codex-resume",
+          "title": "Codex Resume",
+          "kind": "terminal",
+          "cwd": "/tmp/balagan-fixtures/balagan",
+          "envAllowlist": [
+            "PATH",
+            "HOME",
+            "SHELL",
+            "CODEX_HOME"
+          ],
+          "startupCommand": null,
+          "resumeBinding": {
+            "kind": "agent",
+            "agentName": "codex",
+            "capturedSessionId": "codex-session-ui-fixture-001",
+            "resumeCommand": "codex resume codex-session-ui-fixture-001",
+            "trustStatus": "trusted",
+            "sanitizedEnv": {
+              "BALAGAN_DISABLE_REAL_PROCESSES": "1"
+            },
+            "createdAt": "2026-05-29T12:00:00Z",
+            "updatedAt": "2026-05-29T12:00:00Z"
+          },
+          "fakeTerminalOutput": [
+            "$ codex resume codex-session-ui-fixture-001",
+            "Resume command is trusted, but UI test mode prevents process launch.",
+            "Ready to resume when confirmed by the app shell."
+          ],
+          "scrollbackSnapshot": [
+            "Previous Codex session detected.",
+            "Session id: codex-session-ui-fixture-001"
+          ]
+        },
+        {
+          "id": "surface-tmux-review",
+          "title": "tmux Review",
+          "kind": "terminal",
+          "cwd": "/tmp/balagan-fixtures/balagan",
+          "envAllowlist": [
+            "PATH",
+            "HOME",
+            "SHELL",
+            "TMUX"
+          ],
+          "startupCommand": null,
+          "resumeBinding": {
+            "kind": "tmux",
+            "agentName": null,
+            "capturedSessionId": "task_task-resume-codex",
+            "resumeCommand": "tmux attach -t task_task-resume-codex",
+            "trustStatus": "untrusted",
+            "sanitizedEnv": {
+              "BALAGAN_DISABLE_REAL_PROCESSES": "1"
+            },
+            "createdAt": "2026-05-29T12:00:00Z",
+            "updatedAt": "2026-05-29T12:00:00Z"
+          },
+          "fakeTerminalOutput": [
+            "$ tmux attach -t task_task-resume-codex",
+            "Resume command requires confirmation because trustStatus is untrusted."
+          ],
+          "scrollbackSnapshot": [
+            "tmux session task_task-resume-codex is resumable after confirmation."
+          ]
+        }
+      ]
+    }
+  ],
+  "uiState": {
+    "activeView": "taskDetail",
+    "selectedProjectId": "project-balagan",
+    "selectedTaskId": "task-resume-codex",
+    "selectedWorkspaceId": "workspace-resume-codex",
+    "selectedSurfaceId": "surface-codex-resume"
+  }
+}

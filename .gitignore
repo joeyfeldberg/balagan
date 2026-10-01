@@ -1,0 +1,14 @@
+.DS_Store
+.build/
+.swiftpm/
+.ui-artifacts/
+DerivedData/
+dist/
+
+# Artifacts some smokes write into the repo root
+/accessibility-tree.txt
+/agent-reopen-capture-smoke.json
+/app-ready.json
+/session-report-socket.json
+/screenshots/
+/*.sock

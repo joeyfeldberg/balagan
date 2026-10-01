@@ -1,0 +1,9 @@
+# Stable strings required in the scripted create/edit/status/tab flow artifacts.
+#
+# ui-flow-smoke.json, native driver artifacts, and
+# database-restore/ui-flow-observed-state.json must include these user-facing
+# strings. SQLite snapshots assert the canonical raw status separately.
+Harness Project Edited
+Harness Task Edited
+Doing
+Harness Tab Renamed

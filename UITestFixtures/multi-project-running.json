@@ -1,0 +1,211 @@
+{
+  "schemaVersion": 1,
+  "fixtureName": "multi-project-running",
+  "description": "A board with multiple projects, four task lanes, and deterministic fake terminal output.",
+  "frozenAt": "2026-05-29T12:00:00Z",
+  "board": {
+    "columns": [
+      {
+        "id": "todo",
+        "title": "Todo",
+        "position": 0
+      },
+      {
+        "id": "doing",
+        "title": "Doing",
+        "position": 1
+      },
+      {
+        "id": "done",
+        "title": "Done",
+        "position": 2
+      },
+      {
+        "id": "parked",
+        "title": "Parked",
+        "position": 3
+      }
+    ]
+  },
+  "projects": [
+    {
+      "id": "project-balagan",
+      "name": "Balagan",
+      "repoPath": "/tmp/balagan-fixtures/balagan",
+      "defaultBranch": "main",
+      "defaultAgentCommandTemplates": {
+        "codex": "balagan-agent codex",
+        "tmux": "tmux new-session -A -s task_{taskId} -c {repoPath}"
+      }
+    },
+    {
+      "id": "project-billing",
+      "name": "Billing Admin",
+      "repoPath": "/tmp/balagan-fixtures/billing-admin",
+      "defaultBranch": "main",
+      "defaultAgentCommandTemplates": {
+        "codex": "balagan-agent codex",
+        "tmux": "tmux new-session -A -s task_{taskId} -c {repoPath}"
+      }
+    },
+    {
+      "id": "project-infra",
+      "name": "Infra Ops",
+      "repoPath": "/tmp/balagan-fixtures/infra-ops",
+      "defaultBranch": "main",
+      "defaultAgentCommandTemplates": {
+        "codex": "balagan-agent codex",
+        "tmux": "tmux new-session -A -s task_{taskId} -c {repoPath}"
+      }
+    }
+  ],
+  "tasks": [
+    {
+      "id": "task-board-empty-state",
+      "projectId": "project-balagan",
+      "title": "Design empty board state",
+      "description": "Create the initial no-projects and no-tasks board state.",
+      "status": "todo",
+      "priority": 3,
+      "tags": [
+        "ui",
+        "first-run"
+      ],
+      "repoPathOverride": null,
+      "branch": "ui-empty-state",
+      "createdAt": "2026-05-29T12:00:00Z",
+      "updatedAt": "2026-05-29T12:00:00Z"
+    },
+    {
+      "id": "task-fixture-loader",
+      "projectId": "project-balagan",
+      "title": "Wire fixture loader",
+      "description": "Load deterministic board data from UITestFixtures in UI test mode.",
+      "status": "todo",
+      "priority": 1,
+      "tags": [
+        "fixtures",
+        "testing"
+      ],
+      "repoPathOverride": null,
+      "branch": "fixture-loader",
+      "createdAt": "2026-05-29T12:00:00Z",
+      "updatedAt": "2026-05-29T12:00:00Z"
+    },
+    {
+      "id": "task-fake-terminal",
+      "projectId": "project-balagan",
+      "title": "Render fake terminal pane",
+      "description": "Show deterministic terminal output without launching a process.",
+      "status": "doing",
+      "priority": 1,
+      "tags": [
+        "terminal",
+        "ui-test"
+      ],
+      "repoPathOverride": null,
+      "branch": "fake-terminal-pane",
+      "createdAt": "2026-05-29T12:00:00Z",
+      "updatedAt": "2026-05-29T12:00:00Z"
+    },
+    {
+      "id": "task-billing-filter",
+      "projectId": "project-billing",
+      "title": "Project filter persistence",
+      "description": "Keep selected project filter after relaunch.",
+      "status": "parked",
+      "priority": 2,
+      "tags": [
+        "filtering",
+        "persistence"
+      ],
+      "repoPathOverride": null,
+      "branch": "persist-project-filter",
+      "createdAt": "2026-05-29T12:00:00Z",
+      "updatedAt": "2026-05-29T12:00:00Z",
+      "blockedReason": "Waiting on SQLite migration shape."
+    },
+    {
+      "id": "task-infra-review",
+      "projectId": "project-infra",
+      "title": "Review tmux session naming",
+      "description": "Confirm generated session names are stable and shell safe.",
+      "status": "doing",
+      "priority": 2,
+      "tags": [
+        "tmux",
+        "resume"
+      ],
+      "repoPathOverride": null,
+      "branch": "tmux-session-names",
+      "createdAt": "2026-05-29T12:00:00Z",
+      "updatedAt": "2026-05-29T12:00:00Z"
+    },
+    {
+      "id": "task-done-accessibility",
+      "projectId": "project-balagan",
+      "title": "Name board columns",
+      "description": "Add stable accessibility identifiers to each kanban column.",
+      "status": "done",
+      "priority": 3,
+      "tags": [
+        "accessibility",
+        "ui-test"
+      ],
+      "repoPathOverride": null,
+      "branch": "column-accessibility",
+      "createdAt": "2026-05-29T12:00:00Z",
+      "updatedAt": "2026-05-29T12:00:00Z"
+    }
+  ],
+  "workspaces": [
+    {
+      "id": "workspace-fake-terminal",
+      "taskId": "task-fake-terminal",
+      "selectedSurfaceId": "surface-fake-terminal-main",
+      "lastOpenedAt": "2026-05-29T12:00:00Z",
+      "layout": {
+        "kind": "split",
+        "axis": "horizontal",
+        "children": [
+          {
+            "kind": "surface",
+            "surfaceId": "surface-fake-terminal-main",
+            "weight": 1
+          }
+        ]
+      },
+      "surfaces": [
+        {
+          "id": "surface-fake-terminal-main",
+          "title": "Fake Terminal",
+          "kind": "terminal",
+          "cwd": "/tmp/balagan-fixtures/balagan",
+          "envAllowlist": [
+            "PATH",
+            "HOME",
+            "SHELL"
+          ],
+          "startupCommand": "printf 'fake terminal ready\\nBALAGAN_TERMINAL_STATE_CAPTURE\\n'",
+          "resumeBinding": null,
+          "fakeTerminalOutput": [
+            "$ make ui-test",
+            "balagan-harness: validated fixture empty-board.json",
+            "balagan-harness: validated fixture multi-project-running.json",
+            "balagan-harness: UI test artifacts: .ui-artifacts/ui-test/example"
+          ],
+          "scrollbackSnapshot": [
+            "Balagan fixture terminal",
+            "No real process was launched."
+          ]
+        }
+      ]
+    }
+  ],
+  "uiState": {
+    "activeView": "board",
+    "selectedProjectId": "project-balagan",
+    "selectedTaskId": "task-fake-terminal",
+    "selectedWorkspaceId": "workspace-fake-terminal"
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "fixtureName": "empty-board",
+  "description": "A deterministic empty board for first-launch and empty-state UI tests.",
+  "frozenAt": "2026-05-29T12:00:00Z",
+  "board": {
+    "columns": [
+      {
+        "id": "todo",
+        "title": "Todo",
+        "position": 0
+      },
+      {
+        "id": "doing",
+        "title": "Doing",
+        "position": 1
+      },
+      {
+        "id": "done",
+        "title": "Done",
+        "position": 2
+      },
+      {
+        "id": "parked",
+        "title": "Parked",
+        "position": 3
+      }
+    ]
+  },
+  "projects": [],
+  "tasks": [],
+  "workspaces": [],
+  "uiState": {
+    "activeView": "board",
+    "selectedProjectId": null,
+    "selectedTaskId": null,
+    "selectedWorkspaceId": null
+  }
+}

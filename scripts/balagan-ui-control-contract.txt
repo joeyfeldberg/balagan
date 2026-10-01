@@ -1,0 +1,16 @@
+# Stable accessibility identifiers required for create/edit/status UI flows.
+#
+# The app may expose these in accessibility-tree.txt directly, or write a
+# ui-controls.json artifact that includes the same identifier strings.
+create-project-button
+edit-project-button
+create-task-button
+edit-task-button
+task-status-control
+task-status-option-todo
+task-status-option-doing
+task-status-option-done
+task-status-option-parked
+create-terminal-tab-button
+rename-terminal-tab-button
+delete-terminal-tab-button
