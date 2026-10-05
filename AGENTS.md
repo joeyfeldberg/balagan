@@ -559,6 +559,41 @@ awake. `balagan autosleep` prints what the planner sees per task, and `--now` ru
 `BALAGAN_AUTOSLEEP_IDLE_SECONDS=<n>` shortens the threshold for a live smoke. Live checks need an
 awake display, because surfaces don't mount otherwise; `caffeinate -u -t 120 &` wakes it.
 
+## Terminal search (⌘F)
+
+`ShortcutAction.findInTerminal` (⌘F, rebindable) opens `TerminalSearchBar` over the focused pane
+(`LibGhosttyTerminalHostView+Search.swift`). libghostty 1.3 does the matching, highlighting and
+scrolling. We drive it with binding actions (`search:<text>`, `navigate_search:next|previous`,
+`end_search`), and it reports back through four runtime actions the shim forwards as events:
+`START_SEARCH` 59 (with a needle), `END_SEARCH` 60, `SEARCH_TOTAL` 61 and `SEARCH_SELECTED` 62
+(0-based; -1 = unknown). The bar shows `selected+1/total` like Ghostty's own overlay. ⏎ = next,
+⇧⏎ = previous, Esc closes. While the field has focus, the host view hands key equivalents to it, so
+⌘V/⌘A edit the query instead of reaching the terminal. The unlisted control method `terminal.search`
+(`--text`, `--next 1`, `--end 1`) drives it headlessly and returns the counts; that's how it was
+verified live.
+
+## Subscription usage
+
+The sidebar's meter (`SidebarUsageMeter`, `BoardAgentUsage.swift`) and `balagan usage` show each
+agent's 5-hour and weekly limits: percent used and when each resets. The numbers come from what the
+agents themselves record, parsed by the pure `AgentUsageParser` / `AgentUsageStore` (Core):
+
+- **Codex** writes `rate_limits` (`primary` / `secondary`: `used_percent`, `window_minutes`,
+  `resets_at`) with each `token_count` event in its rollouts. We read the tails of the newest few
+  files in the newest day folders of `$CODEX_HOME/sessions`.
+- **Claude** only hands `rate_limits` (`five_hour` / `seven_day`) to its **status line** command
+  (Pro/Max, after the session's first response). So the injected `--settings` also sets
+  `statusLine` to `balagan-agent statusline`. That records the limits in
+  `$BALAGAN_HOME/usage/claude.json` (default `~/.balagan`) and then runs the user's own status line
+  (`ClaudeStatusLine.userSetting`: project `settings.local.json` → project `settings.json` → user
+  settings; ours is never picked) with the same stdin, passing its output through. Their
+  `padding`/`refreshInterval` are copied onto ours. With no status line of their own, we print a
+  compact `model · ctx · 5h · Week` line.
+
+A window past its reset time is dropped until the agent reports again. Usage refreshes every 60 s
+and whenever an agent goes idle or needs input. It's off in `--ui-test-mode`;
+`BALAGAN_FIXTURE_USAGE=1` seeds sample numbers for a snapshot.
+
 ## Reader mode & speak-last-response
 
 Both features are **projections of the agent's on-disk session transcript** — they never scrape the
@@ -610,7 +645,7 @@ line, reads one JSON response line, and exits.
   (reads on a background queue, replies on the main actor); the command dispatch is
   `handleControlCommand(method:params:)` in `BalaganApp.swift` (`@MainActor`, touches `BoardViewModel`
   + the window). The CLI front-end is `Sources/BalaganCLI/main.swift` (I/O + human formatting only).
-- **Commands**: `ping`, `projects`, `tasks [--project <id>]` (`--json` includes each task's `agents`), `create --project <id> --title <t> [--branch|--notes|--status|--priority]`,
+- **Commands**: `ping`, `projects`, `usage`, `tasks [--project <id>]` (`--json` includes each task's `agents`), `create --project <id> --title <t> [--branch|--notes|--status|--priority]`,
   `open <task-id>`, `status`, `reader` (toggle reader mode on the selected task), `speak [<task-id>]
   [--dry-run]` (speak the last agent response; `--dry-run` returns the speakable text — the headless
   test seam for the whole transcript→speech pipeline). `--json` prints the raw response; a dotted

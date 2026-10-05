@@ -154,8 +154,10 @@ extension BoardViewModel {
         surfaceLifecycle[key] = lifecycle
         surfaceLifecycleSince[key] = lifecycle == nil ? nil : Date()
 
-        // The agent just stopped — to answer, or to ask. That's when the last response changes.
+        // The agent just stopped — to answer, or to ask. That's when the last response changes, and
+        // when its subscription usage has moved.
         if lifecycle == .idle || lifecycle == .needsInput {
+            refreshAgentUsage()
             refreshLastResponse(taskID: taskID, surfaceID: surfaceID)
             refreshVisibleChangesAfterAgentStopped(taskID: taskID)
         }

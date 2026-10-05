@@ -120,6 +120,10 @@ final class BoardViewModel: ObservableObject, @unchecked Sendable {
     /// Gates all `gh` fetching. Disabled in `--ui-test-mode` so snapshots/UI tests stay deterministic
     /// and never spawn a real `gh` subprocess (seeded PR data still displays).
     var pullRequestTrackingEnabled = true
+    /// Subscription usage per agent (sidebar meter, `balagan usage`). See `BoardAgentUsage`.
+    @Published var agentUsage: [AgentUsage] = []
+    /// Off in `--ui-test-mode`: reading it means reading real agent files.
+    var usageTrackingEnabled = true
     /// Gates the app-posted agent banners ("waiting for your input" / "finished"). Disabled in
     /// `--ui-test-mode` so a snapshot run never buzzes the user's Notification Centre, and off by
     /// default inside any XCTest process — unit tests drive real running→idle transitions on fixture

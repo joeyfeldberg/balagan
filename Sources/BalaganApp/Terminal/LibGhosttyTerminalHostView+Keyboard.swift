@@ -245,6 +245,10 @@ extension LibGhosttyTerminalHostView {
     }
 
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        // Typing in the find bar: ⌘V/⌘A/⌘C belong to its field, not the terminal underneath.
+        if let searchBar, let responder = window?.firstResponder as? NSView, responder.isDescendant(of: searchBar) {
+            return super.performKeyEquivalent(with: event)
+        }
         if let activeHostForForwarding {
             return activeHostForForwarding.performKeyEquivalent(with: event)
         }

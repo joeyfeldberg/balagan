@@ -72,6 +72,11 @@ struct Sidebar: View {
 
             Divider()
 
+            if viewModel.agentUsage.isEmpty == false {
+                SidebarUsageMeter(usage: viewModel.agentUsage)
+                Divider()
+            }
+
             Button {
                 onShowArchived()
             } label: {

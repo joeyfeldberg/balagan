@@ -11,7 +11,7 @@ Run Claude Code, Codex, OpenCode and pi side by side, and see at a glance which 
 <img src="https://img.shields.io/badge/macOS-14%2B-111?style=flat-square&logo=apple&logoColor=white" alt="macOS 14+">
 <img src="https://img.shields.io/badge/Swift-6-F05138?style=flat-square&logo=swift&logoColor=white" alt="Swift 6">
 <img src="https://img.shields.io/badge/terminal-libghostty-4C8DFF?style=flat-square" alt="libghostty">
-<img src="https://img.shields.io/badge/tests-517%20passing-3FD07F?style=flat-square" alt="517 tests">
+<img src="https://img.shields.io/badge/tests-536%20passing-3FD07F?style=flat-square" alt="536 tests">
 <img src="https://img.shields.io/badge/license-MIT-8A93A6?style=flat-square" alt="MIT license">
 </p>
 
@@ -103,6 +103,10 @@ Beyond those, Balagan also has:
 - **Reader mode** (<kbd>⇧⌘R</kbd>) shows the agent's transcript as clean, readable prose, and
   <kbd>⇧⌘S</kbd> reads the last answer aloud.
 - **Typing `claude`, `codex`, `opencode` or `pi` at any prompt** turns that tab into a tracked agent tab.
+- **Search the scrollback** with <kbd>⌘F</kbd>. Ghostty highlights every match, and <kbd>⏎</kbd> /
+  <kbd>⇧⏎</kbd> step through them.
+- **Subscription usage at a glance.** The sidebar shows how much of your Claude and Codex 5-hour and
+  weekly limits you've used, and when each resets. `balagan usage` prints the same.
 - **Native everywhere.** It's Swift, AppKit and SwiftUI on top of libghostty, with no Electron and no
   web view.
 
@@ -168,6 +172,7 @@ socket. It's handy for scripts, or for an agent that wants to hand work to anoth
 balagan tasks                                  # every task, with agent state (☾ = asleep)
 balagan create --project acme-api --title "Rate-limit the public API" --eager
 balagan open rate-limit-the-public-api         # jump to it in the app
+balagan usage                                  # Claude and Codex limits, and when they reset
 balagan wait rate-limit-the-public-api --until idle
 balagan state rate-limit-the-public-api        # running / needs-input / idle
 balagan speak --dry-run                        # the last answer, as speakable text
@@ -188,6 +193,7 @@ These are the defaults. All of them can be rebound in Settings → Shortcuts.
 | <kbd>⇧⌘G</kbd> | Review changes | | <kbd>⇧⌘↩</kbd> | Zoom pane |
 | <kbd>⇧⌘R</kbd> | Reader mode | | <kbd>⌥⌘</kbd> + arrows | Move between panes |
 | <kbd>⇧⌘S</kbd> | Speak last response | | <kbd>⇧⌘[</kbd> / <kbd>⇧⌘]</kbd> | Previous / next tab |
+| <kbd>⌘F</kbd> | Find in terminal | | | |
 
 ## FAQ
 
@@ -213,7 +219,7 @@ shows the current permission state.
 ## Development
 
 ```bash
-swift build && swift test    # the fast loop: 517 unit tests, no display needed
+swift build && swift test    # the fast loop: 536 unit tests, no display needed
 make lint
 .build/debug/BalaganApp --ui-test-mode --fixture multi-project-running   # deterministic fixtures
 ```

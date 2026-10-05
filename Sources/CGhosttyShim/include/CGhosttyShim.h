@@ -49,6 +49,12 @@ typedef enum {
     BALAGAN_GHOSTTY_EVENT_PWD,
     BALAGAN_GHOSTTY_EVENT_NOTIFICATION,
     BALAGAN_GHOSTTY_EVENT_BELL,
+    // Scrollback search (ghostty 1.3). START carries the needle (may be empty); TOTAL and SELECTED
+    // carry a decimal count in `text` ("-1" when unknown).
+    BALAGAN_GHOSTTY_EVENT_SEARCH_START,
+    BALAGAN_GHOSTTY_EVENT_SEARCH_END,
+    BALAGAN_GHOSTTY_EVENT_SEARCH_TOTAL,
+    BALAGAN_GHOSTTY_EVENT_SEARCH_SELECTED,
 } balagan_ghostty_event_kind_t;
 
 typedef void (*balagan_ghostty_event_cb)(

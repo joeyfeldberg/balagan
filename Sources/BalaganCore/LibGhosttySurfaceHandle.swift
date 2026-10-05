@@ -20,6 +20,16 @@ final class LibGhosttySurfaceContext: @unchecked Sendable {
     var onWorkingDirectory: ((String) -> Void)?
     var onNotification: ((String?, String?) -> Void)?
     var onBell: (() -> Void)?
+    var onSearch: ((LibGhosttySearchEvent) -> Void)?
+}
+
+/// Scrollback-search progress reported by libghostty (1.3): a search started (with its needle, which
+/// may be empty — e.g. from a keybinding), ended, or a new match count / selected match index.
+public enum LibGhosttySearchEvent: Equatable, Sendable {
+    case started(needle: String)
+    case ended
+    case total(Int?)
+    case selected(Int?)
 }
 
 private func libghosttySurfaceEventTrampoline(
@@ -47,6 +57,14 @@ private func libghosttySurfaceEventTrampoline(
             surfaceContext.onNotification?(textValue, detailValue)
         } else if kind == BALAGAN_GHOSTTY_EVENT_BELL {
             surfaceContext.onBell?()
+        } else if kind == BALAGAN_GHOSTTY_EVENT_SEARCH_START {
+            surfaceContext.onSearch?(.started(needle: textValue ?? ""))
+        } else if kind == BALAGAN_GHOSTTY_EVENT_SEARCH_END {
+            surfaceContext.onSearch?(.ended)
+        } else if kind == BALAGAN_GHOSTTY_EVENT_SEARCH_TOTAL {
+            surfaceContext.onSearch?(.total(textValue.flatMap(Int.init).flatMap { $0 < 0 ? nil : $0 }))
+        } else if kind == BALAGAN_GHOSTTY_EVENT_SEARCH_SELECTED {
+            surfaceContext.onSearch?(.selected(textValue.flatMap(Int.init).flatMap { $0 < 0 ? nil : $0 }))
         }
     }
 }
@@ -84,6 +102,11 @@ public final class LibGhosttySurfaceHandle: @unchecked Sendable {
     public var onBell: (() -> Void)? {
         get { context.onBell }
         set { context.onBell = newValue }
+    }
+
+    public var onSearch: ((LibGhosttySearchEvent) -> Void)? {
+        get { context.onSearch }
+        set { context.onSearch = newValue }
     }
 
     deinit {

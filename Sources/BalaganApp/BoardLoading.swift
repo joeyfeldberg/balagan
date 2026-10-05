@@ -27,6 +27,7 @@ extension BoardViewModel {
         func applyLaunchOverrides(_ viewModel: BoardViewModel) -> BoardViewModel {
             // No real gh subprocesses under ui-test-mode; seeded PR data still renders.
             viewModel.pullRequestTrackingEnabled = (options.uiTestMode == false)
+            viewModel.usageTrackingEnabled = (options.uiTestMode == false)
             // Nor any real desktop banners (a snapshot run must not buzz Notification Centre).
             viewModel.agentNotificationsEnabled = (options.uiTestMode == false)
             // Nor reads of the user's real transcripts for the card previews; then prime them once.
@@ -58,6 +59,9 @@ extension BoardViewModel {
             }
             if ProcessInfo.processInfo.environment["BALAGAN_FAKE_PR"] == "1" {
                 viewModel.seedFakePullRequestForSnapshot()
+            }
+            if ProcessInfo.processInfo.environment["BALAGAN_FIXTURE_USAGE"] == "1" {
+                viewModel.seedUsageForSnapshot()
             }
             if ProcessInfo.processInfo.environment["BALAGAN_FIXTURE_AGENT_STATES"] == "1" {
                 viewModel.seedAgentStatesForSnapshot()

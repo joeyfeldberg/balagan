@@ -58,9 +58,58 @@ extension BalaganApplication {
             return controlSpeak(params: params, viewModel: viewModel)
         case "autosleep":
             return controlAutoSleep(params: params, viewModel: viewModel)
+        case "usage":
+            return controlUsage(viewModel: viewModel)
+        case "terminal.search":
+            return controlTerminalSearch(params: params)
         default:
             return err("unknown method: \(method)")
         }
+    }
+
+    /// `usage` — each agent's subscription limits, as last reported. Read fresh (it's two small file
+    /// reads) so the CLI never shows numbers older than the agents' own last report.
+    @MainActor
+    private func controlUsage(viewModel: BoardViewModel) -> [String: Any] {
+        let now = Date()
+        let reported = viewModel.usageTrackingEnabled
+            ? [AgentUsageStore.readClaude(), AgentUsageStore.readCodex()].compactMap { $0 }
+            : viewModel.agentUsage
+        let agents: [[String: Any]] = reported.compactMap { $0.current(at: now) }.map { usage in
+            [
+                "agent": usage.agent,
+                "name": SidebarUsageMeter.displayName(usage.agent),
+                "observedAt": ISO8601DateFormatter().string(from: usage.observedAt),
+                "windows": usage.windows.map { window in
+                    [
+                        "label": window.label,
+                        "usedPercent": window.usedPercent,
+                        "resetsAt": ISO8601DateFormatter().string(from: window.resetsAt),
+                        "resets": SidebarUsageMeter.resetPhrase(window.resetsAt, now: now),
+                    ] as [String: Any]
+                },
+            ]
+        }
+        return ok(["agents": agents])
+    }
+
+    /// `terminal.search` (a dotted, unlisted method) — drives the focused pane's find bar: `text`
+    /// searches, `next=1` steps, `end=1` closes; replies with libghostty's last counts. The seam for
+    /// verifying search without a keyboard.
+    @MainActor
+    private func controlTerminalSearch(params: [String: String]) -> [String: Any] {
+        guard let host = TerminalHostRegistry.shared.activeHost() else { return err("no focused terminal") }
+        if params["end"] != nil {
+            host.endSearch()
+        } else if params["next"] != nil {
+            _ = host.surfaceHandle?.performBindingAction("navigate_search:next")
+        } else {
+            host.startSearch(needle: params["text"] ?? "")
+        }
+        var result: [String: Any] = ["open": host.searchBar != nil]
+        if let total = host.searchTotal { result["total"] = total }
+        if let selected = host.searchSelected { result["selected"] = selected }
+        return ok(result)
     }
 
     /// What auto-sleep sees for each task with live terminals, and what it would sleep right now.

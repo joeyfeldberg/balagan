@@ -76,6 +76,21 @@ func printResult(method: String, result: Any?) {
             print("Notifications:  \(notifications)")
         }
 
+    case "usage":
+        let agents = (result as? [String: Any])?["agents"] as? [[String: Any]] ?? []
+        if agents.isEmpty {
+            print("No usage reported yet. Claude reports it after its first response in a Balagan tab; Codex after its first message.")
+            return
+        }
+        for agent in agents {
+            print(agent["name"] as? String ?? agent["agent"] as? String ?? "?")
+            for window in agent["windows"] as? [[String: Any]] ?? [] {
+                let label = (window["label"] as? String ?? "").padding(toLength: 5, withPad: " ", startingAt: 0)
+                let used = Int(((window["usedPercent"] as? Double) ?? 0).rounded())
+                print("  \(label) \(String(used).leftPadded(to: 3))% used   resets \(window["resets"] as? String ?? "?")")
+            }
+        }
+
     case "autosleep":
         let dict = result as? [String: Any] ?? [:]
         let minutes = dict["idleMinutes"] as? Int ?? 0
@@ -192,5 +207,11 @@ case let .invocation(invocation):
         exit(0)
     } else {
         emitError("balagan: \(response["error"] as? String ?? "unknown error")")
+    }
+}
+
+private extension String {
+    func leftPadded(to width: Int) -> String {
+        count >= width ? self : String(repeating: " ", count: width - count) + self
     }
 }

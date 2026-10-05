@@ -25,6 +25,11 @@ final class LibGhosttyTerminalHostView: NSView {
     var lastReportedTitleSignal: AgentTitleHeuristic.TitleSignal?
     var lastReportedWorkingDirectory: String?
     var mouseTrackingArea: NSTrackingArea?
+    // Scrollback search (⌘F): the find bar and libghostty's latest counts.
+    var searchBar: TerminalSearchBar?
+    var searchQueryWork: DispatchWorkItem?
+    var searchSelected: Int?
+    var searchTotal: Int?
     // IME / text-input state for the unified (cmux-style) key pipeline.
     var markedText = NSMutableAttributedString()
     var markedSelectedRange = NSRange(location: NSNotFound, length: 0)
@@ -292,6 +297,9 @@ final class LibGhosttyTerminalHostView: NSView {
         surfaceHandle.onBell = { [weak self] in
             self?.handleBell()
         }
+        surfaceHandle.onSearch = { [weak self] event in
+            self?.handleSearchEvent(event)
+        }
     }
 
     /// Wraps a startup/agent/resume command so libghostty runs it inside the user's **login +
@@ -419,6 +427,10 @@ final class LibGhosttyTerminalHostView: NSView {
         muteEventCallbacks()
         surfaceHandle?.onTitleChanged = nil
         surfaceHandle?.onWorkingDirectoryChanged = nil
+        surfaceHandle?.onSearch = nil
+        searchQueryWork?.cancel()
+        searchBar?.removeFromSuperview()
+        searchBar = nil
         surfaceHandle?.setFocus(false)
         surfaceHandle = nil
         appHandle = nil

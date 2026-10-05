@@ -50,6 +50,8 @@ extension BalaganApplication {
         add("Zoom / Unzoom Pane", #selector(menuZoomPane(_:)), .zoomPane)
         add("Close Tab", #selector(menuCloseTab(_:)), .closeTab)
         menu.addItem(.separator())
+        add("Find…", #selector(menuFindInTerminal(_:)), .findInTerminal)
+        menu.addItem(.separator())
         add("Select Next Tab", #selector(menuSelectNextTab(_:)), .nextTab)
         add("Select Previous Tab", #selector(menuSelectPreviousTab(_:)), .previousTab)
         for number in 1...8 {
@@ -124,6 +126,13 @@ extension BalaganApplication {
 
     @objc @MainActor private func menuCloseTab(_ sender: Any?) {
         viewModel?.closeSelectedSurface()
+    }
+
+    /// ⌘F: the find bar on the focused pane. Only meaningful inside a task's terminal workspace.
+    @objc @MainActor private func menuFindInTerminal(_ sender: Any?) {
+        guard activeTerminalTaskID != nil else { NSSound.beep(); return }
+        guard let host = TerminalHostRegistry.shared.activeHost() else { NSSound.beep(); return }
+        host.startSearch()
     }
 
     @objc @MainActor private func menuZoomPane(_ sender: Any?) {

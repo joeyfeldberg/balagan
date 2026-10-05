@@ -12,6 +12,7 @@ final class BalaganApplication: NSObject, NSApplicationDelegate, @unchecked Send
     var periodicSaveTimer: Timer?
     var pullRequestPollTimer: Timer?
     var lifecycleReconcileTimer: Timer?
+    var usagePollTimer: Timer?
     var autoSleepTimer: Timer?
     var memoryPressureSource: DispatchSourceMemoryPressure?
     var taskActivityCancellable: AnyCancellable?
@@ -74,6 +75,7 @@ final class BalaganApplication: NSObject, NSApplicationDelegate, @unchecked Send
             startPeriodicScrollbackSaves()
             startPullRequestPolling()
             startLifecycleReconcile()
+            startUsagePolling()
             startAutoSleep(viewModel: viewModel)
             viewModel.detectInstalledAgents()
         }

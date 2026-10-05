@@ -9,6 +9,9 @@ enum BalaganAgentWrapper {
     /// `report <agent> lifecycle <state>` / `report <agent> session <id> [transcript]` — how the pi
     /// extension and the OpenCode plugin talk to Balagan.
     private static let reportFlag = "report"
+    /// `statusline` — Claude's status line inside Balagan: records the subscription limits Claude
+    /// passes it, then runs the user's own status line (or a compact default).
+    private static let statusLineFlag = "statusline"
 
     static func main() {
         do {
@@ -26,6 +29,10 @@ enum BalaganAgentWrapper {
             if CommandLine.arguments.dropFirst().first == claudeHookFlag {
                 runAgentHook(event: CommandLine.arguments.dropFirst(2).first)
                 exit(0)
+            }
+
+            if CommandLine.arguments.dropFirst().first == statusLineFlag {
+                exit(runStatusLine())
             }
 
             if CommandLine.arguments.dropFirst().first == reportFlag {
@@ -358,7 +365,49 @@ enum BalaganAgentWrapper {
     /// rather than replacing them. Each hook command is the absolute path to this wrapper +
     /// `hook <event>`, shell-quoted (Claude runs the command via a shell).
     private static func claudeHookSettingsArgument() throws -> String {
-        try ClaudeHookSettings.json(wrapperPath: currentExecutablePath(), hookFlag: claudeHookFlag)
+        try ClaudeHookSettings.json(
+            wrapperPath: currentExecutablePath(),
+            hookFlag: claudeHookFlag,
+            statusLineFlag: statusLineFlag,
+            userStatusLine: ClaudeStatusLine.userSetting(projectDirectory: FileManager.default.currentDirectoryPath)
+        )
+    }
+
+    /// Claude's status line: Claude pipes session JSON in on every refresh and shows what we print.
+    /// Saves `rate_limits` for the app's usage meter, then hands the same JSON to the user's own
+    /// status line command and passes its output and exit status through. Never fails loudly: a
+    /// status line that errors just shows nothing.
+    private static func runStatusLine() -> Int32 {
+        let input = FileHandle.standardInput.readDataToEndOfFile()
+        let object = (try? JSONSerialization.jsonObject(with: input)) as? [String: Any]
+        if let limits = object?["rate_limits"] as? [String: Any] {
+            try? AgentUsageStore.writeClaude(rateLimits: limits, observedAt: Date())
+        }
+        let workspace = object?["workspace"] as? [String: Any]
+        let projectDirectory = (workspace?["project_dir"] as? String)
+            ?? (workspace?["current_dir"] as? String)
+            ?? (object?["cwd"] as? String)
+        guard let command = (ClaudeStatusLine.userSetting(projectDirectory: projectDirectory)?["command"] as? String)?.nilIfBlank else {
+            print(ClaudeStatusLine.defaultLine(statusLineJSON: input))
+            return 0
+        }
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/sh")
+        process.arguments = ["-c", command]
+        if let projectDirectory, FileManager.default.fileExists(atPath: projectDirectory) {
+            process.currentDirectoryURL = URL(fileURLWithPath: projectDirectory)
+        }
+        let stdin = Pipe()
+        process.standardInput = stdin
+        do {
+            try process.run()
+        } catch {
+            return 1
+        }
+        stdin.fileHandleForWriting.write(input)
+        try? stdin.fileHandleForWriting.close()
+        process.waitUntilExit()
+        return process.terminationStatus
     }
 
     private static func currentExecutablePath() throws -> String {

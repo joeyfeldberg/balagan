@@ -159,5 +159,6 @@ extension LibGhosttyTerminalHostView {
     override func setFrameSize(_ newSize: NSSize) {
         super.setFrameSize(newSize)
         resizeSurface()
+        layoutSearchBar()
     }
 }

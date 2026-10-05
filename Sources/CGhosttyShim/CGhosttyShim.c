@@ -187,6 +187,18 @@ typedef struct {
 #define GHOSTTY_ACTION_SET_TITLE 32
 #define GHOSTTY_ACTION_PWD 35
 #define GHOSTTY_ACTION_RING_BELL 50
+#define GHOSTTY_ACTION_START_SEARCH 59
+#define GHOSTTY_ACTION_END_SEARCH 60
+#define GHOSTTY_ACTION_SEARCH_TOTAL 61
+#define GHOSTTY_ACTION_SEARCH_SELECTED 62
+
+typedef struct {
+    const char *needle;
+} ghostty_action_start_search_s;
+
+typedef struct {
+    ssize_t value;
+} ghostty_action_search_count_s;
 
 typedef void (*ghostty_runtime_wakeup_cb)(void *);
 typedef bool (*ghostty_runtime_read_clipboard_cb)(void *, ghostty_clipboard_e, void *);
@@ -427,6 +439,31 @@ static bool balagan_runtime_action(
     case GHOSTTY_ACTION_RING_BELL: {
         g_event_cb(context, BALAGAN_GHOSTTY_EVENT_BELL, NULL, NULL);
         // Handled: the app does its own NSSound.beep(), so suppress libghostty's default bell.
+        return true;
+    }
+    // Scrollback search: the app draws the search bar; libghostty does the matching and highlights.
+    case GHOSTTY_ACTION_START_SEARCH: {
+        const ghostty_action_start_search_s *payload = (const ghostty_action_start_search_s *)&action.action;
+        g_event_cb(context, BALAGAN_GHOSTTY_EVENT_SEARCH_START, payload->needle, NULL);
+        return true;
+    }
+    case GHOSTTY_ACTION_END_SEARCH: {
+        g_event_cb(context, BALAGAN_GHOSTTY_EVENT_SEARCH_END, NULL, NULL);
+        return true;
+    }
+    case GHOSTTY_ACTION_SEARCH_TOTAL:
+    case GHOSTTY_ACTION_SEARCH_SELECTED: {
+        const ghostty_action_search_count_s *payload = (const ghostty_action_search_count_s *)&action.action;
+        char count[32];
+        snprintf(count, sizeof count, "%ld", (long)payload->value);
+        g_event_cb(
+            context,
+            (int)action.tag == GHOSTTY_ACTION_SEARCH_TOTAL
+                ? BALAGAN_GHOSTTY_EVENT_SEARCH_TOTAL
+                : BALAGAN_GHOSTTY_EVENT_SEARCH_SELECTED,
+            count,
+            NULL
+        );
         return true;
     }
     default:

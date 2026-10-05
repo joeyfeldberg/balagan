@@ -73,6 +73,7 @@ public enum ShortcutAction: String, Codable, CaseIterable, Identifiable, Sendabl
     case toggleReaderMode
     case toggleChangesView
     case speakLastResponse
+    case findInTerminal
 
     public var id: String { rawValue }
 
@@ -90,7 +91,7 @@ public enum ShortcutAction: String, Codable, CaseIterable, Identifiable, Sendabl
             return .general
         case .newTab, .newAgentTab, .splitRight, .splitDown, .closeTab, .zoomPane:
             return .panesAndTabs
-        case .nextTab, .previousTab, .focusLeft, .focusRight, .focusUp, .focusDown, .nextAgentNeedingYou:
+        case .nextTab, .previousTab, .focusLeft, .focusRight, .focusUp, .focusDown, .nextAgentNeedingYou, .findInTerminal:
             return .navigation
         case .toggleReaderMode, .toggleChangesView, .speakLastResponse:
             return .session
@@ -117,6 +118,7 @@ public enum ShortcutAction: String, Codable, CaseIterable, Identifiable, Sendabl
         case .toggleReaderMode: return "Toggle Reader Mode"
         case .toggleChangesView: return "Review Changes"
         case .speakLastResponse: return "Speak Last Response"
+        case .findInTerminal: return "Find in Terminal"
         }
     }
 
@@ -140,6 +142,7 @@ public enum ShortcutAction: String, Codable, CaseIterable, Identifiable, Sendabl
         case .toggleReaderMode: return KeyChord(key: "r", modifiers: [.command, .shift])
         case .toggleChangesView: return KeyChord(key: "g", modifiers: [.command, .shift])
         case .speakLastResponse: return KeyChord(key: "s", modifiers: [.command, .shift])
+        case .findInTerminal: return KeyChord(key: "f", modifiers: [.command])
         }
     }
 }

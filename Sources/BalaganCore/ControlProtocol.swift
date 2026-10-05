@@ -110,6 +110,8 @@ public enum ControlCLI {
                                     --dry-run prints the speakable text instead of playing audio
       autosleep [--now]             Show which tasks auto-sleep would put to sleep, and why the
                                     rest stay awake; --now runs that pass immediately
+      usage                         Claude and Codex subscription limits: how much of each window
+                                    is used, and when it resets
 
     GLOBAL OPTIONS:
       --json                        Print the raw JSON response instead of formatted text
@@ -167,7 +169,7 @@ public enum ControlCLI {
         }
 
         switch command {
-        case "ping", "status", "projects":
+        case "ping", "status", "projects", "usage":
             return make(command, [:])
         case "tasks":
             var params: [String: String] = [:]

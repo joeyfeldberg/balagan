@@ -172,16 +172,35 @@ public enum ClaudeHookSettings {
     ///     through a shell).
     ///   - hookFlag: the wrapper subcommand that dispatches hooks (`hook`).
     /// - Returns: the JSON string to pass as `--settings`.
-    public static func json(wrapperPath: String, hookFlag: String = "hook") throws -> String {
+    public static func json(
+        wrapperPath: String,
+        hookFlag: String = "hook",
+        statusLineFlag: String = "statusline",
+        userStatusLine: [String: Any]? = nil
+    ) throws -> String {
         let data = try JSONSerialization.data(
-            withJSONObject: settingsObject(wrapperPath: wrapperPath, hookFlag: hookFlag),
+            withJSONObject: settingsObject(
+                wrapperPath: wrapperPath,
+                hookFlag: hookFlag,
+                statusLineFlag: statusLineFlag,
+                userStatusLine: userStatusLine
+            ),
             options: [.sortedKeys]
         )
         return String(decoding: data, as: UTF8.self)
     }
 
     /// The settings as a plain object (exposed so tests can assert the shape without re-parsing).
-    public static func settingsObject(wrapperPath: String, hookFlag: String = "hook") -> [String: Any] {
+    ///
+    /// The status line is ours too (`balagan-agent statusline`): it's the only place Claude reports
+    /// the subscription's `rate_limits`. It records them and then runs the user's own status line, so
+    /// theirs looks the same; `padding` / `refreshInterval` are carried over from it.
+    public static func settingsObject(
+        wrapperPath: String,
+        hookFlag: String = "hook",
+        statusLineFlag: String = "statusline",
+        userStatusLine: [String: Any]? = nil
+    ) -> [String: Any] {
         let quotedWrapper = wrapperPath.shellQuoted
         var hooks: [String: Any] = [:]
         for event in AgentHookEvent.allCases {
@@ -189,11 +208,16 @@ public enum ClaudeHookSettings {
                 ["hooks": [["type": "command", "command": "\(quotedWrapper) \(hookFlag) \(event.rawValue)"]]],
             ]
         }
+        var statusLine: [String: Any] = ["type": "command", "command": "\(quotedWrapper) \(statusLineFlag)"]
+        for key in ["padding", "refreshInterval"] {
+            if let value = userStatusLine?[key] { statusLine[key] = value }
+        }
         return [
             // Balagan posts its own banners from the lifecycle transitions (and jumps to the waiting
             // surface when you click one), so Claude's native notifications would only double up.
             "preferredNotifChannel": "notifications_disabled",
             "hooks": hooks,
+            "statusLine": statusLine,
         ]
     }
 }
