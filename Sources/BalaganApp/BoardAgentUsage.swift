@@ -48,6 +48,29 @@ extension BalaganApplication {
                 self?.viewModel?.refreshAgentUsage()
             }
         }
+        watchClaudeUsageFile()
+    }
+
+    /// Claude's status line rewrites `usage/claude.json` (an atomic rename) on every refresh. Watching
+    /// the folder puts a new number in the sidebar right away instead of on the next minute tick.
+    /// The fd is closed only by the cancel handler, and the watcher is never torn down on quit (see
+    /// the DispatchSource gotcha in AGENTS.md).
+    @MainActor
+    private func watchClaudeUsageFile() {
+        guard usageWatcher == nil else { return }
+        let directory = (AgentUsageStore.claudeFile() as NSString).deletingLastPathComponent
+        try? FileManager.default.createDirectory(atPath: directory, withIntermediateDirectories: true)
+        let fd = open(directory, O_EVTONLY)
+        guard fd >= 0 else { return }
+        let source = DispatchSource.makeFileSystemObjectSource(fileDescriptor: fd, eventMask: .write, queue: .main)
+        source.setEventHandler { [weak self] in
+            MainActor.assumeIsolated {
+                self?.viewModel?.refreshAgentUsage()
+            }
+        }
+        source.setCancelHandler { close(fd) }
+        source.resume()
+        usageWatcher = source
     }
 }
 

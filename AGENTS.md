@@ -590,8 +590,9 @@ agents themselves record, parsed by the pure `AgentUsageParser` / `AgentUsageSto
   `padding`/`refreshInterval` are copied onto ours. With no status line of their own, we print a
   compact `model · ctx · 5h · Week` line.
 
-A window past its reset time is dropped until the agent reports again. Usage refreshes every 60 s
-and whenever an agent goes idle or needs input. It's off in `--ui-test-mode`;
+A window past its reset time is dropped until the agent reports again. Usage refreshes the moment
+`usage/claude.json` is rewritten (a folder watcher), every 60 s, and whenever an agent goes idle or
+needs input. It's off in `--ui-test-mode`;
 `BALAGAN_FIXTURE_USAGE=1` seeds sample numbers for a snapshot.
 
 ## Reader mode & speak-last-response
