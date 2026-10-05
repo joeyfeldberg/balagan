@@ -80,6 +80,59 @@ public enum LegacyTaskBoardMigration {
         }
     }
 
+    // MARK: - Board contents
+
+    /// Old → new spellings inside a saved board: wrapper commands (`'/Applications/TaskBoard.app/
+    /// Contents/MacOS/taskboard-agent' claude`, a project's `taskboard-agent codex`), the shims on a
+    /// saved resume `PATH`, and `TASKBOARD_*` environment names, including in a project's setup script.
+    static let boardReplacements: [(String, String)] = [
+        ("/TaskBoard.app/", "/Balagan.app/"),
+        ("taskboard-agent", "balagan-agent"),
+        ("/.taskboard/", "/.balagan/"),
+        ("TASKBOARD_", "BALAGAN_"),
+    ]
+    /// Free text the user wrote or the terminal printed: never rewritten.
+    static let boardProseKeys: Set<String> = ["scrollbackSnapshot", "notes", "title", "name", "tags"]
+
+    /// Rewrites a saved board's TaskBoard-era commands, paths and environment names, leaving prose
+    /// alone. Returns `data` unchanged when there's nothing to rewrite (every load after the first
+    /// save), so it's cheap to run on each load.
+    public static func rewriteBoardJSON(_ data: Data) -> Data {
+        guard let text = String(data: data, encoding: .utf8),
+              boardReplacements.contains(where: { text.contains($0.0) }),
+              let root = try? JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed]) else {
+            return data
+        }
+        let rewritten = rewrite(root)
+        return (try? JSONSerialization.data(withJSONObject: rewritten, options: [.fragmentsAllowed])) ?? data
+    }
+
+    static func rewrite(_ string: String) -> String {
+        boardReplacements.reduce(string) { $0.replacingOccurrences(of: $1.0, with: $1.1) }
+    }
+
+    private static func rewrite(_ value: Any) -> Any {
+        switch value {
+        case let string as String:
+            return rewrite(string)
+        case let array as [Any]:
+            return array.map(rewrite)
+        case let object as [String: Any]:
+            var result: [String: Any] = [:]
+            for (key, child) in object {
+                let newKey = rewrite(key)
+                // An environment that somehow has both spellings keeps the new one.
+                if newKey != key, object[newKey] != nil { continue }
+                result[newKey] = boardProseKeys.contains(key) ? child : rewrite(child)
+            }
+            return result
+        default:
+            return value
+        }
+    }
+
+    // MARK: - Preferences
+
     static func copyDefaults(into defaults: UserDefaults, from legacyDomains: [String]) -> Int {
         guard defaults.bool(forKey: defaultsMigratedKey) == false else { return 0 }
         defer { defaults.set(true, forKey: defaultsMigratedKey) }

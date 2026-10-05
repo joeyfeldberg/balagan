@@ -43,7 +43,8 @@ public struct BoardStateFileStore: Sendable {
     }
 
     public func load() throws -> BoardSnapshot {
-        let data = try Data(contentsOf: url)
+        // A board saved before the rename still names TaskBoard's wrapper, paths and env vars.
+        let data = LegacyTaskBoardMigration.rewriteBoardJSON(try Data(contentsOf: url))
         let decoder = BoardSnapshot.jsonDecoder()
         let snapshot = try decoder.decode(BoardSnapshot.self, from: data)
 
@@ -116,9 +117,11 @@ public struct SQLiteBoardStateStore: Sendable {
                 }
 
                 let json = String(cString: UnsafeRawPointer(payload).assumingMemoryBound(to: CChar.self))
-                guard let data = json.data(using: .utf8) else {
+                guard let raw = json.data(using: .utf8) else {
                     throw BoardStateStoreError.sqlite("Snapshot payload was not valid UTF-8.")
                 }
+                // A board saved before the rename still names TaskBoard's wrapper, paths and env vars.
+                let data = LegacyTaskBoardMigration.rewriteBoardJSON(raw)
 
                 let snapshot = try BoardSnapshot.jsonDecoder().decode(BoardSnapshot.self, from: data)
                 guard snapshot.schemaVersion == BoardSnapshot.currentSchemaVersion else {

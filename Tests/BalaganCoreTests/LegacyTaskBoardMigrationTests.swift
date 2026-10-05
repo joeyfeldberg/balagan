@@ -84,4 +84,47 @@ final class LegacyTaskBoardMigrationTests: XCTestCase {
         XCTAssertEqual(migrate(legacyDomains: [legacyDomain]).copiedDefaultsKeys, 0)
         XCTAssertNil(defaults.object(forKey: "autoSleepIdleMinutes"))
     }
+
+    // MARK: - Board contents
+
+    private func rewritten(_ object: [String: Any]) throws -> [String: Any] {
+        let data = try JSONSerialization.data(withJSONObject: object)
+        return try JSONSerialization.jsonObject(with: LegacyTaskBoardMigration.rewriteBoardJSON(data)) as! [String: Any]
+    }
+
+    func testRewritesWrapperCommandsPathsAndEnvironmentNames() throws {
+        let board: [String: Any] = [
+            "defaultAgentCommand": "taskboard-agent claude",
+            "startupCommand": "'/Applications/TaskBoard.app/Contents/MacOS/taskboard-agent' codex",
+            "setupCommands": ["cp \"$TASKBOARD_REPO_PATH\"/.env ."],
+            "environment": ["TASKBOARD_REPO_PATH": "/r", "HOME": "/h"],
+            "sanitizedEnvironment": ["PATH": "/Users/me/.taskboard/shims:/Applications/TaskBoard.app/Contents/MacOS:/usr/bin"],
+        ]
+        let out = try rewritten(board)
+        XCTAssertEqual(out["defaultAgentCommand"] as? String, "balagan-agent claude")
+        XCTAssertEqual(out["startupCommand"] as? String, "'/Applications/Balagan.app/Contents/MacOS/balagan-agent' codex")
+        XCTAssertEqual(out["setupCommands"] as? [String], ["cp \"$BALAGAN_REPO_PATH\"/.env ."])
+        XCTAssertEqual(out["environment"] as? [String: String], ["BALAGAN_REPO_PATH": "/r", "HOME": "/h"])
+        XCTAssertEqual((out["sanitizedEnvironment"] as? [String: String])?["PATH"],
+                       "/Users/me/.balagan/shims:/Applications/Balagan.app/Contents/MacOS:/usr/bin")
+    }
+
+    func testLeavesProseAlone() throws {
+        let prose = "zsh: command not found: taskboard-agent"
+        let out = try rewritten(["scrollbackSnapshot": prose, "notes": prose, "title": prose, "startupCommand": "taskboard-agent pi"])
+        XCTAssertEqual(out["scrollbackSnapshot"] as? String, prose)
+        XCTAssertEqual(out["notes"] as? String, prose)
+        XCTAssertEqual(out["title"] as? String, prose)
+        XCTAssertEqual(out["startupCommand"] as? String, "balagan-agent pi")
+    }
+
+    func testABoardWithNothingToRewriteIsReturnedByteForByte() {
+        let clean = Data(#"{"startupCommand":"balagan-agent claude"}"#.utf8)
+        XCTAssertEqual(LegacyTaskBoardMigration.rewriteBoardJSON(clean), clean)
+    }
+
+    func testAnEnvironmentWithBothSpellingsKeepsTheNewValue() throws {
+        let out = try rewritten(["environment": ["TASKBOARD_AGENT_NAME": "old", "BALAGAN_AGENT_NAME": "new"]])
+        XCTAssertEqual(out["environment"] as? [String: String], ["BALAGAN_AGENT_NAME": "new"])
+    }
 }
