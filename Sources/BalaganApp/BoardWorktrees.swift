@@ -107,6 +107,72 @@ extension BoardViewModel {
         }
     }
 
+    /// After a task's workspace is edited (worktree ↔ main, a renamed branch, another project), moves
+    /// the terminals that were headed for the old directory to the new one. Without this, a task made
+    /// with a worktree and switched to "Work on main" before it was ever opened kept the never-created
+    /// worktree path, so its terminal started in a missing directory (Ghostty falls back to $HOME) and
+    /// ran the project's worktree setup there. Setup stays queued only for a worktree that is still
+    /// to be created; the main checkout never gets it.
+    func retargetWorkingDirectory(taskIndex index: Int, from previousDirectory: String) {
+        guard let project = project(for: tasks[index].projectID) else { return }
+        let directory = plannedWorkingDirectory(
+            forProject: project,
+            repoPathOverride: tasks[index].repoPathOverride,
+            branchOrWorktree: tasks[index].branchOrWorktree
+        )
+        guard directory != previousDirectory else { return }
+        let isPendingWorktree = tasks[index].branchOrWorktree?.nilIfBlank != nil
+            && FileManager.default.fileExists(atPath: (directory as NSString).expandingTildeInPath) == false
+        let setup = isPendingWorktree ? project.setupCommands?.nilIfBlank : nil
+        for surfaceIndex in tasks[index].workspace.surfaces.indices
+        where tasks[index].workspace.surfaces[surfaceIndex].cwd == previousDirectory {
+            pointSurface(taskIndex: index, surfaceIndex: surfaceIndex, at: directory, setupCommand: setup)
+        }
+    }
+
+    /// The safety net on open: a terminal whose directory doesn't exist would start in $HOME. Points
+    /// it at the task's real directory instead (its worktree, else the main checkout) and drops setup
+    /// unless that directory is the task's own worktree. Run after `ensureWorktreeCreated`.
+    func repairMissingWorkingDirectories(taskID: TaskItem.ID) {
+        guard let index = tasks.firstIndex(where: { $0.id == taskID }),
+              let project = project(for: tasks[index].projectID) else { return }
+        let fileManager = FileManager.default
+        func exists(_ path: String) -> Bool { fileManager.fileExists(atPath: (path as NSString).expandingTildeInPath) }
+        let planned = plannedWorkingDirectory(
+            forProject: project,
+            repoPathOverride: tasks[index].repoPathOverride,
+            branchOrWorktree: tasks[index].branchOrWorktree
+        )
+        let mainCheckout = tasks[index].repoPathOverride?.nilIfBlank ?? project.repoPath
+        guard let target = [planned, mainCheckout].first(where: exists) else { return }
+        let targetIsWorktree = target == planned && tasks[index].branchOrWorktree?.nilIfBlank != nil
+        for surfaceIndex in tasks[index].workspace.surfaces.indices {
+            let surface = tasks[index].workspace.surfaces[surfaceIndex]
+            guard exists(surface.cwd) == false, surface.cwd != target else { continue }
+            pointSurface(
+                taskIndex: index,
+                surfaceIndex: surfaceIndex,
+                at: target,
+                setupCommand: targetIsWorktree ? surface.setupCommand : nil
+            )
+        }
+    }
+
+    private func pointSurface(taskIndex index: Int, surfaceIndex: Int, at directory: String, setupCommand: String?) {
+        let oldDirectory = tasks[index].workspace.surfaces[surfaceIndex].cwd
+        tasks[index].workspace.surfaces[surfaceIndex].cwd = directory
+        tasks[index].workspace.surfaces[surfaceIndex].setupCommand = setupCommand
+        tasks[index].workspace.surfaces[surfaceIndex].environment["BALAGAN_WORKTREE_PATH"] = directory
+        if let repoPath = project(for: tasks[index].projectID)?.repoPath {
+            tasks[index].workspace.surfaces[surfaceIndex].environment["BALAGAN_REPO_PATH"] = repoPath
+        }
+        tasks[index].workspace.surfaces[surfaceIndex].agentLaunchMetadata?.cwd = directory
+        // The untouched placeholder banner names the directory; keep it truthful.
+        if tasks[index].workspace.surfaces[surfaceIndex].output == [Surface.pwdPlaceholderSeed, oldDirectory] {
+            tasks[index].workspace.surfaces[surfaceIndex].output = [Surface.pwdPlaceholderSeed, directory]
+        }
+    }
+
     /// The task's git worktree (its "Workspace" branch) and whether that worktree directory still
     /// exists on disk — drives the card's worktree row (live vs. removed). `nil` when the task has no
     /// Workspace branch. `worktreePath` is pure path math (no git), and existence is a cheap stat.

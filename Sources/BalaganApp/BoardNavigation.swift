@@ -105,6 +105,7 @@ extension BoardViewModel {
         // Create the task's git worktree now, on first open, if it doesn't exist yet (task creation
         // no longer does it). Must run before the workspace mounts so the agent launches in a real dir.
         ensureWorktreeCreated(taskID: task.id)
+        repairMissingWorkingDirectories(taskID: task.id)
         wakeTaskIfHibernated(taskID: task.id)
         zoomedSurfaceID = nil   // a freshly opened task shows its full workspace, not a zoomed pane
         showingArchived = false

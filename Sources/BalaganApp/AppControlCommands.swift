@@ -264,6 +264,7 @@ extension BalaganApplication {
               let task = viewModel.tasks.first(where: { $0.id == taskID })
         else { return }
         viewModel.ensureWorktreeCreated(taskID: taskID)
+        viewModel.repairMissingWorkingDirectories(taskID: taskID)
         for surface in task.workspace.surfaces {
             TerminalHostRegistry.shared.launch(TerminalSessionConfig(
                 taskID: taskID,

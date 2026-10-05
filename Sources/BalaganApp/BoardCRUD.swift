@@ -258,6 +258,15 @@ extension BoardViewModel {
             return
         }
 
+        // Where the task's terminals were headed before the edit, so a workspace change can move them.
+        let previousDirectory = project(for: tasks[index].projectID).map {
+            plannedWorkingDirectory(
+                forProject: $0,
+                repoPathOverride: tasks[index].repoPathOverride,
+                branchOrWorktree: tasks[index].branchOrWorktree
+            )
+        }
+
         tasks[index].projectID = draft.projectID
         tasks[index].title = draft.title.trimmedForStorage
         tasks[index].notes = draft.summary.trimmedForStorage
@@ -267,6 +276,9 @@ extension BoardViewModel {
         tasks[index].repoPathOverride = draft.repoPathOverride.nilIfBlank
         tasks[index].branchOrWorktree = draft.branchOrWorktree.nilIfBlank
         tasks[index].updatedAt = Date()
+        if let previousDirectory {
+            retargetWorkingDirectory(taskIndex: index, from: previousDirectory)
+        }
         selectedProjectID = draft.projectID
         if selectedTaskID != nil {
             selectedTaskID = taskID

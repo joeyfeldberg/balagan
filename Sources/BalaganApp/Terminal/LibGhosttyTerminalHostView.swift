@@ -207,6 +207,17 @@ final class LibGhosttyTerminalHostView: NSView {
         isConfirmedResume: Bool,
         agentWrapperPath: String?
     ) -> (program: String, pendingSetupCommand: String?) {
+        // A saved command can name the wrapper bare (`balagan-agent codex`), which isn't on the
+        // shell's PATH. Expand it to the bundled wrapper here, at launch, so it runs however it was
+        // stored (e.g. a tab created before the TaskBoard → Balagan rename, then migrated).
+        var launchCommand = launchCommand
+        if let expanded = AgentStartupCommandResolver.startupCommand(
+            defaultAgentCommand: launchCommand.displayCommand,
+            environment: [:],
+            wrapperPath: agentWrapperPath
+        ) {
+            launchCommand.displayCommand = expanded
+        }
         let replayProgram = scrollbackReplayCommand(
             for: surface,
             launchCommand: launchCommand,
