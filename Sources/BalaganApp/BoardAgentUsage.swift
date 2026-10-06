@@ -44,6 +44,7 @@ extension BalaganApplication {
     func startUsagePolling() {
         viewModel?.refreshAgentUsage()
         viewModel?.refreshTaskTokens()
+        viewModel?.fillAllSessionTitles()
         usagePollTimer?.invalidate()
         usagePollTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated {

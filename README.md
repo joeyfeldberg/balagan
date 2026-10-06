@@ -11,7 +11,7 @@ Run Claude Code, Codex, OpenCode and pi side by side, and see at a glance which 
 <img src="https://img.shields.io/badge/macOS-14%2B-111?style=flat-square&logo=apple&logoColor=white" alt="macOS 14+">
 <img src="https://img.shields.io/badge/Swift-6-F05138?style=flat-square&logo=swift&logoColor=white" alt="Swift 6">
 <img src="https://img.shields.io/badge/terminal-libghostty-4C8DFF?style=flat-square" alt="libghostty">
-<img src="https://img.shields.io/badge/tests-556%20passing-3FD07F?style=flat-square" alt="556 tests">
+<img src="https://img.shields.io/badge/tests-561%20passing-3FD07F?style=flat-square" alt="561 tests">
 <img src="https://img.shields.io/badge/license-MIT-8A93A6?style=flat-square" alt="MIT license">
 </p>
 
@@ -97,6 +97,8 @@ Beyond those, Balagan also has:
   session (`claude --resume`, `codex resume`, …) and replays plain shells.
 - **Automatic sleep for idle tasks.** After 30 quiet minutes a task frees its terminals and memory, and
   it wakes exactly where it was.
+- **Earlier sessions stay one click away.** When an agent tab starts a new conversation, the old one
+  is kept: right-click the tab → Earlier Sessions to resume it.
 - **Agents that update themselves don't cost you the tab.** If an agent exits right after starting, it
   resumes in place. Otherwise the tab stays with a **Resume ⏎** bar.
 - **A git worktree per task**, created from the task title. Leave the branch blank to work on the
@@ -228,7 +230,7 @@ shows the current permission state.
 ## Development
 
 ```bash
-swift build && swift test    # the fast loop: 556 unit tests, no display needed
+swift build && swift test    # the fast loop: 561 unit tests, no display needed
 make lint
 .build/debug/BalaganApp --ui-test-mode --fixture multi-project-running   # deterministic fixtures
 ```

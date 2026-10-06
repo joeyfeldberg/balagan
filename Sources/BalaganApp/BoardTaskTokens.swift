@@ -13,7 +13,10 @@ extension BoardViewModel {
         guard tokenTrackingEnabled else { return }
         let jobs: [(TaskItem.ID, [ResumeBinding])] = tasks.compactMap { task in
             if let taskIDs, taskIDs.contains(task.id) == false { return nil }
-            let bindings = task.workspace.surfaces.compactMap(\.resumeBinding).filter { $0.kind == .agent }
+            // The current session and every earlier one the tab still remembers.
+            let bindings = task.workspace.surfaces
+                .flatMap { [$0.resumeBinding].compactMap { $0 } + ($0.previousSessions ?? []).map(\.binding) }
+                .filter { $0.kind == .agent }
             return bindings.isEmpty ? nil : (task.id, bindings)
         }
         guard jobs.isEmpty == false else { return }
@@ -113,7 +116,7 @@ struct TaskTokenBadge: View {
         } else {
             lines.append("No price for these models; tokens only")
         }
-        lines.append("Counts each tab's current session")
+        lines.append("Counts every session the task's tabs remember")
         return lines.joined(separator: "\n")
     }
 }

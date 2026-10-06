@@ -113,7 +113,19 @@ extension BoardViewModel {
             updatedAt: now
         )
 
+        // The tab's previous session goes into its history, so it can still be read or resumed.
+        let history = SessionHistory.archiving(
+            current: existingBinding,
+            newSessionID: sessionID,
+            into: tasks[taskIndex].workspace.surfaces[surfaceIndex].previousSessions ?? [],
+            at: now
+        )
+        let archivedOne = history.first.map { $0.title == nil && $0.binding.sessionID == existingBinding?.sessionID } ?? false
+        tasks[taskIndex].workspace.surfaces[surfaceIndex].previousSessions = history.isEmpty ? nil : history
         tasks[taskIndex].workspace.surfaces[surfaceIndex].resumeBinding = binding
+        if archivedOne {
+            fillSessionTitles(taskID: event.taskID, surfaceID: event.surfaceID)
+        }
         if let cwd {
             tasks[taskIndex].workspace.surfaces[surfaceIndex].cwd = cwd
         }

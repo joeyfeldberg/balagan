@@ -28,6 +28,8 @@ struct WorkspaceTabStrip: View {
     var onRename: ((Surface) -> Void)? = nil
     /// Right-click → Restart Agent, offered on agent tabs only (nil hides it everywhere).
     var onRestartAgent: ((Surface.ID) -> Void)? = nil
+    /// Right-click → Sessions ▸ <earlier session>: resume that session in this tab.
+    var onResumeSession: ((Surface.ID, SessionRecord.ID) -> Void)? = nil
 
     @State private var frames: [Surface.ID: CGRect] = [:]
     @State private var dragID: Surface.ID?
@@ -69,6 +71,12 @@ struct WorkspaceTabStrip: View {
             )
     }
 
+    /// "Oct 5, 13:31 · Add passkey login" (the date it started, then its first prompt).
+    static func sessionLabel(_ record: SessionRecord) -> String {
+        let date = record.startedAt.formatted(.dateTime.month(.abbreviated).day().hour().minute())
+        return [date, record.title].compactMap { $0 }.joined(separator: " · ")
+    }
+
     /// A tab is an agent tab when it has an agent session or an agent launch command.
     private func isAgentTab(_ surface: Surface) -> Bool {
         surface.resumeBinding?.kind == .agent || surface.agentKind != nil
@@ -83,6 +91,14 @@ struct WorkspaceTabStrip: View {
                 Label("Restart Agent", systemImage: "arrow.clockwise")
             }
             .accessibilityIdentifier("tab-restart-agent-button")
+            if let onResumeSession, let sessions = surface.previousSessions, sessions.isEmpty == false {
+                Menu("Earlier Sessions") {
+                    ForEach(sessions) { record in
+                        Button(Self.sessionLabel(record)) { onResumeSession(surface.id, record.id) }
+                    }
+                }
+                .accessibilityIdentifier("tab-sessions-menu")
+            }
             Divider()
         }
         if let onRename {

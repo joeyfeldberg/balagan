@@ -545,6 +545,22 @@ anyway. Launch times come from `surfaceLaunchedReporter`, which also clears a st
 `balagan tasks --json` has `exitedAgent`. Verified live by SIGTERMing `claude` three times: resume,
 resume, then offer.
 
+## Earlier sessions per tab
+
+When a tab reports a new agent session, the one it replaces moves into `Surface.previousSessions`
+(`SessionRecord`: the full `ResumeBinding`, a title, and when it was replaced). It's newest first,
+capped at 20, de-duplicated by session id, and optional so older boards decode. The rules are the
+pure `SessionHistory.archiving` / `switching` (Core). Titles are each session's first prompt, read off
+the head of its transcript off-main (`SessionHistory.title`, glue in `BoardSessionHistory.swift`), when
+a session is archived and once at launch for any untitled record.
+
+Right-click a tab → **Earlier Sessions ▸** "Oct 5, 13:31 · Add passkey login" resumes that session in
+the tab: the current one goes into the history, then the tab restarts through the normal Restart
+Agent path, which resumes whatever binding is current. Two pid rules keep this safe. An archived
+binding never keeps its `pid`, because the OS may have reused it. And the switch SIGTERMs the
+*running* agent itself before rebinding, since the restart afterwards only knows the switched-to
+session, which has no process. Task token counts include every session the tabs remember.
+
 ## Dormant vs live tasks
 
 Terminals only exist once a task is opened or woken in this run of the app. So after a restart

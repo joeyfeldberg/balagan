@@ -50,6 +50,11 @@ struct TaskTerminalWorkspaceScreen: View {
                 },
                 onEditTask: task.isProjectTerminals ? nil : onEditTask,
                 onRestartAgent: task.isProjectTerminals ? nil : onRestartAgent,
+                onResumeSession: task.isProjectTerminals ? nil : { surfaceID, recordID in
+                    if viewModel.switchToPreviousSession(taskID: task.id, surfaceID: surfaceID, recordID: recordID) {
+                        onRestartAgent(surfaceID)
+                    }
+                },
                 onAddSurface: onAddSurface,
                 onNewDefaultSurface: onNewDefaultSurface,
                 onNewAgentSurface: (task.isProjectTerminals || viewModel.project(for: task.projectID)?.defaultAgentCommand?.nilIfBlank == nil) ? nil : onNewAgentSurface,
@@ -179,6 +184,7 @@ private struct TerminalWorkspace: View {
     var onMoveTask: ((TaskStatus) -> Void)? = nil
     var onEditTask: (() -> Void)? = nil
     var onRestartAgent: ((Surface.ID) -> Void)? = nil
+    var onResumeSession: ((Surface.ID, SessionRecord.ID) -> Void)? = nil
     let onAddSurface: () -> Void
     var onNewDefaultSurface: () -> Void = {}
     var onNewAgentSurface: (() -> Void)?
@@ -373,7 +379,8 @@ private struct TerminalWorkspace: View {
                     onMove: onMoveSurfaceTab,
                     onClose: onDeleteSurface,
                     onRename: onRenameSurface,
-                    onRestartAgent: onRestartAgent
+                    onRestartAgent: onRestartAgent,
+                    onResumeSession: onResumeSession
                 )
             }
 

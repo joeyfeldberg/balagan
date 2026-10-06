@@ -15,6 +15,9 @@ public struct Surface: Codable, Equatable, Hashable, Identifiable, Sendable {
     public var resumeBinding: ResumeBinding?
     public var scrollbackSnapshot: String?
     public var agentLaunchMetadata: AgentLaunchMetadata?
+    /// Agent sessions this tab ran before its current one, newest first (`SessionHistory`). Optional
+    /// so older saved boards decode.
+    public var previousSessions: [SessionRecord]?
 
     public init(
         id: String,
