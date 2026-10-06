@@ -408,6 +408,7 @@ final class LibGhosttyTerminalHostView: NSView {
         layer?.backgroundColor = NSColor.textBackgroundColor.cgColor
         setAccessibilityElement(true)
         setAccessibilityRole(.group)
+        registerForDrops()
     }
 
     /// Detaches this surface's libghostty notification/bell callbacks so a late escape — e.g. a dying

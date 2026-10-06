@@ -636,6 +636,17 @@ scrolling. We drive it with binding actions (`search:<text>`, `navigate_search:n
 (`--text`, `--next 1`, `--end 1`) drives it headlessly and returns the counts; that's how it was
 verified live.
 
+## Dropping files and images onto a terminal
+
+A terminal accepts drops (`LibGhosttyTerminalHostView+Drop.swift`). Files paste as their paths,
+backslash-escaped for the shell the way Ghostty does, space-separated with a trailing space
+(`TerminalDrop`, Core). Claude Code turns a pasted image path into an image attachment. Image data
+with no file behind it (dragged out of a browser) is saved as a PNG under `$BALAGAN_HOME/drops`
+first. Links paste as their URL, and text as itself. It's one paste (bracketed, like ⌘V) and never
+presses Enter. The pane gets an accent border while hovering. A real drag can't be simulated
+headlessly, so the unlisted control method `terminal.drop --paths a,b` (or `--text`) runs the same
+`acceptDrop` path. That's how it was verified: `^[[200~/tmp/x/Screen\ Shots/shot\ \(1\).png …^[[201~`.
+
 ## Dev server ports
 
 Every 3 s (not in `--ui-test-mode`), `BoardDevServers` scans for TCP listeners among the app's

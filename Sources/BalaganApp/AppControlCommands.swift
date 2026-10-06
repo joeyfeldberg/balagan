@@ -60,6 +60,18 @@ extension BalaganApplication {
             return controlAutoSleep(params: params, viewModel: viewModel)
         case "usage":
             return controlUsage(viewModel: viewModel)
+        case "terminal.drop":
+            // Unlisted: drops files (`--paths a,b`) or text (`--text`) on the focused terminal.
+            guard let host = TerminalHostRegistry.shared.activeHost() else { return err("no focused terminal") }
+            let pasteboard = NSPasteboard(name: NSPasteboard.Name("balagan-drop-\(UUID().uuidString)"))
+            pasteboard.clearContents()
+            if let paths = params["paths"]?.nilIfBlank {
+                pasteboard.writeObjects(paths.split(separator: ",").map { URL(fileURLWithPath: String($0)) as NSURL })
+            } else if let text = params["text"] {
+                pasteboard.setString(text, forType: .string)
+            }
+            defer { pasteboard.releaseGlobally() }
+            return host.acceptDrop(pasteboard) ? ok(["dropped": true]) : err("nothing to drop")
         case "terminal.search":
             return controlTerminalSearch(params: params)
         case "task.send", "task.prompt":
