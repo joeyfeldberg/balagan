@@ -6,6 +6,7 @@ enum SettingsCategory: String, CaseIterable, Identifiable {
     case general = "General"
     case agents = "Agents"
     case notifications = "Notifications"
+    case prompts = "Prompts"
     case terminal = "Terminal"
     case speech = "Speech"
     case shortcuts = "Shortcuts"
@@ -16,6 +17,7 @@ enum SettingsCategory: String, CaseIterable, Identifiable {
         case .general: return "gearshape"
         case .agents: return "sparkles"
         case .notifications: return "bell.badge"
+        case .prompts: return "text.bubble"
         case .terminal: return "terminal"
         case .speech: return "speaker.wave.2"
         case .shortcuts: return "keyboard"
@@ -152,6 +154,11 @@ struct SettingsSheet: View {
         case .notifications:
             contentHeader("Notifications", scale: scale)
             notificationsSection(scale: scale)
+        case .prompts:
+            contentHeader("Prompts", scale: scale)
+            GlobalPromptsPage()
+                .padding(.horizontal, 18 * scale)
+                .padding(.bottom, 18 * scale)
         case .terminal:
             contentHeader("Terminal", scale: scale)
             SettingsStepperRow(
@@ -748,5 +755,35 @@ struct CopyableVarChip: View {
         .buttonStyle(.plain)
         .onHover { isHovered = $0 }
         .help("Copy \(value)")
+    }
+}
+
+/// Settings → Prompts: the global saved prompts every task offers (a project can add its own).
+private struct GlobalPromptsPage: View {
+    @AppStorage(AppPreferences.Keys.savedPrompts) private var stored: String?
+    @State private var prompts: [SavedPrompt] = []
+    @State private var loaded = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("One click sends a prompt to a task's agent: from the task's ⋯ menu, a card's right-click menu, or the command palette. Projects can add their own in their settings.")
+                .font(.caption)
+                .foregroundStyle(Theme.textTertiary)
+                .fixedSize(horizontal: false, vertical: true)
+            SavedPromptsEditor(prompts: $prompts)
+            Button("Restore Defaults") {
+                prompts = SavedPrompts.defaults
+            }
+            .buttonStyle(.borderless)
+            .font(.caption)
+        }
+        .onAppear {
+            prompts = SavedPrompts.decode(stored)
+            loaded = true
+        }
+        .onChange(of: prompts) { _, newValue in
+            guard loaded else { return }
+            stored = SavedPrompts.encode(newValue)
+        }
     }
 }

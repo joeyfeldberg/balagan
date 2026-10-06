@@ -419,6 +419,11 @@ private struct KanbanColumn: View {
                 activity: viewModel.taskActivity(task),
                 ports: viewModel.devServerPorts[task.id] ?? [],
                 tokens: viewModel.taskTokenUsage[task.id],
+                savedPrompts: viewModel.savedPrompts(for: task),
+                promptBlocker: viewModel.agentSendBlocker(taskID: task.id),
+                onSendPrompt: { prompt in
+                    if viewModel.sendToAgent(taskID: task.id, text: prompt.text) == false { NSSound.beep() }
+                },
                 moveLanes: viewModel.boardLanes
             )
 

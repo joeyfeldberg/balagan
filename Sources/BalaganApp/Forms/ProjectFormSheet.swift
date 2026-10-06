@@ -109,6 +109,18 @@ struct ProjectFormSheet: View {
                         .padding(.top, 2)
                     }
                 }
+
+                FormFieldGroup("Saved Prompts") {
+                    VStack(alignment: .leading, spacing: 6) {
+                        SavedPromptsEditor(
+                            prompts: $draft.savedPrompts,
+                            emptyMessage: "None. This project's tasks get the global prompts from Settings → Prompts."
+                        )
+                        Text("Shown before the global prompts in a task's Send Prompt menu. Use the same title to replace a global one.")
+                            .font(.caption)
+                            .foregroundStyle(Theme.textTertiary)
+                    }
+                }
             }
             .padding(.horizontal, 20)
             .padding(.top, 18)

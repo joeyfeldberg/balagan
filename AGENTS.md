@@ -507,6 +507,23 @@ tooltip, when there are no comments, no live agent tab, or the agent is waiting 
 `review.send --id <task>` triggers the same path. It was verified live against a stand-in that
 enables bracketed paste and prints raw bytes: `^[[200~…^[[201~^M`.
 
+### Saved prompts and sending text to an agent
+
+`SavedPrompt` (Core) is a title and text you send to a task's agent in one click. Global prompts live
+in UserDefaults (`AppPreferences.Keys.savedPrompts`, JSON; never saved means `SavedPrompts.defaults`:
+Write tests, Review your diff, Summarize changes, Commit), edited in **Settings → Prompts**. A project
+can add its own (`Project.savedPrompts`, optional in the decoder, edited in the project form). A
+task's list is `SavedPrompts.forTask`: the project's first, and a project prompt with the same title
+replaces the global one. They're offered as **Send Prompt** in the task header's ⋯ menu and on a
+card's right-click menu (`SendPromptMenu`, which shows the reason instead when sending isn't
+possible), as "Send: <title>" palette commands, and as `balagan prompt <task> "<title>"`.
+
+Everything that types into an agent goes through one path, `BoardViewModel.sendToAgent(taskID:text:)`
+(in `BoardReviewComments.swift`): pick the task's agent tab (`reviewTargetSurface`), refuse with
+`agentSendBlocker` (no live agent tab, or the agent is waiting on a prompt), paste as one bracketed
+paste, press Enter 250 ms later, then show that terminal. Review comments, saved prompts, and
+`balagan send <task> "<text>"` (any text, for scripts and orchestrating agents) all use it.
+
 ## When a tab's process exits
 
 Before, any launched process exiting deleted its tab. For an agent that also threw away its
@@ -722,7 +739,7 @@ line, reads one JSON response line, and exits.
   (reads on a background queue, replies on the main actor); the command dispatch is
   `handleControlCommand(method:params:)` in `BalaganApp.swift` (`@MainActor`, touches `BoardViewModel`
   + the window). The CLI front-end is `Sources/BalaganCLI/main.swift` (I/O + human formatting only).
-- **Commands**: `ping`, `projects`, `usage`, `tasks [--project <id>]` (`--json` includes each task's `agents`), `create --project <id> --title <t> [--branch|--notes|--status|--priority]`,
+- **Commands**: `ping`, `projects`, `usage`, `send <task> <text>`, `prompt <task> <title>`, `tasks [--project <id>]` (`--json` includes each task's `agents`), `create --project <id> --title <t> [--branch|--notes|--status|--priority]`,
   `open <task-id>`, `status`, `reader` (toggle reader mode on the selected task), `speak [<task-id>]
   [--dry-run]` (speak the last agent response; `--dry-run` returns the speakable text — the headless
   test seam for the whole transcript→speech pipeline). `--json` prints the raw response; a dotted

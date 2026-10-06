@@ -132,7 +132,8 @@ struct BoardScreen: View {
                             defaultBranch: savedDraft.defaultBranch,
                             defaultAgentCommand: savedDraft.defaultAgentCommand,
                             worktreesDirectory: savedDraft.worktreesDirectory,
-                            setupCommands: savedDraft.setupCommands
+                            setupCommands: savedDraft.setupCommands,
+                            savedPrompts: savedDraft.savedPrompts
                         )
                     } else {
                         _ = viewModel.createProject(
@@ -141,7 +142,8 @@ struct BoardScreen: View {
                             defaultBranch: savedDraft.defaultBranch,
                             defaultAgentCommand: savedDraft.defaultAgentCommand,
                             worktreesDirectory: savedDraft.worktreesDirectory,
-                            setupCommands: savedDraft.setupCommands
+                            setupCommands: savedDraft.setupCommands,
+                            savedPrompts: savedDraft.savedPrompts
                         )
                     }
                 }
@@ -338,6 +340,11 @@ struct BoardScreen: View {
             commands.append(PaletteCommand(id: "split-down", title: "Split Down", systemImage: "rectangle.split.1x2", shortcut: chord(.splitDown)) {
                 viewModel.splitSurface(taskID: task.id, axis: .vertical)
             })
+            for prompt in viewModel.savedPrompts(for: task) {
+                commands.append(PaletteCommand(id: "prompt-\(prompt.id)", title: "Send: \(prompt.title)", subtitle: task.title, systemImage: "paperplane") {
+                    if viewModel.sendToAgent(taskID: task.id, text: prompt.text) == false { NSSound.beep() }
+                })
+            }
             commands.append(PaletteCommand(id: "edit-task", title: "Edit Task", subtitle: task.title, systemImage: "pencil") {
                 pendingSheet = .taskForm(.edit(task))
             })

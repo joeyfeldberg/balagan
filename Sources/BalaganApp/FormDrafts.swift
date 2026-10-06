@@ -9,6 +9,7 @@ struct ProjectFormDraft: Identifiable {
     var defaultAgentCommand: String
     var worktreesDirectory: String
     var setupCommands: String
+    var savedPrompts: [SavedPrompt] = []
 
     var id: String {
         projectID.map { "project-\($0)" } ?? "project-create"
@@ -47,7 +48,8 @@ struct ProjectFormDraft: Identifiable {
             defaultBranch: project.defaultBranch ?? "",
             defaultAgentCommand: project.defaultAgentCommand ?? "",
             worktreesDirectory: project.worktreesDirectory ?? "",
-            setupCommands: project.setupCommands ?? ""
+            setupCommands: project.setupCommands ?? "",
+            savedPrompts: project.savedPrompts
         )
     }
 }

@@ -9,6 +9,8 @@ enum AppPreferences {
         static let finishedBanners = "bannersWhenAgentFinishes"
         /// The sidebar usage meter shows only each agent's tightest window.
         static let usageCompact = "usageMeterCompact"
+        /// Global saved prompts, JSON (`SavedPrompts.encode`). Absent = the defaults.
+        static let savedPrompts = "savedPrompts"
     }
 
     /// The agent a new project is pre-filled with.

@@ -62,6 +62,23 @@ extension BalaganApplication {
             return controlUsage(viewModel: viewModel)
         case "terminal.search":
             return controlTerminalSearch(params: params)
+        case "task.send", "task.prompt":
+            guard let id = params["id"]?.nilIfBlank, let task = viewModel.tasks.first(where: { $0.id == id }) else {
+                return err("task not found: \(params["id"] ?? "")")
+            }
+            let text: String
+            if method == "task.prompt" {
+                let title = params["title"] ?? ""
+                guard let prompt = viewModel.savedPrompts(for: task).first(where: { $0.title.caseInsensitiveCompare(title) == .orderedSame }) else {
+                    let titles = viewModel.savedPrompts(for: task).map(\.title).joined(separator: ", ")
+                    return err("no saved prompt titled \"\(title)\" (have: \(titles))")
+                }
+                text = prompt.text
+            } else {
+                text = params["text"] ?? ""
+            }
+            if let blocker = viewModel.agentSendBlocker(taskID: id) { return err(blocker) }
+            return viewModel.sendToAgent(taskID: id, text: text) ? ok(["sent": true]) : err("couldn't send")
         case "review.send":
             // Unlisted: sends a task's pending diff comments to its agent (the Changes view's button).
             guard let id = params["id"]?.nilIfBlank ?? viewModel.selectedTaskID else { return err("review.send requires --id <task>") }

@@ -14,6 +14,8 @@ public struct Project: Codable, Equatable, Hashable, Identifiable, Sendable {
     public var lanes: [Lane]
     /// Whether the project's task list is folded away in the sidebar.
     public var sidebarCollapsed: Bool
+    /// Prompts offered only for this project's tasks, ahead of the global ones.
+    public var savedPrompts: [SavedPrompt]
 
     public init(
         id: String,
@@ -24,7 +26,8 @@ public struct Project: Codable, Equatable, Hashable, Identifiable, Sendable {
         worktreesDirectory: String? = nil,
         setupCommands: String? = nil,
         lanes: [Lane] = Lane.defaults,
-        sidebarCollapsed: Bool = false
+        sidebarCollapsed: Bool = false,
+        savedPrompts: [SavedPrompt] = []
     ) {
         self.id = id
         self.name = name
@@ -35,10 +38,11 @@ public struct Project: Codable, Equatable, Hashable, Identifiable, Sendable {
         self.setupCommands = setupCommands
         self.lanes = lanes.isEmpty ? Lane.defaults : lanes
         self.sidebarCollapsed = sidebarCollapsed
+        self.savedPrompts = savedPrompts
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, name, repoPath, defaultBranch, defaultAgentCommand, worktreesDirectory, setupCommands, lanes, sidebarCollapsed
+        case id, name, repoPath, defaultBranch, defaultAgentCommand, worktreesDirectory, setupCommands, lanes, sidebarCollapsed, savedPrompts
     }
 
     public init(from decoder: Decoder) throws {
@@ -54,6 +58,7 @@ public struct Project: Codable, Equatable, Hashable, Identifiable, Sendable {
         let decodedLanes = try container.decodeIfPresent([Lane].self, forKey: .lanes)
         lanes = (decodedLanes?.isEmpty == false) ? decodedLanes! : Lane.defaults
         sidebarCollapsed = try container.decodeIfPresent(Bool.self, forKey: .sidebarCollapsed) ?? false
+        savedPrompts = try container.decodeIfPresent([SavedPrompt].self, forKey: .savedPrompts) ?? []
     }
 
     /// The effective worktrees folder: the configured value, or the default sibling folder.

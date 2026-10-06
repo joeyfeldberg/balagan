@@ -11,7 +11,7 @@ Run Claude Code, Codex, OpenCode and pi side by side, and see at a glance which 
 <img src="https://img.shields.io/badge/macOS-14%2B-111?style=flat-square&logo=apple&logoColor=white" alt="macOS 14+">
 <img src="https://img.shields.io/badge/Swift-6-F05138?style=flat-square&logo=swift&logoColor=white" alt="Swift 6">
 <img src="https://img.shields.io/badge/terminal-libghostty-4C8DFF?style=flat-square" alt="libghostty">
-<img src="https://img.shields.io/badge/tests-552%20passing-3FD07F?style=flat-square" alt="552 tests">
+<img src="https://img.shields.io/badge/tests-556%20passing-3FD07F?style=flat-square" alt="556 tests">
 <img src="https://img.shields.io/badge/license-MIT-8A93A6?style=flat-square" alt="MIT license">
 </p>
 
@@ -106,6 +106,8 @@ Beyond those, Balagan also has:
 - **Typing `claude`, `codex`, `opencode` or `pi` at any prompt** turns that tab into a tracked agent tab.
 - **Dev servers on the card.** When a task's terminal starts a local server, a `localhost:3000`
   chip appears on its card and header. Click it to open the browser.
+- **Saved prompts.** Send "Write tests", "Review your diff" or your own prompts to a task's agent in
+  one click from its menus or the palette. Projects can add their own.
 - **What each task costs.** Every card shows its tokens and, for Claude, an estimate at API prices,
   read from the agent's own transcript.
 - **Search the scrollback** with <kbd>⌘F</kbd>. Ghostty highlights every match, and <kbd>⏎</kbd> /
@@ -178,6 +180,8 @@ balagan tasks                                  # every task, with agent state (�
 balagan create --project acme-api --title "Rate-limit the public API" --eager
 balagan open rate-limit-the-public-api         # jump to it in the app
 balagan usage                                  # Claude and Codex limits, and when they reset
+balagan send rate-limit-the-public-api "run the tests"   # message a task's agent
+balagan prompt rate-limit-the-public-api "Write tests"   # send a saved prompt
 balagan wait rate-limit-the-public-api --until idle
 balagan state rate-limit-the-public-api        # running / needs-input / idle
 balagan speak --dry-run                        # the last answer, as speakable text
@@ -224,7 +228,7 @@ shows the current permission state.
 ## Development
 
 ```bash
-swift build && swift test    # the fast loop: 552 unit tests, no display needed
+swift build && swift test    # the fast loop: 556 unit tests, no display needed
 make lint
 .build/debug/BalaganApp --ui-test-mode --fixture multi-project-running   # deterministic fixtures
 ```

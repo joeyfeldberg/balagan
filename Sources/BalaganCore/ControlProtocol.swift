@@ -110,6 +110,8 @@ public enum ControlCLI {
                                     --dry-run prints the speakable text instead of playing audio
       autosleep [--now]             Show which tasks auto-sleep would put to sleep, and why the
                                     rest stay awake; --now runs that pass immediately
+      send <task-id> <text>         Paste text into the task's agent as one message and submit it
+      prompt <task-id> <title>      Send one of the task's saved prompts (Settings → Prompts)
       usage                         Claude and Codex subscription limits: how much of each window
                                     is used, and when it resets
 
@@ -211,6 +213,20 @@ public enum ControlCLI {
             if let until = flags["until"]?.nilIfBlank { params["until"] = until }
             if let timeout = flags["timeout"]?.nilIfBlank { params["timeout"] = timeout }
             return make("task.wait", params)
+        case "send":
+            guard let id = (rest.first ?? flags["id"])?.nilIfBlank else {
+                return .error("send requires a task id and text (e.g. `balagan send my-task \"run the tests\"`)")
+            }
+            guard let text = (flags["text"] ?? rest.dropFirst().joined(separator: " ")).nilIfBlank else {
+                return .error("send requires text (e.g. `balagan send my-task \"run the tests\"`)")
+            }
+            return make("task.send", ["id": id, "text": text])
+        case "prompt":
+            guard let id = (rest.first ?? flags["id"])?.nilIfBlank,
+                  let title = (flags["title"] ?? rest.dropFirst().joined(separator: " ")).nilIfBlank else {
+                return .error("prompt requires a task id and a saved prompt's title (e.g. `balagan prompt my-task \"Write tests\"`)")
+            }
+            return make("task.prompt", ["id": id, "title": title])
         case "reader":
             return make("reader.toggle", [:])
         case "autosleep":

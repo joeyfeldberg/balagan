@@ -10,7 +10,8 @@ extension BoardViewModel {
         defaultBranch: String?,
         defaultAgentCommand: String?,
         worktreesDirectory: String?,
-        setupCommands: String?
+        setupCommands: String?,
+        savedPrompts: [SavedPrompt] = []
     ) -> Project {
         let project = Project(
             id: uniqueID(base: name, existingIDs: Set(projects.map(\.id))),
@@ -19,7 +20,8 @@ extension BoardViewModel {
             defaultBranch: defaultBranch?.nilIfBlank,
             defaultAgentCommand: defaultAgentCommand?.nilIfBlank,
             worktreesDirectory: worktreesDirectory?.nilIfBlank,
-            setupCommands: setupCommands?.nilIfBlank
+            setupCommands: setupCommands?.nilIfBlank,
+            savedPrompts: savedPrompts.filter(\.isUsable)
         )
         projects.append(project)
         selectedProjectID = project.id
@@ -33,7 +35,8 @@ extension BoardViewModel {
         defaultBranch: String?,
         defaultAgentCommand: String?,
         worktreesDirectory: String?,
-        setupCommands: String?
+        setupCommands: String?,
+        savedPrompts: [SavedPrompt]? = nil
     ) {
         guard let index = projects.firstIndex(where: { $0.id == id }) else {
             return
@@ -45,6 +48,9 @@ extension BoardViewModel {
         projects[index].defaultAgentCommand = defaultAgentCommand?.nilIfBlank
         projects[index].worktreesDirectory = worktreesDirectory?.nilIfBlank
         projects[index].setupCommands = setupCommands?.nilIfBlank
+        if let savedPrompts {
+            projects[index].savedPrompts = savedPrompts.filter(\.isUsable)
+        }
     }
 
     /// Reorders projects: moves `id` to `targetIndex`, where `targetIndex` is the insertion position

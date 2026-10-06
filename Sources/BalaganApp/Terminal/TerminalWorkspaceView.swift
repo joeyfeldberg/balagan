@@ -99,6 +99,11 @@ struct TaskTerminalWorkspaceScreen: View {
                 },
                 workingDirectory: taskWorktreeDirectory(),
                 devServerPorts: viewModel.devServerPorts[task.id] ?? [],
+                savedPrompts: viewModel.savedPrompts(for: task),
+                promptBlocker: viewModel.agentSendBlocker(taskID: task.id),
+                onSendPrompt: { prompt in
+                    if viewModel.sendToAgent(taskID: task.id, text: prompt.text) == false { NSSound.beep() }
+                },
                 onOpenInZed: EditorLauncher.isZedInstalled ? { openTaskInZed() } : nil,
                 onOpenInFork: EditorLauncher.isForkInstalled ? { openTaskInFork() } : nil,
                 tracksPullRequest: viewModel.tracksPullRequest(task),
@@ -189,6 +194,10 @@ private struct TerminalWorkspace: View {
     var workingDirectory: String? = nil
     /// Local servers this task's terminals started.
     var devServerPorts: [DevServerPort] = []
+    /// Saved prompts for the ⋯ menu's Send Prompt, and why sending isn't possible right now.
+    var savedPrompts: [SavedPrompt] = []
+    var promptBlocker: String? = nil
+    var onSendPrompt: (SavedPrompt) -> Void = { _ in }
     var onOpenInZed: (() -> Void)?
     var onOpenInFork: (() -> Void)?
     var tracksPullRequest = false
@@ -515,6 +524,8 @@ private struct TerminalWorkspace: View {
     /// shortcuts (⌘D, ⇧⌘D, ⇧⌘⏎) come from the Terminal menu, so the menu shows them too.
     private func overflowMenu(activeSurface: Surface) -> some View {
         Menu {
+            SendPromptMenu(prompts: savedPrompts, blocker: promptBlocker, onSend: onSendPrompt)
+            Divider()
             Button {
                 onSplitSurface(.horizontal)
             } label: {

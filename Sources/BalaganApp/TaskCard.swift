@@ -172,6 +172,9 @@ struct TaskCard: View {
     var activity: TaskActivity? = nil
     var ports: [DevServerPort] = []
     var tokens: TokenUsage? = nil
+    var savedPrompts: [SavedPrompt] = []
+    var promptBlocker: String? = nil
+    var onSendPrompt: ((SavedPrompt) -> Void)? = nil
     /// The board's lanes, offered in the card's "Move To" menu.
     var moveLanes: [Lane] = Lane.defaults
     @Environment(\.balaganUIScale) private var balaganUIScale
@@ -255,6 +258,10 @@ struct TaskCard: View {
                     Label("Edit Task", systemImage: "pencil")
                 }
                 .accessibilityIdentifier("task-context-edit-button")
+
+                if let onSendPrompt {
+                    SendPromptMenu(prompts: savedPrompts, blocker: promptBlocker, onSend: onSendPrompt)
+                }
 
                 Menu("Move To") {
                     ForEach(moveLanes) { lane in

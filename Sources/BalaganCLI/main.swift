@@ -59,6 +59,9 @@ func printResult(method: String, result: Any?) {
         let dict = result as? [String: Any]
         print("Opened \(dict?["opened"] as? String ?? "?")")
 
+    case "task.send", "task.prompt":
+        print("Sent.")
+
     case "task.state":
         let dict = result as? [String: Any] ?? [:]
         print("\(dict["id"] as? String ?? "?") is \(dict["state"] as? String ?? "?")")
