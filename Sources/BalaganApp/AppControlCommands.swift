@@ -62,6 +62,11 @@ extension BalaganApplication {
             return controlUsage(viewModel: viewModel)
         case "terminal.search":
             return controlTerminalSearch(params: params)
+        case "review.send":
+            // Unlisted: sends a task's pending diff comments to its agent (the Changes view's button).
+            guard let id = params["id"]?.nilIfBlank ?? viewModel.selectedTaskID else { return err("review.send requires --id <task>") }
+            if let blocker = viewModel.reviewSendBlocker(taskID: id) { return err(blocker) }
+            return viewModel.sendReviewComments(taskID: id) ? ok(["sent": true]) : err("couldn't send")
         default:
             return err("unknown method: \(method)")
         }

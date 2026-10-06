@@ -487,6 +487,26 @@ and 5000 rendered lines per file. Past those, a "truncated" note points at the e
 the view is `Terminal/ChangesView.swift`. `BALAGAN_SHOW_CHANGES=1` opens it for a snapshot. Point
 the task's project `repoPath` at a scratch repo to get content.
 
+### Review comments (send feedback to the agent)
+
+Hover a diff line and click its `+` to comment on it (⌘⏎ saves, Esc cancels). Comments show under
+their line, with Edit and Delete. The file list shows a count per file, and the top bar shows
+"N comments · Discard · **Send to agent**". A comment is a `DiffComment` (Core): path, side (`new`
+line number, or `old` for a removed line), the line's text, and the body. Pending comments are saved
+on the task (`TaskItem.reviewComments`, optional so older boards decode), so they survive switching
+tasks and restarts.
+
+Send composes one message with `ReviewMessage.compose`. It's grouped by file in the diff's order,
+then by line, and quotes each line. `BoardReviewComments.sendReviewComments` pastes it into the
+task's agent tab: the selected tab if it's an agent, otherwise the first agent tab with a live
+terminal. The paste goes through `sendText`, which Ghostty delivers as one **bracketed paste**, so a
+multi-line review lands as a single message. An Enter follows 250 ms later to submit it. Then the
+comments clear and the view switches to that terminal. Send is disabled, with the reason as its
+tooltip, when there are no comments, no live agent tab, or the agent is waiting on a prompt
+(`.needsInput`), so the paste can't land inside a permission dialog. The unlisted control method
+`review.send --id <task>` triggers the same path. It was verified live against a stand-in that
+enables bracketed paste and prints raw bytes: `^[[200~…^[[201~^M`.
+
 ## When a tab's process exits
 
 Before, any launched process exiting deleted its tab. For an agent that also threw away its

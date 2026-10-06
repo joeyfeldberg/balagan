@@ -16,11 +16,34 @@ struct ChangesPane: View {
             isRefreshing: viewModel.taskChangesRefreshing.contains(task.id),
             workingDirectory: directory,
             onRefresh: { viewModel.refreshTaskChanges(taskID: task.id) },
-            onDismiss: { viewModel.toggleChangesView() }
+            onDismiss: { viewModel.toggleChangesView() },
+            review: DiffReview(
+                comments: viewModel.reviewComments(taskID: task.id),
+                sendBlocker: viewModel.reviewSendBlocker(taskID: task.id),
+                add: { path, line, body in viewModel.addReviewComment(taskID: task.id, path: path, line: line, body: body) },
+                update: { id, body in viewModel.updateReviewComment(taskID: task.id, commentID: id, body: body) },
+                delete: { id in viewModel.deleteReviewComment(taskID: task.id, commentID: id) },
+                send: { viewModel.sendReviewComments(taskID: task.id) },
+                discard: { viewModel.discardReviewComments(taskID: task.id) }
+            )
         )
         .id(task.id)
         .onAppear { viewModel.refreshTaskChanges(taskID: task.id) }
     }
+}
+
+/// Review comments drafted on the diff, and what to do with them (see `BoardReviewComments`).
+struct DiffReview {
+    var comments: [DiffComment] = []
+    /// Why "Send to agent" is unavailable right now, or nil when it can send.
+    var sendBlocker: String? = "No comments yet"
+    var add: (_ path: String, _ line: DiffLine, _ body: String) -> Void = { _, _, _ in }
+    var update: (_ id: DiffComment.ID, _ body: String) -> Void = { _, _ in }
+    var delete: (_ id: DiffComment.ID) -> Void = { _ in }
+    var send: () -> Void = {}
+    var discard: () -> Void = {}
+
+    func comments(in path: String) -> [DiffComment] { comments.filter { $0.path == path } }
 }
 
 struct ChangesView: View {
@@ -29,6 +52,7 @@ struct ChangesView: View {
     let workingDirectory: String?
     let onRefresh: () -> Void
     let onDismiss: () -> Void
+    var review = DiffReview()
     // `BALAGAN_CHANGES_FILE` opens a specific file, for snapshots.
     @State private var selectedPath: String? = ProcessInfo.processInfo.environment["BALAGAN_CHANGES_FILE"]
     @Environment(\.balaganUIScale) private var scale
@@ -68,7 +92,7 @@ struct ChangesView: View {
                             .frame(width: 290 * scale)
                         Rectangle().fill(Theme.hairline).frame(width: 1)
                         if let file = selectedFile {
-                            DiffFileView(file: file, workingDirectory: workingDirectory)
+                            DiffFileView(file: file, workingDirectory: workingDirectory, review: review)
                                 .id(file.path)
                         }
                     }
@@ -94,6 +118,9 @@ struct ChangesView: View {
                 summary(changes)
             }
             Spacer(minLength: 8 * scale)
+            if review.comments.isEmpty == false {
+                reviewControls
+            }
             if isRefreshing {
                 ProgressView().controlSize(.small)
             }
@@ -111,6 +138,27 @@ struct ChangesView: View {
         .padding(.vertical, 7 * scale)
         .background(Theme.surface)
         .overlay(alignment: .bottom) { Rectangle().fill(Theme.hairline).frame(height: 1) }
+    }
+
+    /// "3 comments · Discard · Send to agent ⌘⏎"
+    private var reviewControls: some View {
+        HStack(spacing: 8 * scale) {
+            Text(review.comments.count == 1 ? "1 comment" : "\(review.comments.count) comments")
+                .foregroundStyle(Theme.textSecondary)
+            Button("Discard", role: .destructive, action: review.discard)
+                .buttonStyle(.borderless)
+                .help("Delete all pending comments")
+                .accessibilityIdentifier("review-discard-button")
+            Button {
+                review.send()
+            } label: {
+                Label("Send to agent", systemImage: "paperplane.fill")
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(review.sendBlocker != nil)
+            .help(review.sendBlocker ?? "Paste all comments into the agent as one message and submit it")
+            .accessibilityIdentifier("review-send-button")
+        }
     }
 
     /// "vs main · 3 commits · 5 files · 2 uncommitted  +120 −30"
@@ -148,6 +196,7 @@ struct ChangesView: View {
                     ChangedFileRow(
                         file: file,
                         isSelected: file.path == selectedFile?.path,
+                        commentCount: review.comments(in: file.path).count,
                         scale: scale
                     ) {
                         selectedPath = file.path
@@ -222,6 +271,7 @@ private enum DiffColors {
 private struct ChangedFileRow: View {
     let file: DiffFile
     let isSelected: Bool
+    var commentCount = 0
     let scale: CGFloat
     let action: () -> Void
     @State private var isHovered = false
@@ -246,6 +296,13 @@ private struct ChangedFileRow: View {
             }
             .lineLimit(1)
             Spacer(minLength: 4 * scale)
+            if commentCount > 0 {
+                Label("\(commentCount)", systemImage: "text.bubble.fill")
+                    .labelStyle(.titleAndIcon)
+                    .font(.system(size: Theme.TextSize.micro * scale, weight: .semibold))
+                    .foregroundStyle(Color.accentColor)
+                    .help(commentCount == 1 ? "1 comment" : "\(commentCount) comments")
+            }
             if file.isUncommitted {
                 Circle()
                     .fill(Theme.agentWaiting)
@@ -328,7 +385,16 @@ private enum DiffRow: Identifiable {
 private struct DiffFileView: View {
     let file: DiffFile
     let workingDirectory: String?
+    var review = DiffReview()
     @Environment(\.balaganUIScale) private var scale
+    /// The line row under the pointer (shows the + to comment).
+    @State private var hoveredRow: Int?
+    /// The line row with an open "new comment" box.
+    @State private var composingRow: Int?
+    @State private var draft = ""
+    /// The comment being edited in place.
+    @State private var editingCommentID: DiffComment.ID?
+    @State private var editDraft = ""
 
     /// Past this many lines the view stops rendering and points at the editor instead.
     private static let lineCap = 5000
@@ -365,7 +431,7 @@ private struct DiffFileView: View {
                         ForEach(rows) { row in
                             switch row {
                             case .hunk(_, let header): hunkHeader(header)
-                            case .line(_, let line): lineRow(line)
+                            case .line(let id, let line): annotatedLine(id: id, line: line)
                             }
                         }
                         if truncated {
@@ -417,6 +483,130 @@ private struct DiffFileView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Theme.surfaceRaised.opacity(0.6))
             .padding(.top, 6 * scale)
+    }
+
+    /// A diff line, the + to comment on it, its saved comments, and the box for a new one.
+    @ViewBuilder
+    private func annotatedLine(id: Int, line: DiffLine) -> some View {
+        let comments = review.comments(in: file.path).filter { $0.isAnchored(to: line) }
+        let canComment = DiffComment.anchor(for: line) != nil
+        VStack(alignment: .leading, spacing: 0) {
+            lineRow(line)
+                .overlay(alignment: .leading) {
+                    if canComment, hoveredRow == id || composingRow == id {
+                        Button {
+                            composingRow = id
+                            draft = ""
+                        } label: {
+                            Image(systemName: "plus")
+                                .font(.system(size: 10 * scale, weight: .bold))
+                                .foregroundStyle(.white)
+                                .frame(width: 16 * scale, height: 16 * scale)
+                                .background(RoundedRectangle(cornerRadius: 4 * scale).fill(Color.accentColor))
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.leading, 4 * scale)
+                        .help("Comment on this line")
+                        .accessibilityIdentifier("diff-comment-add")
+                    }
+                }
+                .onHover { inside in
+                    if inside { hoveredRow = id } else if hoveredRow == id { hoveredRow = nil }
+                }
+            ForEach(comments) { comment in
+                commentCard(comment)
+            }
+            if composingRow == id {
+                commentEditor(text: $draft, saveTitle: "Comment", onSave: {
+                    review.add(file.path, line, draft)
+                    composingRow = nil
+                    draft = ""
+                }, onCancel: {
+                    composingRow = nil
+                    draft = ""
+                })
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func commentCard(_ comment: DiffComment) -> some View {
+        if editingCommentID == comment.id {
+            commentEditor(text: $editDraft, saveTitle: "Save", onSave: {
+                review.update(comment.id, editDraft)
+                editingCommentID = nil
+            }, onCancel: { editingCommentID = nil })
+        } else {
+            HStack(alignment: .top, spacing: 8 * scale) {
+                Image(systemName: "text.bubble.fill")
+                    .foregroundStyle(Color.accentColor)
+                Text(comment.body)
+                    .font(.system(size: Theme.TextSize.body * scale))
+                    .foregroundStyle(Theme.textPrimary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .textSelection(.enabled)
+                Button("Edit") {
+                    editDraft = comment.body
+                    editingCommentID = comment.id
+                }
+                .buttonStyle(.borderless)
+                Button {
+                    review.delete(comment.id)
+                } label: {
+                    Image(systemName: "trash")
+                }
+                .buttonStyle(.borderless)
+                .help("Delete comment")
+            }
+            .font(.system(size: Theme.TextSize.small * scale))
+            .padding(10 * scale)
+            .background(RoundedRectangle(cornerRadius: 8 * scale).fill(Theme.surfaceRaised))
+            .overlay(RoundedRectangle(cornerRadius: 8 * scale).stroke(Theme.hairline))
+            .padding(.vertical, 4 * scale)
+            .padding(.leading, 110 * scale)
+            .padding(.trailing, 12 * scale)
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("diff-comment")
+        }
+    }
+
+    private func commentEditor(
+        text: Binding<String>,
+        saveTitle: String,
+        onSave: @escaping () -> Void,
+        onCancel: @escaping () -> Void
+    ) -> some View {
+        VStack(alignment: .trailing, spacing: 8 * scale) {
+            TextField("Leave a comment for the agent", text: text, axis: .vertical)
+                .textFieldStyle(.plain)
+                .font(.system(size: Theme.TextSize.body * scale))
+                .lineLimit(2...8)
+                .padding(8 * scale)
+                .background(RoundedRectangle(cornerRadius: 6 * scale).fill(Theme.bgWindow))
+                .overlay(RoundedRectangle(cornerRadius: 6 * scale).stroke(Color.accentColor.opacity(0.6)))
+                .onExitCommand(perform: onCancel)
+                .accessibilityIdentifier("diff-comment-field")
+            HStack(spacing: 8 * scale) {
+                Text("⌘⏎ to save · Esc to cancel")
+                    .font(.system(size: Theme.TextSize.micro * scale))
+                    .foregroundStyle(Theme.textTertiary)
+                Spacer()
+                Button("Cancel", action: onCancel)
+                    .buttonStyle(.borderless)
+                Button(saveTitle, action: onSave)
+                    .buttonStyle(.borderedProminent)
+                    .keyboardShortcut(.return, modifiers: .command)
+                    .disabled(text.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .accessibilityIdentifier("diff-comment-save")
+            }
+        }
+        .padding(10 * scale)
+        .background(RoundedRectangle(cornerRadius: 8 * scale).fill(Theme.surfaceRaised))
+        .overlay(RoundedRectangle(cornerRadius: 8 * scale).stroke(Theme.hairline))
+        .padding(.vertical, 4 * scale)
+        .padding(.leading, 110 * scale)
+        .padding(.trailing, 12 * scale)
     }
 
     private func lineRow(_ line: DiffLine) -> some View {

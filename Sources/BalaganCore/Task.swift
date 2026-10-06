@@ -21,6 +21,9 @@ public struct TaskItem: Codable, Equatable, Hashable, Identifiable, Sendable {
     /// When set, the task is archived: hidden from the board and auto-deleted once the retention window
     /// elapses. Nil = active. Optional so older saved boards decode (no key → nil → active).
     public var archivedAt: Date?
+    /// Review comments drafted on the task's diff (Changes view) and not yet sent to its agent.
+    /// Optional so older saved boards decode.
+    public var reviewComments: [DiffComment]?
 
     public var isProjectTerminals: Bool { projectTerminals == true }
     public var isArchived: Bool { archivedAt != nil }

@@ -162,6 +162,13 @@ final class TerminalHostRegistry: @unchecked Sendable {
         }
     }
 
+    /// The live host for a terminal, if one exists — never creates one (unlike `host(for:)`).
+    func existingHost(taskID: TaskItem.ID, surfaceID: Surface.ID) -> LibGhosttyTerminalHostView? {
+        lock.lock()
+        defer { lock.unlock() }
+        return hosts[TerminalHostKey(taskID: taskID, surfaceID: surfaceID)]
+    }
+
     /// Whether any live terminal host exists for the task (i.e. there's something to sleep/free).
     func hasHosts(taskID: TaskItem.ID) -> Bool {
         lock.lock()

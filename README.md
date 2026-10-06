@@ -11,7 +11,7 @@ Run Claude Code, Codex, OpenCode and pi side by side, and see at a glance which 
 <img src="https://img.shields.io/badge/macOS-14%2B-111?style=flat-square&logo=apple&logoColor=white" alt="macOS 14+">
 <img src="https://img.shields.io/badge/Swift-6-F05138?style=flat-square&logo=swift&logoColor=white" alt="Swift 6">
 <img src="https://img.shields.io/badge/terminal-libghostty-4C8DFF?style=flat-square" alt="libghostty">
-<img src="https://img.shields.io/badge/tests-536%20passing-3FD07F?style=flat-square" alt="536 tests">
+<img src="https://img.shields.io/badge/tests-543%20passing-3FD07F?style=flat-square" alt="543 tests">
 <img src="https://img.shields.io/badge/license-MIT-8A93A6?style=flat-square" alt="MIT license">
 </p>
 
@@ -76,7 +76,8 @@ already looking, and clicking one takes you straight to that agent.
 <td width="40%">
 <h3>Review what the agent changed</h3>
 <kbd>⇧⌘G</kbd> swaps the terminal for the task's diff against where its branch started. It covers
-commits, uncommitted edits and new files, and the terminal keeps running behind it.
+commits, uncommitted edits and new files. Comment on any line, then <b>Send to agent</b> to hand all
+your notes back as one message.
 </td>
 <td width="60%"><img src="docs/images/changes.png" alt="The Changes view showing a diff"></td>
 </tr>
@@ -219,7 +220,7 @@ shows the current permission state.
 ## Development
 
 ```bash
-swift build && swift test    # the fast loop: 536 unit tests, no display needed
+swift build && swift test    # the fast loop: 543 unit tests, no display needed
 make lint
 .build/debug/BalaganApp --ui-test-mode --fixture multi-project-running   # deterministic fixtures
 ```
