@@ -21,6 +21,18 @@ if codesign -dv "$SRC" 2>&1 | grep -q "Signature=adhoc"; then
   echo "!! ad-hoc signed: macOS will refuse desktop notifications. Run scripts/make-signing-cert.sh and rebuild."
 fi
 
+# Earlier installs moved their copy aside to /tmp/Balagan-previous.*, and macOS registers a moved
+# app again, so those piled up as duplicate LaunchServices records (the notification problem above).
+# Unregister and delete every one that no running Balagan is still using; a copy in use stays until
+# that app quits (it loads resources from its bundle).
+IN_USE="$(lsof -Fn -c BalaganApp 2>/dev/null | sed -n 's#^n\(/private/tmp/Balagan-previous\.[^/]*\)/.*#\1#p' | sort -u || true)"
+for previous in /private/tmp/Balagan-previous.*; do
+  [ -d "$previous" ] || continue
+  if printf '%s\n' "$IN_USE" | grep -qxF "$previous"; then continue; fi
+  "$LSREGISTER" -u "$previous/Balagan.app" >/dev/null 2>&1 || true
+  rm -rf "$previous"
+done
+
 if [ -d "$DEST" ]; then
   OLD="$(mktemp -d /tmp/Balagan-previous.XXXXXX)/Balagan.app"
   echo "==> Moving the installed copy aside to $OLD (running app keeps its inodes)"

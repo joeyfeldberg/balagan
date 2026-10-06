@@ -422,6 +422,18 @@ Movement is the pure `BoardKeyboardNavigation` (Core); the keys are `onKeyPress`
 highlight drops when its card leaves the board. Real key presses can't be tested headlessly;
 `BALAGAN_SHOW_BOARD_HIGHLIGHT=<task id>` starts with a card highlighted for a snapshot.
 
+## Menu bar item
+
+`MenuBarStatus` puts an item in the menu bar (Settings → General → "Show agents in the menu bar",
+`AppPreferences.Keys.menuBarItem`, default on; not in `--ui-test-mode`). It shows the count of agents
+that need you, from the same `attentionQueueEntries()` as ⌘J, and turns orange with a ? icon while any
+agent is waiting. The menu, built when it opens, lists "Waiting for you", "Finished" and "Running"
+(`runningAgentSurfaces()`) with how long each has been in that state. Picking one activates Balagan
+on that task and tab (`bringForward`). It refreshes off the view model's `objectWillChange`,
+debounced. On macOS 26, Control Center draws every menu bar item, and the dev `.build` binary (no
+bundle id) never showed up, so check it from a packaged app. Menu-bar managers like Ice or Bartender
+may hide a new item in their overflow.
+
 ## Visual language
 
 Text sizes come from `Theme.TextSize`, never literals: `micro` 10.5 (section caps, badges, counts),
@@ -827,7 +839,10 @@ line, reads one JSON response line, and exits.
   `.previous` copy in /Applications and the dist/ build both registered, the daemon kept refusing even
   after re-signing, and `lsregister -u <other copies>; lsregister -f /Applications/Balagan.app` is
   what made macOS finally prompt "Balagan would like to send you notifications". `scripts/install-app.sh`
-  does both the move-aside and the registration cleanup — use it instead of `cp -R`. Re-signing changes
+  does both the move-aside and the registration cleanup — use it instead of `cp -R`. Each install
+  also unregisters and deletes earlier moved-aside copies (`/tmp/Balagan-previous.*`), keeping any a
+  running Balagan still uses (found with `lsof`). macOS re-registers a moved app, so 13 of them had
+  piled up as duplicate records before this. Re-signing changes
   the app's TCC identity, so macOS re-prompts (click Allow). `SystemNotificationPresenter` records the
   authorization outcome (and re-checks it at post time, since the grant can arrive after launch); when
   denied it drops the banner and shows a one-time alert with the fix — deliberately *not* the osascript

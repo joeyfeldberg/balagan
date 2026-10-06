@@ -112,6 +112,8 @@ Beyond those, Balagan also has:
   one click from its menus or the palette. Projects can add their own.
 - **What each task costs.** Every card shows its tokens and, for Claude, an estimate at API prices,
   read from the agent's own transcript.
+- **A menu bar item** counts the agents that need you, even with Balagan in the background. Click
+  it to see who's waiting, finished or running, and jump to one.
 - **Drop files and screenshots onto a terminal** to hand them to the agent. Paths are pasted
   shell-escaped, and Claude Code picks up images.
 - **Search the scrollback** with <kbd>⌘F</kbd>. Ghostty highlights every match, and <kbd>⏎</kbd> /

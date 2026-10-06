@@ -35,6 +35,7 @@ struct SettingsSheet: View {
     @AppStorage(AppPreferences.Keys.defaultAgent) private var defaultAgentRaw = AppPreferences.defaultAgent.rawValue
     @AppStorage(AppPreferences.Keys.waitingBanners) private var waitingBanners = true
     @AppStorage(AppPreferences.Keys.finishedBanners) private var finishedBanners = true
+    @AppStorage(AppPreferences.Keys.menuBarItem) private var showMenuBarItem = true
     @State private var recordingAction: ShortcutAction?
     @State private var recordMonitor: Any?
     @State private var recordError: String?
@@ -148,6 +149,10 @@ struct SettingsSheet: View {
                 onReset: { viewModel.resetSidebarScale() }
             )
             autoSleepRow(scale: scale)
+            settingsRow("Show agents in the menu bar", scale: scale) {
+                Toggle("", isOn: $showMenuBarItem).labelsHidden().toggleStyle(.switch)
+                    .accessibilityIdentifier("menu-bar-item-toggle")
+            }
         case .agents:
             contentHeader("Agents", scale: scale)
             agentsSection(scale: scale)

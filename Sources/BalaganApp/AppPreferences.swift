@@ -11,6 +11,8 @@ enum AppPreferences {
         static let usageCompact = "usageMeterCompact"
         /// Global saved prompts, JSON (`SavedPrompts.encode`). Absent = the defaults.
         static let savedPrompts = "savedPrompts"
+        /// Show the menu bar item (default on).
+        static let menuBarItem = "showMenuBarItem"
     }
 
     /// The agent a new project is pre-filled with.

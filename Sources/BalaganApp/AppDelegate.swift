@@ -14,6 +14,7 @@ final class BalaganApplication: NSObject, NSApplicationDelegate, @unchecked Send
     var lifecycleReconcileTimer: Timer?
     var usagePollTimer: Timer?
     var devServerTimer: Timer?
+    var menuBarStatus: MenuBarStatus?
     var usageWatcher: DispatchSourceFileSystemObject?
     var autoSleepTimer: Timer?
     var memoryPressureSource: DispatchSourceMemoryPressure?
@@ -79,6 +80,9 @@ final class BalaganApplication: NSObject, NSApplicationDelegate, @unchecked Send
             startLifecycleReconcile()
             startUsagePolling()
             startDevServerScan()
+            menuBarStatus = MenuBarStatus(viewModel: viewModel) { [weak self] taskID, surfaceID in
+                self?.bringForward(taskID: taskID, surfaceID: surfaceID)
+            }
             startAutoSleep(viewModel: viewModel)
             viewModel.detectInstalledAgents()
         }

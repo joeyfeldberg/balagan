@@ -445,6 +445,16 @@ extension BalaganApplication {
         viewModel.select(surfaceID: surfaceID, forTaskID: taskID)
     }
 
+    /// From the menu bar: bring Balagan to the front, on an agent when one was picked.
+    @MainActor
+    func bringForward(taskID: TaskItem.ID?, surfaceID: Surface.ID?) {
+        NSApp.activate(ignoringOtherApps: true)
+        window?.makeKeyAndOrderFront(nil)
+        if let taskID, let surfaceID {
+            focusSurfaceFromNotification(taskID: taskID, surfaceID: surfaceID)
+        }
+    }
+
     /// Symlinks the bundled `balagan` CLI onto PATH so it's usable right after launch (cmux-style).
     /// Best-effort and idempotent. Only runs from a packaged `.app` — never the dev/.build binary,
     /// which would hijack the user's PATH during tests. Prefers the first writable PATH directory and
