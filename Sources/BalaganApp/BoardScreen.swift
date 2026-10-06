@@ -324,6 +324,12 @@ struct BoardScreen: View {
             ) { viewModel.jumpToNextAgentNeedingYou() })
         }
 
+        if viewModel.selectedTaskID != nil {
+            commands.append(PaletteCommand(id: "show-board", title: "Show Board", systemImage: "rectangle.split.3x1", shortcut: chord(.showBoard)) {
+                viewModel.showBoard()
+            })
+        }
+
         if let task = viewModel.selectedTask, task.isProjectTerminals == false {
             commands.append(PaletteCommand(id: "review-changes", title: "Review Changes", subtitle: task.title, systemImage: "plus.forwardslash.minus", shortcut: chord(.toggleChangesView)) {
                 if viewModel.showingChangesView == false { viewModel.toggleChangesView() }

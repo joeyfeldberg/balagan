@@ -11,6 +11,8 @@ final class BoardViewModel: ObservableObject, @unchecked Sendable {
     @Published var isSidebarVisible = true
     @Published var selectedProjectID: Project.ID?
     @Published var selectedTaskID: TaskItem.ID?
+    /// The board a task was opened from (nil = All Projects), so Show Board goes back to it.
+    var boardProjectBeforeTask: Project.ID?
     @Published var selectedWorkspaceID: String?
     @Published var selectedSurfaceID: Surface.ID?
     /// The pane zoomed to fill the workspace, if any (⌘⇧⏎). On the view model so a menu shortcut can
@@ -258,13 +260,25 @@ final class BoardViewModel: ObservableObject, @unchecked Sendable {
         filteredTasks.filter { $0.status == status }
     }
 
-    /// The kanban columns for the board currently on screen — the selected project's lanes (per board),
-    /// falling back to the defaults when no project is selected.
+    /// The kanban columns for the board currently on screen: the selected project's lanes, or on All
+    /// Projects every project's lanes combined (`Lane.merged`), so a task in a custom lane still shows.
     var boardLanes: [Lane] {
         if let selectedProjectID, let project = project(for: selectedProjectID) {
             return project.lanes
         }
-        return Lane.defaults
+        return Lane.merged(projects.map(\.lanes))
+    }
+
+    /// The lanes a task can move between: its own project's, whichever board is showing.
+    func lanes(forProjectID projectID: Project.ID) -> [Lane] {
+        project(for: projectID)?.lanes ?? Lane.defaults
+    }
+
+    /// Whether a task's project has this lane. On All Projects a lane may come from another project
+    /// only, and moving a task there would hide it from its own board.
+    func laneAccepts(taskID: TaskItem.ID, status: TaskStatus) -> Bool {
+        guard let task = tasks.first(where: { $0.id == taskID }) else { return false }
+        return lanes(forProjectID: task.projectID).contains { $0.status == status }
     }
 }
 

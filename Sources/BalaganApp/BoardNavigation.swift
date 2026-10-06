@@ -84,6 +84,19 @@ extension BoardViewModel {
         selectedSurfaceID = nil
     }
 
+    /// Leaves the open task for the board it was opened from (All Projects or one project's). Returns
+    /// false when the board is already showing.
+    @discardableResult
+    func showBoard() -> Bool {
+        guard selectedTaskID != nil || showingArchived else { return false }
+        if let boardProjectBeforeTask, project(for: boardProjectBeforeTask) != nil {
+            showProjectTasks(projectID: boardProjectBeforeTask)
+        } else {
+            showAllProjectTasks()
+        }
+        return true
+    }
+
     func showProjectTasks(projectID: Project.ID) {
         showingArchived = false
         selectedProjectID = projectID
@@ -108,6 +121,9 @@ extension BoardViewModel {
         repairMissingWorkingDirectories(taskID: task.id)
         wakeTaskIfHibernated(taskID: task.id)
         zoomedSurfaceID = nil   // a freshly opened task shows its full workspace, not a zoomed pane
+        if selectedTaskID == nil, showingArchived == false {
+            boardProjectBeforeTask = selectedProjectID
+        }
         showingArchived = false
         selectedProjectID = task.projectID
         selectedTaskID = task.id

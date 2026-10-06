@@ -385,7 +385,7 @@ has OpenCode/pi presets.
 
 Each card shows what its agent is doing, not just the notes typed at creation: a state + elapsed
 line (`Waiting 4m · <summary>`), then a two-line preview of the agent's last response (hidden while
-it's running, since the previous turn's answer would read as current). All of it is projected from
+it's running, since the previous turn's answer would read as current). That activity sits right under the title. The notes you typed only show while there's no activity, and ports, tokens and tags share one footer row (`TaskCardFooter`, wrapping only when the card is narrow). A waiting card also gets an amber edge. All of it is projected from
 signals we already have. State comes from `surfaceLifecycle`, the clock from `surfaceLifecycleSince`
 (stamped in `setSurfaceLifecycle`), the summary from the stored `SET_TITLE` title (Claude's
 `✳ <summary>`), and the preview from the transcript **tail** (last 256 KB), read off-main when the
@@ -407,14 +407,18 @@ the you-are-here marker.
 **⌘J** (`ShortcutAction.nextAgentNeedingYou`, rebindable, works from the board too) opens the next
 agent that needs you. Waiting agents come first, oldest first, then agents that finished off-screen.
 Pressing it again walks the queue and wraps; it beeps when nothing needs you. The sidebar's
-"N agents need you" row is the clickable form of the same thing. The queue is the pure
+"1 waiting · 2 finished" row is the clickable form of the same thing (amber while anything waits). Cards use the same word: an idle agent you haven't looked at reads "Finished 14m". The queue is the pure
 `AgentAttentionQueue`, and the list is `SidebarTaskList` (both Core). The glue is
 `BoardAttentionNavigation.swift`.
 
 ## Keyboard on the board
 
+**⌘⇧B** (`ShortcutAction.showBoard`, rebindable) leaves a task for the board it was opened from
+(`boardProjectBeforeTask`: All Projects or that project's board). Inside a task, the header's lane chip
+(`● Doing ⌄`, after the breadcrumb) shows the task's lane and moves it.
+
 When the board is showing, it holds keyboard focus. The arrow keys move a highlight between cards
-(an accent ring). Up/down stay in a lane; left/right jump to the nearest lane with cards, keeping
+(an accent ring), and so does a single click on a card; a double-click opens it. Up/down stay in a lane; left/right jump to the nearest lane with cards, keeping
 the row. The highlighted card scrolls into view. ⏎ opens it, 1–9 moves it to that lane (counting
 collapsed lanes too), ⌘⌫ archives it (with the usual confirmation), and Esc clears the highlight.
 Movement is the pure `BoardKeyboardNavigation` (Core); the keys are `onKeyPress` handlers in
@@ -665,7 +669,7 @@ Every 3 s (not in `--ui-test-mode`), `BoardDevServers` scans for TCP listeners a
 **descendant processes**. Every terminal is a child of the app, so a server you started elsewhere
 never shows. Each listener's working folder is matched to a task: the most specific of each live
 task's worktree or repo folder and its terminals' folders wins, and tasks sharing a checkout both
-show it. The result is `localhost:<port>` chips (`DevServerChips`) on the card (`:3000`) and in the
+show it. The result is `:3000` chips (`DevServerChips`, localhost in the tooltip) on the card and in the
 task header, which open the browser, and `ports` in `balagan tasks --json`. The rules are the pure
 `DevServerPorts.assign`. Agents' own processes (claude, codex, …) and ephemeral ports (≥ 49152, used
 by MCP helpers and debuggers) are ignored.

@@ -15,6 +15,9 @@ final class TaskActivityTests: XCTestCase {
 
         let idle = TaskActivity(lifecycle: .idle, since: t0, summary: nil, lastResponse: nil)
         XCTAssertEqual(idle.stateLabel(now: t0.addingTimeInterval(65 * 60)), "Idle 1h 5m")
+        var unseen = idle
+        unseen.isUnseen = true
+        XCTAssertEqual(unseen.stateLabel(now: t0.addingTimeInterval(14 * 60)), "Finished 14m")
     }
 
     func testStateLabelWithoutATimestamp() {

@@ -82,10 +82,11 @@ private struct SheetFooterChrome: ViewModifier {
 struct SelectionAccentBar: View {
     let isSelected: Bool
     let verticalInset: CGFloat
+    var color: Color = .accentColor
 
     var body: some View {
         RoundedRectangle(cornerRadius: Theme.radiusSelectionBar, style: .continuous)
-            .fill(Color.accentColor)
+            .fill(color)
             .frame(width: 3)
             .padding(.vertical, verticalInset)
             .opacity(isSelected ? 1 : 0)

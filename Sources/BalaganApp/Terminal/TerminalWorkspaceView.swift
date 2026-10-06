@@ -45,6 +45,7 @@ struct TaskTerminalWorkspaceScreen: View {
                 zoomedSurfaceID: $viewModel.zoomedSurfaceID,
                 // Project Terminals: no status/edit affordances (it isn't a kanban task).
                 status: task.isProjectTerminals ? nil : task.status,
+                lanes: viewModel.lanes(forProjectID: task.projectID),
                 onMoveTask: task.isProjectTerminals ? nil : { status in
                     viewModel.move(task: task, to: status)
                 },
@@ -181,6 +182,8 @@ private struct TerminalWorkspace: View {
     /// Bound to `BoardViewModel.zoomedSurfaceID` so the Zoom Pane menu shortcut can toggle it too.
     @Binding var zoomedSurfaceID: Surface.ID?
     var status: TaskStatus? = nil
+    /// The task's project's lanes, offered by the breadcrumb's status picker.
+    var lanes: [Lane] = Lane.defaults
     var onMoveTask: ((TaskStatus) -> Void)? = nil
     var onEditTask: (() -> Void)? = nil
     var onRestartAgent: ((Surface.ID) -> Void)? = nil
@@ -235,10 +238,9 @@ private struct TerminalWorkspace: View {
     var onNewAgentOfKind: (String) -> Void = { _ in }
     @Environment(\.balaganUIScale) private var balaganUIScale
 
-    /// The left "breadcrumb": status dot + project / task title. Opens a menu to change status / edit
-    /// the task (the only place that metadata lives now that the header is a single tab-forward bar).
-    private func taskBreadcrumb(status: TaskStatus?) -> some View {
-        let hasMenu = (status != nil && onMoveTask != nil) || onEditTask != nil
+    /// The left "breadcrumb": project / task title, opening a menu to edit the task.
+    private func taskBreadcrumb() -> some View {
+        let hasMenu = onEditTask != nil
         let label = breadcrumbText(showsChevron: hasMenu)
             .lineLimit(1)
             .accessibilityIdentifier("task-detail-title")
@@ -246,17 +248,7 @@ private struct TerminalWorkspace: View {
         return Group {
             if hasMenu {
             Menu {
-                if let status, let onMoveTask {
-                    Picker("Status", selection: Binding(get: { status }, set: { onMoveTask($0) })) {
-                        ForEach(TaskStatus.defaults) { option in
-                            Text(option.displayName).tag(option)
-                        }
-                    }
-                    .pickerStyle(.inline)
-                    .accessibilityIdentifier("task-status-control")
-                }
                 if let onEditTask {
-                    Divider()
                     Button {
                         onEditTask()
                     } label: {
@@ -270,11 +262,51 @@ private struct TerminalWorkspace: View {
             .menuStyle(.borderlessButton)
             .menuIndicator(.hidden)
             .fixedSize()
-            .help("Task status and settings")
+            .help("Edit the task")
             } else {
                 label
             }
         }
+    }
+
+    /// The task's lane as a chip ("● Doing ⌄"), so you can see where it sits on the board and move it
+    /// without going back there.
+    @ViewBuilder
+    private func laneChip(status: TaskStatus) -> some View {
+        let lane = lanes.first { $0.status == status }
+        Menu {
+            if let onMoveTask {
+                Picker("Lane", selection: Binding(get: { status }, set: { onMoveTask($0) })) {
+                    ForEach(lanes) { lane in
+                        Text(lane.name).tag(lane.status)
+                    }
+                }
+                .pickerStyle(.inline)
+                .accessibilityIdentifier("task-status-control")
+            }
+        } label: {
+            (Text(Image(systemName: "circle.fill"))
+                .font(.system(size: 6 * balaganUIScale))
+                .foregroundColor(lane?.color ?? Theme.textTertiary)
+                + Text("  ")
+                + Text(lane?.name ?? status.displayName)
+                    .font(.system(size: Theme.TextSize.small * balaganUIScale, weight: .medium))
+                    .foregroundColor(Theme.textSecondary)
+                + Text("  ")
+                + Text(Image(systemName: "chevron.down"))
+                    .font(.system(size: 8 * balaganUIScale, weight: .semibold))
+                    .foregroundColor(Theme.textTertiary))
+                .lineLimit(1)
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .padding(.horizontal, 8 * balaganUIScale)
+        .padding(.vertical, 3 * balaganUIScale)
+        .background(Capsule().fill(Theme.hairline))
+        .disabled(onMoveTask == nil)
+        .help("Move to another lane")
+        .accessibilityIdentifier("task-lane-chip")
     }
 
     /// The breadcrumb as a single concatenated Text. A `borderlessButton` Menu label keeps only Text
@@ -363,7 +395,11 @@ private struct TerminalWorkspace: View {
     /// configured-tab live in the ⋯ overflow.
     private func headerBar(activeSurface: Surface) -> some View {
         HStack(spacing: 8 * balaganUIScale) {
-            taskBreadcrumb(status: status)
+            taskBreadcrumb()
+
+            if let status {
+                laneChip(status: status)
+            }
 
             Divider()
                 .frame(height: 18 * balaganUIScale)

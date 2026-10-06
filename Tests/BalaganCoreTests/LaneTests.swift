@@ -19,6 +19,26 @@ final class LaneTests: XCTestCase {
         XCTAssertEqual(decoded.lanes, lanes)
     }
 
+    func testMergedKeepsEachBoardsOrderAndTheFirstName() {
+        let review = Lane(id: "review", name: "Review", colorHex: "B980FF")
+        let first = [Lane.defaults[0], Lane.defaults[1], review, Lane.defaults[2]]
+        var renamedDoing = Lane.defaults[1]
+        renamedDoing.name = "In progress"
+        let qa = Lane(id: "qa", name: "QA", colorHex: "FF6B6B")
+        let second = [Lane.defaults[0], renamedDoing, qa, Lane.defaults[2], Lane.defaults[3]]
+
+        let merged = Lane.merged([first, second])
+        XCTAssertEqual(merged.map(\.id), ["todo", "doing", "qa", "review", "done", "parked"])
+        XCTAssertEqual(merged[1].name, "Doing")
+    }
+
+    func testMergedExpandsCollapsedLanesAndFallsBackToDefaults() {
+        var collapsed = Lane.defaults[3]
+        collapsed.collapsed = true
+        XCTAssertEqual(Lane.merged([[collapsed]]).first?.collapsed, false)
+        XCTAssertEqual(Lane.merged([]), Lane.defaults)
+    }
+
     func testEmptyLaneListFallsBackToDefaults() {
         XCTAssertEqual(Project(id: "p", name: "P", repoPath: "/tmp/p", lanes: []).lanes, Lane.defaults)
     }

@@ -42,6 +42,29 @@ public struct Lane: Codable, Equatable, Hashable, Identifiable, Sendable {
         Lane(id: "parked", name: "Parked", colorHex: "C98A2B"),
     ]
 
+    /// The lanes for a board that shows several projects at once (All Projects): every lane any project
+    /// has, matched by id. The first project to define a lane gives its name and color. A lane only a later
+    /// project has goes right after the lane it follows on that project's board, so each project's own
+    /// order survives. Nothing is collapsed, because a combined board has no single project to remember
+    /// it. No lanes at all gives the defaults.
+    public static func merged(_ boards: [[Lane]]) -> [Lane] {
+        var merged: [Lane] = []
+        for board in boards {
+            var insertAt = 0
+            for lane in board {
+                if let existing = merged.firstIndex(where: { $0.id == lane.id }) {
+                    insertAt = existing + 1
+                } else {
+                    var added = lane
+                    added.collapsed = false
+                    merged.insert(added, at: insertAt)
+                    insertAt += 1
+                }
+            }
+        }
+        return merged.isEmpty ? defaults : merged
+    }
+
     /// Colors handed to newly added lanes, by position, so a fresh lane reads distinctly without a color
     /// picker. Wraps around if a board has more lanes than entries.
     public static let palette: [String] = [

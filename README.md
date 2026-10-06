@@ -70,7 +70,7 @@ the task has cost so far, so you can often decide without opening it.
 were elsewhere. Press it again to walk the queue. Desktop notifications fire only when you're not
 already looking, and clicking one takes you straight to that agent.
 </td>
-<td width="60%" align="center"><img src="docs/images/sidebar.png" width="300" alt="Sidebar with '3 agents need you' and per-task status"></td>
+<td width="60%" align="center"><img src="docs/images/sidebar.png" width="300" alt="Sidebar with the agents that need you and per-task status"></td>
 </tr>
 <tr>
 <td width="40%">
@@ -106,7 +106,7 @@ Beyond those, Balagan also has:
 - **Reader mode** (<kbd>⇧⌘R</kbd>) shows the agent's transcript as clean, readable prose, and
   <kbd>⇧⌘S</kbd> reads the last answer aloud.
 - **Typing `claude`, `codex`, `opencode` or `pi` at any prompt** turns that tab into a tracked agent tab.
-- **Dev servers on the card.** When a task's terminal starts a local server, a `localhost:3000`
+- **Dev servers on the card.** When a task's terminal starts a local server, a `:3000`
   chip appears on its card and header. Click it to open the browser.
 - **Saved prompts.** Send "Write tests", "Review your diff" or your own prompts to a task's agent in
   one click from its menus or the palette. Projects can add their own.
@@ -210,6 +210,7 @@ These are the defaults. All of them can be rebound in Settings → Shortcuts.
 | <kbd>⇧⌘S</kbd> | Speak last response | | <kbd>⇧⌘[</kbd> / <kbd>⇧⌘]</kbd> | Previous / next tab |
 | <kbd>⌘F</kbd> | Find in terminal | | <kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd> | Move between cards on the board |
 | <kbd>⏎</kbd> | Open the highlighted card | | <kbd>1</kbd>–<kbd>9</kbd> / <kbd>⌘⌫</kbd> | Move it to lane N / archive it |
+| <kbd>⇧⌘B</kbd> | Back to the board | | | |
 
 ## FAQ
 

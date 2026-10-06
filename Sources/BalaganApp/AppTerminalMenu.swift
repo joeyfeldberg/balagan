@@ -42,6 +42,7 @@ extension BalaganApplication {
         add("Review Changes", #selector(menuToggleChangesView(_:)), .toggleChangesView)
         add("Speak Last Response", #selector(menuSpeakLastResponse(_:)), .speakLastResponse)
         add("Next Agent Needing You", #selector(menuNextAgentNeedingYou(_:)), .nextAgentNeedingYou)
+        add("Show Board", #selector(menuShowBoard(_:)), .showBoard)
         menu.addItem(.separator())
         add("New Tab", #selector(menuNewTab(_:)), .newTab)
         add("New Agent Pane", #selector(menuNewAgentTab(_:)), .newAgentTab)
@@ -108,6 +109,12 @@ extension BalaganApplication {
     /// Works from the board too (it's how you get *to* a task), so it isn't in `terminalActions`.
     @objc @MainActor private func menuNextAgentNeedingYou(_ sender: Any?) {
         if viewModel?.jumpToNextAgentNeedingYou() != true {
+            NSSound.beep()
+        }
+    }
+
+    @objc @MainActor private func menuShowBoard(_ sender: Any?) {
+        if viewModel?.showBoard() != true {
             NSSound.beep()
         }
     }

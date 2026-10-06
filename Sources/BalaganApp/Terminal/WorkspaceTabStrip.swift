@@ -51,11 +51,17 @@ struct WorkspaceTabStrip: View {
         .accessibilityIdentifier("terminal-tab-picker")
     }
 
-    private func label(_ title: String, selected: Bool) -> some View {
-        Text(title)
-            .font(.system(size: Theme.TextSize.title * scale, weight: selected ? .semibold : .regular))
-            .foregroundStyle(selected ? Theme.textPrimary : Theme.textSecondary)
-            .lineLimit(1)
+    private func label(_ title: String, selected: Bool, glyph: AgentStatusGlyph? = nil) -> some View {
+        HStack(spacing: 5 * scale) {
+            // Inside the chip, before the title: on the corner it overlapped the edge and was easy to miss.
+            if let glyph {
+                AgentStatusIndicator(glyph: glyph, size: Theme.TextSize.small * scale)
+            }
+            Text(title)
+                .font(.system(size: Theme.TextSize.title * scale, weight: selected ? .semibold : .regular))
+                .foregroundStyle(selected ? Theme.textPrimary : Theme.textSecondary)
+                .lineLimit(1)
+        }
             .padding(.horizontal, 10 * scale)
             .padding(.vertical, 5 * scale)
             .background(
@@ -117,20 +123,11 @@ struct WorkspaceTabStrip: View {
 
     @ViewBuilder
     private func chip(_ surface: Surface) -> some View {
-        label(surface.title, selected: surface.id == selectedID)
-            .overlay(alignment: .topTrailing) {
-                if let glyph = AgentStatusGlyph.resolve(
-                    isRunning: false,
-                    isWaiting: waitingIDs.contains(surface.id),
-                    needsAttention: attentionIDs.contains(surface.id) && surface.id != selectedID
-                ) {
-                    // Seated on the chip's corner (slightly outside it) so it reads as a badge rather
-                    // than crowding the tab's label.
-                    AgentStatusIndicator(glyph: glyph, size: Theme.TextSize.micro * scale)
-                        .padding(.top, -2 * scale)
-                        .padding(.trailing, -2 * scale)
-                }
-            }
+        label(surface.title, selected: surface.id == selectedID, glyph: AgentStatusGlyph.resolve(
+            isRunning: false,
+            isWaiting: waitingIDs.contains(surface.id),
+            needsAttention: attentionIDs.contains(surface.id) && surface.id != selectedID
+        ))
             .opacity(dragID == surface.id ? 0 : 1)
             .background(
                 GeometryReader { proxy in

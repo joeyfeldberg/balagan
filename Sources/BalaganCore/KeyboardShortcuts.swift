@@ -70,6 +70,7 @@ public enum ShortcutAction: String, Codable, CaseIterable, Identifiable, Sendabl
     case focusUp
     case focusDown
     case nextAgentNeedingYou
+    case showBoard
     case toggleReaderMode
     case toggleChangesView
     case speakLastResponse
@@ -91,7 +92,7 @@ public enum ShortcutAction: String, Codable, CaseIterable, Identifiable, Sendabl
             return .general
         case .newTab, .newAgentTab, .splitRight, .splitDown, .closeTab, .zoomPane:
             return .panesAndTabs
-        case .nextTab, .previousTab, .focusLeft, .focusRight, .focusUp, .focusDown, .nextAgentNeedingYou, .findInTerminal:
+        case .nextTab, .previousTab, .focusLeft, .focusRight, .focusUp, .focusDown, .nextAgentNeedingYou, .showBoard, .findInTerminal:
             return .navigation
         case .toggleReaderMode, .toggleChangesView, .speakLastResponse:
             return .session
@@ -115,6 +116,7 @@ public enum ShortcutAction: String, Codable, CaseIterable, Identifiable, Sendabl
         case .focusUp: return "Focus Pane Up"
         case .focusDown: return "Focus Pane Down"
         case .nextAgentNeedingYou: return "Next Agent Needing You"
+        case .showBoard: return "Show Board"
         case .toggleReaderMode: return "Toggle Reader Mode"
         case .toggleChangesView: return "Review Changes"
         case .speakLastResponse: return "Speak Last Response"
@@ -139,6 +141,7 @@ public enum ShortcutAction: String, Codable, CaseIterable, Identifiable, Sendabl
         case .focusUp: return KeyChord(key: "arrowUp", modifiers: [.command, .option])
         case .focusDown: return KeyChord(key: "arrowDown", modifiers: [.command, .option])
         case .nextAgentNeedingYou: return KeyChord(key: "j", modifiers: [.command])
+        case .showBoard: return KeyChord(key: "b", modifiers: [.command, .shift])
         case .toggleReaderMode: return KeyChord(key: "r", modifiers: [.command, .shift])
         case .toggleChangesView: return KeyChord(key: "g", modifiers: [.command, .shift])
         case .speakLastResponse: return KeyChord(key: "s", modifiers: [.command, .shift])

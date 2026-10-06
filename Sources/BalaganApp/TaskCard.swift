@@ -71,6 +71,17 @@ private struct TaskCardBody: View {
                 .foregroundStyle(Theme.textSecondary)
                 .lineLimit(1)
 
+            // What the agent is doing comes right under the title: it's why you look at the board.
+            if let activity {
+                TaskCardActivity(activity: activity, scale: balaganUIScale)
+            } else if task.notes.isEmpty == false {
+                // The notes you wrote at creation only speak while the agent has nothing to say.
+                Text(task.notes)
+                    .font(.system(size: Theme.TextSize.small * balaganUIScale))
+                    .foregroundStyle(Theme.textTertiary)
+                    .lineLimit(3)
+            }
+
             if let worktree {
                 let live = Color(red: 0.25, green: 0.73, blue: 0.44)
                 let gone = Color(red: 0.86, green: 0.45, blue: 0.43)
@@ -99,38 +110,26 @@ private struct TaskCardBody: View {
                 TaskCardPRBadge(pullRequest: pullRequest, scale: balaganUIScale)
             }
 
-            if ports.isEmpty == false {
-                DevServerChips(ports: ports, compact: true)
-            }
-
-            if let tokens, tokens.isEmpty == false {
-                TaskTokenBadge(usage: tokens)
-            }
-
-            if let activity {
-                TaskCardActivity(activity: activity, scale: balaganUIScale)
-            }
-
-            if task.notes.isEmpty == false {
-                // The live activity is the fresher story; the notes you wrote at creation step back.
-                Text(task.notes)
-                    .font(.system(size: Theme.TextSize.small * balaganUIScale))
-                    .foregroundStyle(Theme.textTertiary)
-                    .lineLimit(activity == nil ? 3 : 1)
-            }
-
-            TagRow(tags: task.tags)
+            TaskCardFooter(ports: ports, tokens: tokens, tags: task.tags)
         }
         .padding(.vertical, 9 * balaganUIScale)
         .padding(.horizontal, 11 * balaganUIScale)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(isSelected ? Theme.accentSoft : (isHovered ? Theme.surfaceHover : Theme.surfaceRaised))
+        // A waiting agent gets an amber edge, so it reads from across the board, not just by its glyph.
         .overlay(alignment: .leading) {
-            SelectionAccentBar(isSelected: isSelected, verticalInset: 4 * balaganUIScale)
+            SelectionAccentBar(
+                isSelected: isSelected || isWaiting,
+                verticalInset: 4 * balaganUIScale,
+                color: isSelected ? .accentColor : Theme.agentWaiting
+            )
         }
         .overlay(
             RoundedRectangle(cornerRadius: Theme.radiusCard, style: .continuous)
-                .stroke(isSelected ? Color.accentColor.opacity(0.55) : Theme.hairline, lineWidth: 1)
+                .stroke(
+                    isSelected ? Color.accentColor.opacity(0.55) : (isWaiting ? Theme.agentWaiting.opacity(0.45) : Theme.hairline),
+                    lineWidth: 1
+                )
         )
         .clipShape(RoundedRectangle(cornerRadius: Theme.radiusCard, style: .continuous))
         .shadow(
@@ -149,6 +148,8 @@ struct TaskCard: View {
     let isDragged: Bool
     let boardSpace: String
     let onSelect: () -> Void
+    /// A single click: puts the board's highlight on this card, so ⏎ / 1–9 / ⌘⌫ act on it.
+    var onHighlight: () -> Void = {}
     let onEdit: () -> Void
     let onDelete: () -> Void
     var onRemoveWorktree: () -> Void = {}
@@ -243,7 +244,9 @@ struct TaskCard: View {
             .animation(.easeOut(duration: 0.1), value: isHovered)
             .animation(.easeOut(duration: 0.14), value: isDragged)
             .onHover { isHovered = $0 }
+            // Double-click opens; a single click only highlights, the same as the arrow keys.
             .onTapGesture(count: 2, perform: onSelect)
+            .onTapGesture(count: 1, perform: onHighlight)
             .simultaneousGesture(
                 DragGesture(minimumDistance: 6, coordinateSpace: .named(boardSpace))
                     .onChanged { value in
@@ -404,12 +407,49 @@ private struct PriorityBadge: View {
     }
 }
 
-/// Tags as quiet text ("#ui #fixtures") rather than chips — metadata, not the point of the card.
-private struct TagRow: View {
+/// The card's last row: port chips, token cost and tags. All three are reference, not the story, so
+/// they share one quiet line, and wrap onto a second (then a third) only when the card is too narrow.
+private struct TaskCardFooter: View {
+    let ports: [DevServerPort]
+    let tokens: TokenUsage?
     let tags: [String]
     @Environment(\.balaganUIScale) private var balaganUIScale
 
+    private var visibleTokens: TokenUsage? {
+        tokens.flatMap { $0.isEmpty ? nil : $0 }
+    }
+
     var body: some View {
+        if ports.isEmpty == false || visibleTokens != nil || tags.isEmpty == false {
+            let spacing = 8 * balaganUIScale
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: spacing) {
+                    portsAndTokens
+                    tagText
+                }
+                VStack(alignment: .leading, spacing: 5 * balaganUIScale) {
+                    HStack(spacing: spacing) { portsAndTokens }
+                    tagText
+                }
+                VStack(alignment: .leading, spacing: 5 * balaganUIScale) {
+                    if ports.isEmpty == false { DevServerChips(ports: ports, compact: true) }
+                    if let visibleTokens { TaskTokenBadge(usage: visibleTokens) }
+                    tagText
+                }
+            }
+        }
+    }
+
+    @ViewBuilder private var portsAndTokens: some View {
+        if ports.isEmpty == false {
+            DevServerChips(ports: ports, compact: true).fixedSize()
+        }
+        if let visibleTokens {
+            TaskTokenBadge(usage: visibleTokens).fixedSize()
+        }
+    }
+
+    @ViewBuilder private var tagText: some View {
         if tags.isEmpty == false {
             Text(tags.map { "#\($0)" }.joined(separator: "  "))
                 .font(.system(size: Theme.TextSize.micro * balaganUIScale, weight: .medium))

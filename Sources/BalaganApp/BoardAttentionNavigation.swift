@@ -30,6 +30,13 @@ extension BoardViewModel {
         attentionQueueEntries().count
     }
 
+    /// The same agents split by why they want you, for "1 waiting · 2 finished".
+    var agentsNeedingYouCounts: (waiting: Int, finished: Int) {
+        let entries = attentionQueueEntries()
+        let waiting = entries.filter { $0.reason == .waiting }.count
+        return (waiting, entries.count - waiting)
+    }
+
     /// Opens the next agent in the attention queue (waiting oldest-first, then finished). Returns
     /// false when there's nowhere to go, so the caller can beep.
     @discardableResult

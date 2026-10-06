@@ -149,6 +149,16 @@ struct ChangesView: View {
                 .buttonStyle(.borderless)
                 .help("Delete all pending comments")
                 .accessibilityIdentifier("review-discard-button")
+            // Why Send is greyed out, said where you're looking rather than only in a tooltip.
+            if let blocker = review.sendBlocker, review.comments.isEmpty == false {
+                Text(blocker)
+                    .font(.system(size: Theme.TextSize.small * scale))
+                    .foregroundStyle(Theme.agentWaiting)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .help(blocker)
+                    .accessibilityIdentifier("review-send-blocker")
+            }
             Button {
                 review.send()
             } label: {

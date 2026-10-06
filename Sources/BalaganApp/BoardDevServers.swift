@@ -56,7 +56,7 @@ extension BalaganApplication {
 /// `localhost:3000` chips that open the server in the browser.
 struct DevServerChips: View {
     let ports: [DevServerPort]
-    /// The card's smaller variant shows `:3000`; the header shows the full `localhost:3000`.
+    /// Both read `:3000` (the host is always localhost, in the tooltip); the card's variant is smaller.
     var compact = false
     @Environment(\.balaganUIScale) private var scale
 
@@ -71,7 +71,7 @@ struct DevServerChips: View {
                             .fill(Color(red: 0.25, green: 0.73, blue: 0.44))
                             .frame(width: 5 * scale, height: 5 * scale)
                         // String(port): Text's number interpolation would print "8,765".
-                        Text(verbatim: compact ? ":\(String(port.port))" : "localhost:\(String(port.port))")
+                        Text(verbatim: ":\(String(port.port))")
                             .font(.system(size: (compact ? Theme.TextSize.micro : Theme.TextSize.small) * scale, weight: .medium).monospacedDigit())
                     }
                     .padding(.horizontal, 6 * scale)
@@ -80,6 +80,7 @@ struct DevServerChips: View {
                     .foregroundStyle(Theme.textSecondary)
                 }
                 .buttonStyle(.plain)
+                .fixedSize()
                 .help("Open http://localhost:\(port.port) (\(port.processName))")
                 .accessibilityIdentifier("dev-server-\(port.port)")
             }

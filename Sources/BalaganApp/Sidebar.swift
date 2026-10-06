@@ -51,8 +51,9 @@ struct Sidebar: View {
                     }
                     .accessibilityIdentifier("project-filter-all")
 
-                    if viewModel.agentsNeedingYouCount > 0 {
-                        needsYouRow(count: viewModel.agentsNeedingYouCount)
+                    let needingYou = viewModel.agentsNeedingYouCounts
+                    if needingYou.waiting + needingYou.finished > 0 {
+                        needsYouRow(waiting: needingYou.waiting, finished: needingYou.finished)
                     }
 
                     projectsHeader
@@ -219,16 +220,21 @@ struct Sidebar: View {
         )
     }
 
-    /// "2 agents need you  ⌘J" — the clickable face of the next-agent jump.
-    private func needsYouRow(count: Int) -> some View {
+    /// "1 waiting · 2 finished  ⌘J" — the clickable face of the next-agent jump. Amber while any agent
+    /// is blocked on you; the calmer accent when they've only finished.
+    private func needsYouRow(waiting: Int, finished: Int) -> some View {
         let chord = viewModel.keyboardShortcuts.chord(for: .nextAgentNeedingYou).displayString
+        let tint = waiting > 0 ? Theme.agentWaiting : Color.accentColor
+        let label = [waiting > 0 ? "\(waiting) waiting" : nil, finished > 0 ? "\(finished) finished" : nil]
+            .compactMap { $0 }
+            .joined(separator: " · ")
         return Button {
             viewModel.jumpToNextAgentNeedingYou()
         } label: {
             HStack(spacing: 7 * balaganUIScale) {
-                Image(systemName: "questionmark.circle.fill")
-                    .foregroundStyle(Theme.agentWaiting)
-                Text(count == 1 ? "1 agent needs you" : "\(count) agents need you")
+                Image(systemName: waiting > 0 ? "questionmark.circle.fill" : "checkmark.circle.fill")
+                    .foregroundStyle(tint)
+                Text(label)
                     .foregroundStyle(Theme.textPrimary)
                 Spacer(minLength: 0)
                 Text(chord)
@@ -239,18 +245,18 @@ struct Sidebar: View {
             .padding(.vertical, 7 * balaganUIScale)
             .background(
                 RoundedRectangle(cornerRadius: Theme.radiusButton, style: .continuous)
-                    .fill(Theme.agentWaiting.opacity(0.10))
+                    .fill(tint.opacity(0.10))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: Theme.radiusButton, style: .continuous)
-                    .stroke(Theme.agentWaiting.opacity(0.28), lineWidth: 1)
+                    .stroke(tint.opacity(0.28), lineWidth: 1)
             )
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .padding(.horizontal, 8 * balaganUIScale)
         .padding(.top, 6 * balaganUIScale)
-        .help("Open the next agent waiting on you (\(chord))")
+        .help("Open the next agent that needs you, waiting ones first (\(chord))")
         .accessibilityIdentifier("sidebar-needs-you")
     }
 
@@ -470,8 +476,12 @@ private struct SidebarProjectButton: View {
                         )
                 }
                 .buttonStyle(.plain)
-                .help(terminalsOpen ? "Show project terminals" : "Open project terminals")
-                .opacity(isHovered || lit ? 1 : 0.5)
+                .help(terminalsOpen
+                    ? "Show this project's terminals (shells in the repo, outside any task)"
+                    : "Open a terminal in this project's repo, outside any task")
+                // Shown on hover, or while its terminals are open: on every row at once it was noise.
+                .opacity(isHovered || lit ? 1 : 0)
+                .allowsHitTesting(isHovered || lit)
                 .accessibilityIdentifier("project-terminals-button")
             }
         }

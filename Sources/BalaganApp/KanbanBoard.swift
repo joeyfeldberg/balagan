@@ -218,6 +218,10 @@ struct KanbanBoard: View {
                         boardSpace: boardSpace,
                         draggedTaskID: drag?.taskID,
                         keyboardCardID: keyboardCardID,
+                        onHighlightTask: { id in
+                            keyboardCardID = id
+                            boardFocused = true
+                        },
                         isDropTarget: drag != nil && dropTarget == lane.status,
                         onEditTask: onEditTask,
                         onDeleteTask: onDeleteTask,
@@ -293,7 +297,12 @@ struct KanbanBoard: View {
     private func moveHighlighted(toLaneNumber characters: String) -> KeyPress.Result {
         guard let task = highlightedTask, let number = Int(characters), number >= 1,
               viewModel.boardLanes.indices.contains(number - 1) else { return .ignored }
-        viewModel.move(task: task, to: viewModel.boardLanes[number - 1].status)
+        let status = viewModel.boardLanes[number - 1].status
+        guard viewModel.laneAccepts(taskID: task.id, status: status) else {
+            NSSound.beep()
+            return .handled
+        }
+        viewModel.move(task: task, to: status)
         return .handled
     }
 
@@ -315,7 +324,11 @@ struct KanbanBoard: View {
     private func finishDrag(translation: CGSize) {
         let target = statusUnderDrag(translation: translation)
         if let drag, let target, target != drag.sourceStatus {
-            viewModel.move(taskID: drag.taskID, to: target)
+            if viewModel.laneAccepts(taskID: drag.taskID, status: target) {
+                viewModel.move(taskID: drag.taskID, to: target)
+            } else {
+                NSSound.beep()
+            }
         }
         drag = nil
         dropTarget = nil
@@ -330,6 +343,7 @@ private struct KanbanColumn: View {
     let boardSpace: String
     let draggedTaskID: TaskItem.ID?
     var keyboardCardID: TaskItem.ID? = nil
+    var onHighlightTask: (TaskItem.ID) -> Void = { _ in }
     let isDropTarget: Bool
     let onEditTask: (TaskItem) -> Void
     let onDeleteTask: (TaskItem) -> Void
@@ -462,6 +476,7 @@ private struct KanbanColumn: View {
                 isDragged: task.id == draggedTaskID,
                 boardSpace: boardSpace,
                 onSelect: { viewModel.select(task: task) },
+                onHighlight: { onHighlightTask(task.id) },
                 onEdit: { onEditTask(task) },
                 onDelete: { onDeleteTask(task) },
                 onRemoveWorktree: { onRemoveWorktree(task) },
@@ -492,7 +507,7 @@ private struct KanbanColumn: View {
                 onSendPrompt: { prompt in
                     if viewModel.sendToAgent(taskID: task.id, text: prompt.text) == false { NSSound.beep() }
                 },
-                moveLanes: viewModel.boardLanes
+                moveLanes: viewModel.lanes(forProjectID: task.projectID)
             )
 
             TaskStatusAccessibilityMarker(task: task)

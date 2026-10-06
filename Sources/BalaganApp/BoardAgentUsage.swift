@@ -98,7 +98,9 @@ struct SidebarUsageMeter: View {
                 UsageMeterRow(agent: agent, onRefresh: onRefresh)
             }
         }
-        .padding(.horizontal, 8 * scale)
+        // The rows must fit the 240pt sidebar: wider, and the meter pushed the whole sidebar off its
+        // column (the selection bar went off-screen and the >_ buttons clipped). Now 236pt.
+        .padding(.horizontal, 6 * scale)
         .padding(.vertical, 6 * scale)
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityIdentifier("usage-meter")
@@ -176,7 +178,7 @@ private struct UsageMeterRow: View {
         Button {
             showingDetails.toggle()
         } label: {
-            HStack(spacing: 10 * scale) {
+            HStack(spacing: 8 * scale) {
                 Text(SidebarUsageMeter.displayName(agent.agent))
                     .font(.system(size: Theme.TextSize.small * scale, weight: .medium))
                     .foregroundStyle(Theme.textSecondary)
@@ -361,12 +363,12 @@ private struct UsageWindowBar: View {
                 .lineLimit(1)
                 .frame(width: 18 * scale, alignment: .leading)
             UsageBarShape(fraction: window.usedPercent / 100, tint: tint)
-                .frame(width: 24 * scale, height: 4 * scale)
+                .frame(width: 22 * scale, height: 4 * scale)
             Text("\(Int(window.usedPercent.rounded()))%")
                 .font(.system(size: Theme.TextSize.micro * scale).monospacedDigit())
                 .foregroundStyle(window.usedPercent >= 80 ? tint : Theme.textSecondary)
                 .lineLimit(1)
-                .frame(width: 30 * scale, alignment: .trailing)
+                .frame(width: 28 * scale, alignment: .trailing)
         }
         .opacity(window.hasReset ? 0.55 : 1)
     }

@@ -14,12 +14,15 @@ public struct TaskActivity: Equatable, Sendable {
     public var summary: String?
     /// A one-paragraph, markdown-free preview of the agent's latest prose.
     public var lastResponse: String?
+    /// The agent finished while you weren't looking and you haven't opened it since.
+    public var isUnseen: Bool
 
-    public init(lifecycle: AgentLifecycle?, since: Date?, summary: String?, lastResponse: String?) {
+    public init(lifecycle: AgentLifecycle?, since: Date?, summary: String?, lastResponse: String?, isUnseen: Bool = false) {
         self.lifecycle = lifecycle
         self.since = since
         self.summary = summary
         self.lastResponse = lastResponse
+        self.isUnseen = isUnseen
     }
 
     /// Nothing worth a row on the card.
@@ -33,14 +36,15 @@ public struct TaskActivity: Equatable, Sendable {
         lifecycle == .running ? nil : lastResponse
     }
 
-    /// "Running 4m" / "Waiting 12m" / "Idle 1h 5m". Idle with no timestamp (a restored session that
-    /// hasn't reported yet) says nothing rather than claim a state it can't back up.
+    /// "Running 4m" / "Waiting 12m" / "Idle 1h 5m", or "Finished 14m" for an idle agent whose result
+    /// you haven't seen (the same word the sidebar and the menu bar use). Idle with no timestamp (a
+    /// restored session that hasn't reported yet) says nothing rather than claim a state it can't back up.
     public func stateLabel(now: Date) -> String? {
         let word: String
         switch lifecycle {
         case .running: word = "Running"
         case .needsInput: word = "Waiting"
-        case .idle: word = "Idle"
+        case .idle: word = isUnseen ? "Finished" : "Idle"
         case nil: return nil
         }
         guard let since else { return lifecycle == .idle ? nil : word }

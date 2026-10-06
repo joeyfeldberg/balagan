@@ -32,7 +32,8 @@ extension BoardViewModel {
             lifecycle: surfaceLifecycle[key],
             since: surfaceLifecycleSince[key],
             summary: TaskActivity.summary(fromTitle: surface.title, taskTitle: task.title, cwd: surface.cwd),
-            lastResponse: surfaceLastResponses[key]
+            lastResponse: surfaceLastResponses[key],
+            isUnseen: surfacesNeedingAttention.contains(key)
         )
         return activity.isEmpty ? nil : activity
     }
