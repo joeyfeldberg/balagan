@@ -11,7 +11,7 @@ Run Claude Code, Codex, OpenCode and pi side by side, and see at a glance which 
 <img src="https://img.shields.io/badge/macOS-14%2B-111?style=flat-square&logo=apple&logoColor=white" alt="macOS 14+">
 <img src="https://img.shields.io/badge/Swift-6-F05138?style=flat-square&logo=swift&logoColor=white" alt="Swift 6">
 <img src="https://img.shields.io/badge/terminal-libghostty-4C8DFF?style=flat-square" alt="libghostty">
-<img src="https://img.shields.io/badge/tests-561%20passing-3FD07F?style=flat-square" alt="561 tests">
+<img src="https://img.shields.io/badge/tests-565%20passing-3FD07F?style=flat-square" alt="565 tests">
 <img src="https://img.shields.io/badge/license-MIT-8A93A6?style=flat-square" alt="MIT license">
 </p>
 
@@ -204,7 +204,8 @@ These are the defaults. All of them can be rebound in Settings → Shortcuts.
 | <kbd>⇧⌘G</kbd> | Review changes | | <kbd>⇧⌘↩</kbd> | Zoom pane |
 | <kbd>⇧⌘R</kbd> | Reader mode | | <kbd>⌥⌘</kbd> + arrows | Move between panes |
 | <kbd>⇧⌘S</kbd> | Speak last response | | <kbd>⇧⌘[</kbd> / <kbd>⇧⌘]</kbd> | Previous / next tab |
-| <kbd>⌘F</kbd> | Find in terminal | | | |
+| <kbd>⌘F</kbd> | Find in terminal | | <kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd> | Move between cards on the board |
+| <kbd>⏎</kbd> | Open the highlighted card | | <kbd>1</kbd>–<kbd>9</kbd> / <kbd>⌘⌫</kbd> | Move it to lane N / archive it |
 
 ## FAQ
 
@@ -230,7 +231,7 @@ shows the current permission state.
 ## Development
 
 ```bash
-swift build && swift test    # the fast loop: 561 unit tests, no display needed
+swift build && swift test    # the fast loop: 565 unit tests, no display needed
 make lint
 .build/debug/BalaganApp --ui-test-mode --fixture multi-project-running   # deterministic fixtures
 ```

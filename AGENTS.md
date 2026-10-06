@@ -411,6 +411,17 @@ Pressing it again walks the queue and wraps; it beeps when nothing needs you. Th
 `AgentAttentionQueue`, and the list is `SidebarTaskList` (both Core). The glue is
 `BoardAttentionNavigation.swift`.
 
+## Keyboard on the board
+
+When the board is showing, it holds keyboard focus. The arrow keys move a highlight between cards
+(an accent ring). Up/down stay in a lane; left/right jump to the nearest lane with cards, keeping
+the row. The highlighted card scrolls into view. ⏎ opens it, 1–9 moves it to that lane (counting
+collapsed lanes too), ⌘⌫ archives it (with the usual confirmation), and Esc clears the highlight.
+Movement is the pure `BoardKeyboardNavigation` (Core); the keys are `onKeyPress` handlers in
+`KanbanBoard`, which return `.ignored` for anything else, so menu shortcuts keep working. The
+highlight drops when its card leaves the board. Real key presses can't be tested headlessly;
+`BALAGAN_SHOW_BOARD_HIGHLIGHT=<task id>` starts with a card highlighted for a snapshot.
+
 ## Visual language
 
 Text sizes come from `Theme.TextSize`, never literals: `micro` 10.5 (section caps, badges, counts),

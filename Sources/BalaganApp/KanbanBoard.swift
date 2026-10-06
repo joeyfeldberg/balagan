@@ -37,8 +37,17 @@ struct KanbanBoard: View {
     @State private var drag: CardDragContext?
     @State private var dropTarget: TaskStatus?
     @State private var showingLaneEditor = false
+    /// The card the arrow keys have highlighted (⏎ opens it, 1–9 move it, ⌘⌫ archives it).
+    // `BALAGAN_SHOW_BOARD_HIGHLIGHT=<task id>` starts with that card highlighted, for a snapshot.
+    @State private var keyboardCardID: TaskItem.ID? = ProcessInfo.processInfo.environment["BALAGAN_SHOW_BOARD_HIGHLIGHT"]
+    @FocusState private var boardFocused: Bool
 
     private let boardSpace = "board-canvas"
+
+    /// The visible lanes' card ids, left to right, for arrow-key movement.
+    private var navigationColumns: [[TaskItem.ID]] {
+        viewModel.boardLanes.filter { $0.collapsed == false }.map { viewModel.tasks(for: $0.status).map(\.id) }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -47,6 +56,29 @@ struct KanbanBoard: View {
                 WelcomeView(viewModel: viewModel, onCreateProject: onCreateProject)
             } else {
                 boardCanvas
+                    .focusable()
+                    .focused($boardFocused)
+                    .focusEffectDisabled()
+                    .onAppear { boardFocused = true }
+                    .onKeyPress(.upArrow) { moveHighlight(.up) }
+                    .onKeyPress(.downArrow) { moveHighlight(.down) }
+                    .onKeyPress(.leftArrow) { moveHighlight(.left) }
+                    .onKeyPress(.rightArrow) { moveHighlight(.right) }
+                    .onKeyPress(.return) { openHighlighted() }
+                    .onKeyPress(.escape) {
+                        guard keyboardCardID != nil else { return .ignored }
+                        keyboardCardID = nil
+                        return .handled
+                    }
+                    .onKeyPress(.delete, phases: .down) { press in
+                        guard press.modifiers.contains(.command), let task = highlightedTask else { return .ignored }
+                        onArchiveTask(task)
+                        return .handled
+                    }
+                    .onKeyPress(characters: .decimalDigits) { press in moveHighlighted(toLaneNumber: press.characters) }
+                    .onChange(of: navigationColumns) { _, columns in
+                        keyboardCardID = BoardKeyboardNavigation.retained(keyboardCardID, columns: columns)
+                    }
             }
         }
         .background(Theme.bgWindow)
@@ -185,6 +217,7 @@ struct KanbanBoard: View {
                         viewModel: viewModel,
                         boardSpace: boardSpace,
                         draggedTaskID: drag?.taskID,
+                        keyboardCardID: keyboardCardID,
                         isDropTarget: drag != nil && dropTarget == lane.status,
                         onEditTask: onEditTask,
                         onDeleteTask: onDeleteTask,
@@ -238,6 +271,32 @@ struct KanbanBoard: View {
         }
     }
 
+    private var highlightedTask: TaskItem? {
+        keyboardCardID.flatMap { id in viewModel.tasks.first { $0.id == id } }
+    }
+
+    private func moveHighlight(_ direction: BoardKeyboardNavigation.Direction) -> KeyPress.Result {
+        guard let next = BoardKeyboardNavigation.next(from: keyboardCardID, direction: direction, columns: navigationColumns) else {
+            return .ignored
+        }
+        keyboardCardID = next
+        return .handled
+    }
+
+    private func openHighlighted() -> KeyPress.Result {
+        guard let task = highlightedTask else { return .ignored }
+        viewModel.select(task: task)
+        return .handled
+    }
+
+    /// 1–9 moves the highlighted card to that lane (counting every lane, collapsed ones too).
+    private func moveHighlighted(toLaneNumber characters: String) -> KeyPress.Result {
+        guard let task = highlightedTask, let number = Int(characters), number >= 1,
+              viewModel.boardLanes.indices.contains(number - 1) else { return .ignored }
+        viewModel.move(task: task, to: viewModel.boardLanes[number - 1].status)
+        return .handled
+    }
+
     private func toggleLaneCollapsed(_ lane: Lane) {
         if let projectID = viewModel.selectedProjectID {
             viewModel.toggleLaneCollapsed(projectID: projectID, laneID: lane.id)
@@ -270,6 +329,7 @@ private struct KanbanColumn: View {
     @ObservedObject var viewModel: BoardViewModel
     let boardSpace: String
     let draggedTaskID: TaskItem.ID?
+    var keyboardCardID: TaskItem.ID? = nil
     let isDropTarget: Bool
     let onEditTask: (TaskItem) -> Void
     let onDeleteTask: (TaskItem) -> Void
@@ -351,15 +411,22 @@ private struct KanbanColumn: View {
                 EmptyColumn()
                 Spacer(minLength: 0)
             } else {
-                ScrollView(.vertical, showsIndicators: false) {
-                    LazyVStack(alignment: .leading, spacing: 8 * balaganUIScale) {
-                        ForEach(tasks) { task in
-                            card(for: task)
+                ScrollViewReader { proxy in
+                    ScrollView(.vertical, showsIndicators: false) {
+                        LazyVStack(alignment: .leading, spacing: 8 * balaganUIScale) {
+                            ForEach(tasks) { task in
+                                card(for: task)
+                                    .id(task.id)
+                            }
                         }
+                        .padding(.bottom, 4 * balaganUIScale)
                     }
-                    .padding(.bottom, 4 * balaganUIScale)
+                    .scrollDisabled(draggedTaskID != nil)
+                    .onChange(of: keyboardCardID) { _, id in
+                        guard let id, tasks.contains(where: { $0.id == id }) else { return }
+                        withAnimation(.easeOut(duration: 0.15)) { proxy.scrollTo(id) }
+                    }
                 }
-                .scrollDisabled(draggedTaskID != nil)
             }
         }
         .padding(10 * balaganUIScale)
@@ -417,6 +484,7 @@ private struct KanbanColumn: View {
                 isWaiting: viewModel.taskIsWaiting(task),
                 worktree: viewModel.worktreeInfo(for: task),
                 activity: viewModel.taskActivity(task),
+                isKeyboardFocused: task.id == keyboardCardID,
                 ports: viewModel.devServerPorts[task.id] ?? [],
                 tokens: viewModel.taskTokenUsage[task.id],
                 savedPrompts: viewModel.savedPrompts(for: task),

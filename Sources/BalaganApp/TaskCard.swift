@@ -170,6 +170,8 @@ struct TaskCard: View {
     var isWaiting = false
     var worktree: TaskWorktreeInfo? = nil
     var activity: TaskActivity? = nil
+    /// The board's arrow-key highlight.
+    var isKeyboardFocused = false
     var ports: [DevServerPort] = []
     var tokens: TokenUsage? = nil
     var savedPrompts: [SavedPrompt] = []
@@ -203,6 +205,11 @@ struct TaskCard: View {
 
     var body: some View {
         TaskCardBody(task: task, projectName: projectName, isSelected: isSelected, isHovered: isHovered, needsAttention: needsAttention, isRunning: isRunning, isWaiting: isWaiting, worktree: worktree, pullRequest: pullRequest, activity: activity, ports: ports, tokens: tokens)
+            .overlay(
+                RoundedRectangle(cornerRadius: Theme.radiusCard, style: .continuous)
+                    .stroke(Color.accentColor, lineWidth: 2)
+                    .opacity(isKeyboardFocused ? 1 : 0)
+            )
             // While lifted, the in-place card becomes a dashed placeholder that keeps the column's layout.
             // A slept task is dimmed to read as inactive.
             .opacity(isDragged ? 0 : (isAsleep ? 0.6 : 1))
