@@ -65,9 +65,11 @@ struct CommandPalette: View {
                     ScrollViewReader { proxy in
                         ScrollView {
                             LazyVStack(spacing: 0) {
+                                // Rows are identified by command, never by position: an index id made the lazy
+                                // list keep a stale row (typing "sleep" showed the previous first row,
+                                // Reader Mode, while ⏎ would run Sleep Task).
                                 ForEach(Array(results.enumerated()), id: \.element.id) { index, command in
                                     row(command, isSelected: index == clampedSelection)
-                                        .id(index)
                                         .contentShape(Rectangle())
                                         .onTapGesture { run(command) }
                                 }
@@ -75,7 +77,8 @@ struct CommandPalette: View {
                         }
                         .frame(maxHeight: 340 * scale)
                         .onChange(of: clampedSelection) { _, newValue in
-                            withAnimation(.linear(duration: 0.06)) { proxy.scrollTo(newValue) }
+                            guard results.indices.contains(newValue) else { return }
+                            withAnimation(.linear(duration: 0.06)) { proxy.scrollTo(results[newValue].id) }
                         }
                     }
                 }
