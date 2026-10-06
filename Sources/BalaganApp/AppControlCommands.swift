@@ -75,17 +75,21 @@ extension BalaganApplication {
         let reported = viewModel.usageTrackingEnabled
             ? [AgentUsageStore.readClaude(), AgentUsageStore.readCodex()].compactMap { $0 }
             : viewModel.agentUsage
-        let agents: [[String: Any]] = reported.compactMap { $0.current(at: now) }.map { usage in
+        let agents: [[String: Any]] = reported.map { $0.current(at: now) }.map { usage in
             [
                 "agent": usage.agent,
                 "name": SidebarUsageMeter.displayName(usage.agent),
+                "plan": usage.plan ?? "",
+                "notes": usage.notes,
                 "observedAt": ISO8601DateFormatter().string(from: usage.observedAt),
                 "windows": usage.windows.map { window in
                     [
                         "label": window.label,
+                        "title": window.longLabel,
                         "usedPercent": window.usedPercent,
                         "resetsAt": ISO8601DateFormatter().string(from: window.resetsAt),
-                        "resets": SidebarUsageMeter.resetPhrase(window.resetsAt, now: now),
+                        "resets": SidebarUsageMeter.resetDescription(window, now: now),
+                        "hasReset": window.hasReset,
                     ] as [String: Any]
                 },
             ]

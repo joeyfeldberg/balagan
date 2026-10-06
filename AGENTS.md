@@ -590,7 +590,23 @@ agents themselves record, parsed by the pure `AgentUsageParser` / `AgentUsageSto
   `padding`/`refreshInterval` are copied onto ours. With no status line of their own, we print a
   compact `model · ctx · 5h · Week` line.
 
-A window past its reset time is dropped until the agent reports again. Usage refreshes the moment
+Claude's numbers are the status line's live 5-hour / weekly reading **merged** with Claude's own
+cache of its usage page, `cachedUsageUtilization` in `~/.claude.json` (`$CLAUDE_CONFIG_DIR/.claude.json`
+when set), which Claude refreshes when it fetches usage (e.g. `/usage`). The cache adds every other
+limit in its `limits` array (model-scoped ones like the **Fable weekly limit**), extra-usage status,
+and the plan (from `oauthAccount`: "Max 5x · Team"). Per window the newer reading wins, and an older
+window keeps its own `observedAt` so the details can say "as of 22h ago". Codex adds its `plan_type`
+and credits. `AgentUsageParser.claudeCache` / `AgentUsage.merged(with:)` are pure and tested; the
+timestamp parser trims Claude's microseconds, which `ISO8601DateFormatter` rejects.
+
+A window past its reset time reads 0% (`UsageWindow.hasReset`, dimmed) until the agent reports
+again. In the sidebar the 5h / Week windows always sit in the same columns, and other windows only
+show in the details. Compact shows just each agent's tightest window
+(`AppPreferences.Keys.usageCompact`). **Each agent's row is a button** that opens its own
+`AgentUsageDetails` popover: plan, every window with its bar and exact reset time, notes, when it
+last reported, refresh, a link to the agent's usage page, and the Detailed / Compact choice.
+`BALAGAN_SHOW_USAGE_DETAILS=<agent>` opens one at launch for a screenshot (a popover is its own
+window, so capture the screen, not `board-app.png`). Usage refreshes the moment
 `usage/claude.json` is rewritten (a folder watcher), every 60 s, and whenever an agent goes idle or
 needs input. It's off in `--ui-test-mode`;
 `BALAGAN_FIXTURE_USAGE=1` seeds sample numbers for a snapshot.

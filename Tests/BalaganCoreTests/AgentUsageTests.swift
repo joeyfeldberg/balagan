@@ -58,13 +58,17 @@ final class AgentUsageTests: XCTestCase {
         XCTAssertEqual(AgentUsageParser.windowLabel(minutes: 4320), "3d")
     }
 
-    func testAWindowPastItsResetIsDropped() {
-        let usage = AgentUsage(agent: "claude", windows: [
-            UsageWindow(label: "5h", usedPercent: 90, resetsAt: now.addingTimeInterval(-1)),
+    func testAWindowPastItsResetReadsZeroInsteadOfVanishing() {
+        let usage = AgentUsage(agent: "codex", windows: [
             UsageWindow(label: "Week", usedPercent: 40, resetsAt: now.addingTimeInterval(60)),
+            UsageWindow(label: "5h", usedPercent: 90, resetsAt: now.addingTimeInterval(-1)),
         ], observedAt: now)
-        XCTAssertEqual(usage.current(at: now)?.windows.map(\.label), ["Week"])
-        XCTAssertNil(usage.current(at: now.addingTimeInterval(120)))
+        let current = usage.current(at: now)
+        XCTAssertEqual(current.windows.map(\.label), ["5h", "Week"], "always 5h first, so columns line up")
+        XCTAssertEqual(current.windows.map(\.usedPercent), [0, 40])
+        XCTAssertEqual(current.windows.map(\.hasReset), [true, false])
+        XCTAssertEqual(current.tightestWindow?.label, "Week")
+        XCTAssertEqual(current.soonestReset(after: now), now.addingTimeInterval(60))
     }
 
     func testCodexStoreReadsTheNewestRolloutWithLimits() throws {
@@ -116,5 +120,55 @@ final class AgentUsageTests: XCTestCase {
     func testTheDefaultLineShowsModelContextAndLimits() {
         let json = #"{"model":{"display_name":"Opus"},"context_window":{"used_percentage":34.4},"rate_limits":{"five_hour":{"used_percentage":23.5,"resets_at":1790003600}}}"#
         XCTAssertEqual(ClaudeStatusLine.defaultLine(statusLineJSON: Data(json.utf8), now: now), "Opus · ctx 34% · 5h 24%")
+    }
+
+    // MARK: Claude's own cache (~/.claude.json)
+
+    private let claudeState = #"""
+    {"oauthAccount":{"userRateLimitTier":"default_claude_max_5x","organizationType":"claude_team"},
+     "cachedUsageUtilization":{"fetchedAtMs":1790000000000,"utilization":{
+       "five_hour":{"utilization":32,"resets_at":"2026-09-21T15:00:00.606369+00:00"},
+       "extra_usage":{"is_enabled":false,"disabled_reason":"out_of_credits"},
+       "limits":[
+         {"kind":"session","percent":32,"resets_at":"2026-09-21T15:00:00.606369+00:00","scope":null},
+         {"kind":"weekly_all","percent":14,"resets_at":"2026-09-25T20:00:00.606387+00:00","scope":null},
+         {"kind":"weekly_scoped","percent":10,"resets_at":"2026-09-25T20:00:00.606556+00:00",
+          "scope":{"model":{"id":null,"display_name":"Fable"},"surface":null}}]}}}
+    """#
+
+    func testReadsEveryLimitPlanAndExtraUsageFromClaudesCache() throws {
+        let usage = try XCTUnwrap(AgentUsageParser.claudeCache(stateJSON: Data(claudeState.utf8)))
+        XCTAssertEqual(usage.observedAt, Date(timeIntervalSince1970: 1_790_000_000))
+        XCTAssertEqual(usage.windows.map(\.label), ["5h", "Week", "Fable"])
+        XCTAssertEqual(usage.windows.map(\.usedPercent), [32, 14, 10])
+        XCTAssertEqual(usage.windows.last?.longLabel, "Fable weekly limit")
+        XCTAssertEqual(usage.plan, "Max 5x · Team")
+        XCTAssertEqual(usage.notes, ["Extra usage off: out of credits"])
+        // Microsecond timestamps parse (ISO8601DateFormatter alone rejects them).
+        XCTAssertNotNil(AgentUsageParser.parseTimestamp("2026-09-25T20:00:00.606556+00:00"))
+    }
+
+    func testTheNewerReadingWinsPerWindowWhenMerging() throws {
+        let cache = try XCTUnwrap(AgentUsageParser.claudeCache(stateJSON: Data(claudeState.utf8)))
+        let later = cache.observedAt.addingTimeInterval(3600)
+        let live = AgentUsage(agent: "claude", windows: [
+            UsageWindow(label: "5h", usedPercent: 40, resetsAt: later.addingTimeInterval(3600)),
+            UsageWindow(label: "Week", usedPercent: 15, resetsAt: later.addingTimeInterval(86400)),
+        ], observedAt: later)
+
+        let merged = live.merged(with: cache)
+        XCTAssertEqual(merged.windows.map(\.label), ["5h", "Week", "Fable"])
+        XCTAssertEqual(merged.windows.map(\.usedPercent), [40, 15, 10], "live numbers win; the cache adds Fable")
+        XCTAssertEqual(merged.windows.last?.observedAt, cache.observedAt, "the older window keeps its own time")
+        XCTAssertEqual(merged.plan, "Max 5x · Team")
+        XCTAssertEqual(merged.observedAt, later)
+        XCTAssertEqual(cache.merged(with: live), merged, "order doesn't matter")
+    }
+
+    func testCodexReportsItsPlanAndCredits() throws {
+        let line = #"{"timestamp":"2026-10-05T20:00:00.000Z","payload":{"rate_limits":{"primary":{"used_percent":9,"window_minutes":300,"resets_at":1790010000},"credits":{"has_credits":false,"unlimited":false,"balance":"0"},"plan_type":"plus"}}}"#
+        let usage = try XCTUnwrap(AgentUsageParser.codex(rolloutText: line))
+        XCTAssertEqual(usage.plan, "Plus")
+        XCTAssertEqual(usage.notes, ["No extra credits"])
     }
 }

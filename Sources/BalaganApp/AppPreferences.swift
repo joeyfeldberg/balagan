@@ -7,6 +7,8 @@ enum AppPreferences {
         static let defaultAgent = "defaultAgentForNewProjects"
         static let waitingBanners = "bannersWhenAgentWaits"
         static let finishedBanners = "bannersWhenAgentFinishes"
+        /// The sidebar usage meter shows only each agent's tightest window.
+        static let usageCompact = "usageMeterCompact"
     }
 
     /// The agent a new project is pre-filled with.

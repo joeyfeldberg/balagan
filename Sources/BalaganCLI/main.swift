@@ -83,12 +83,14 @@ func printResult(method: String, result: Any?) {
             return
         }
         for agent in agents {
-            print(agent["name"] as? String ?? agent["agent"] as? String ?? "?")
+            let plan = (agent["plan"] as? String).flatMap { $0.isEmpty ? nil : " (\($0))" } ?? ""
+            print((agent["name"] as? String ?? agent["agent"] as? String ?? "?") + plan)
             for window in agent["windows"] as? [[String: Any]] ?? [] {
-                let label = (window["label"] as? String ?? "").padding(toLength: 5, withPad: " ", startingAt: 0)
+                let label = (window["label"] as? String ?? "").padding(toLength: 6, withPad: " ", startingAt: 0)
                 let used = Int(((window["usedPercent"] as? Double) ?? 0).rounded())
-                print("  \(label) \(String(used).leftPadded(to: 3))% used   resets \(window["resets"] as? String ?? "?")")
+                print("  \(label) \(String(used).leftPadded(to: 3))% used   \(window["resets"] as? String ?? "")")
             }
+            for note in agent["notes"] as? [String] ?? [] { print("  \(note)") }
         }
 
     case "autosleep":

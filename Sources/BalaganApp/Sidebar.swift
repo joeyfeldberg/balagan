@@ -73,7 +73,7 @@ struct Sidebar: View {
             Divider()
 
             if viewModel.agentUsage.isEmpty == false {
-                SidebarUsageMeter(usage: viewModel.agentUsage)
+                SidebarUsageMeter(usage: viewModel.agentUsage, onRefresh: { viewModel.refreshAgentUsage() })
                 Divider()
             }
 
