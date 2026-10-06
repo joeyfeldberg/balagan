@@ -128,6 +128,10 @@ final class BoardViewModel: ObservableObject, @unchecked Sendable {
     @Published var devServerPorts: [TaskItem.ID: [DevServerPort]] = [:]
     /// Off in `--ui-test-mode`: it scans the real process table.
     var devServerTrackingEnabled = true
+    /// Tokens and API-equivalent cost per task (`BoardTaskTokens`).
+    @Published var taskTokenUsage: [TaskItem.ID: TokenUsage] = [:]
+    /// Off in `--ui-test-mode`: it reads real transcripts.
+    var tokenTrackingEnabled = true
     /// Gates the app-posted agent banners ("waiting for your input" / "finished"). Disabled in
     /// `--ui-test-mode` so a snapshot run never buzzes the user's Notification Centre, and off by
     /// default inside any XCTest process — unit tests drive real running→idle transitions on fixture

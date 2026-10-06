@@ -43,10 +43,14 @@ extension BalaganApplication {
     @MainActor
     func startUsagePolling() {
         viewModel?.refreshAgentUsage()
+        viewModel?.refreshTaskTokens()
         usagePollTimer?.invalidate()
         usagePollTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated {
-                self?.viewModel?.refreshAgentUsage()
+                guard let viewModel = self?.viewModel else { return }
+                viewModel.refreshAgentUsage()
+                // Running agents' token counts grow between their idle reports.
+                viewModel.refreshTaskTokens(taskIDs: viewModel.liveTaskIDs)
             }
         }
         watchClaudeUsageFile()

@@ -609,6 +609,29 @@ libproc's `PROC_PIDTBSDINFO` refuses root processes, which cut the tree in two. 
 reports folders by real path (`/tmp` is `/private/tmp`), so task folders go through `realpath`
 first. `BALAGAN_FIXTURE_PORTS=1` seeds chips for a snapshot.
 
+## Tokens and cost per task
+
+Each card shows "≈ $4.71 · 7.3M tokens" (`TaskTokenBadge`; hover for input / cache writes / cache
+reads / output and the models). It's summed over the task's agent tabs' **current** sessions, from
+their transcripts (`ResumeBinding.transcriptPath`, resolved by `TranscriptLocator`). An earlier session a
+tab has since replaced isn't counted. The pure counter is `TranscriptTokenCounter` (Core), which is
+incremental: `TranscriptTokenCache` keeps one per file and reads only what was appended.
+
+- **Claude** writes one `assistant` line per content block, each repeating the response's `usage`,
+  so lines are de-duplicated by message id (a long session has about 2.3× as many lines as
+  responses). Sidechain lines (subagents) are skipped. Cache writes are split into 5-minute and
+  1-hour writes from `usage.cache_creation`.
+- **Codex** logs a running total (`token_count` → `total_token_usage`); the last one counts. Its
+  `input_tokens` includes `cached_input_tokens`. The model comes from `turn_context`.
+
+The cost is at **Anthropic API list prices** (`ClaudePricing`, matched by model-id prefix): input,
+output, cache writes at 1.25× input (5 minutes) or 2× (1 hour), and cache reads at each model's own
+rate (0.025× input on Fable 5.1, 0.05× on Opus 5.5, 0.1× elsewhere). It's a yardstick, since a
+subscription isn't billed per token. Codex has no price table, so it shows tokens only. Refreshed at
+launch, when a task's agent goes idle or needs input, and every 60 s for live tasks. It's off in
+`--ui-test-mode`; `BALAGAN_FIXTURE_TOKENS=1` seeds sample numbers. `balagan tasks --json` includes
+`tokens`.
+
 ## Subscription usage
 
 The sidebar's meter (`SidebarUsageMeter`, `BoardAgentUsage.swift`) and `balagan usage` show each

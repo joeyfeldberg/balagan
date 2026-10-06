@@ -158,6 +158,7 @@ extension BoardViewModel {
         // when its subscription usage has moved.
         if lifecycle == .idle || lifecycle == .needsInput {
             refreshAgentUsage()
+            refreshTaskTokens(taskIDs: [taskID])
             refreshLastResponse(taskID: taskID, surfaceID: surfaceID)
             refreshVisibleChangesAfterAgentStopped(taskID: taskID)
         }

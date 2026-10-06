@@ -230,6 +230,14 @@ extension BalaganApplication {
                     "live": viewModel.taskIsDormant(task) == false,
                     "exitedAgent": task.workspace.surfaces.contains { viewModel.endedAgent(taskID: task.id, surfaceID: $0.id) != nil },
                     "ports": (viewModel.devServerPorts[task.id] ?? []).map(\.port),
+                    "tokens": viewModel.taskTokenUsage[task.id].map { usage -> [String: Any] in
+                        var json: [String: Any] = [
+                            "total": usage.totalTokens, "input": usage.inputTokens, "cacheWrite": usage.cacheWriteTokens,
+                            "cacheRead": usage.cacheReadTokens, "output": usage.outputTokens, "models": usage.models.sorted(),
+                        ]
+                        if let cost = usage.costUSD { json["costUSD"] = (cost * 100).rounded() / 100 }
+                        return json
+                    } ?? NSNull(),
                     // The agent in each agent tab: from its session binding, or running but not yet bound.
                     "agents": task.workspace.surfaces.compactMap { surface -> String? in
                         if let name = surface.resumeBinding?.agentName, surface.resumeBinding?.kind == .agent {

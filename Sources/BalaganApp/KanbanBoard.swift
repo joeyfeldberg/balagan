@@ -418,6 +418,7 @@ private struct KanbanColumn: View {
                 worktree: viewModel.worktreeInfo(for: task),
                 activity: viewModel.taskActivity(task),
                 ports: viewModel.devServerPorts[task.id] ?? [],
+                tokens: viewModel.taskTokenUsage[task.id],
                 moveLanes: viewModel.boardLanes
             )
 

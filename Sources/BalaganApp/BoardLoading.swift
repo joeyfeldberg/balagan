@@ -29,6 +29,7 @@ extension BoardViewModel {
             viewModel.pullRequestTrackingEnabled = (options.uiTestMode == false)
             viewModel.usageTrackingEnabled = (options.uiTestMode == false)
             viewModel.devServerTrackingEnabled = (options.uiTestMode == false)
+            viewModel.tokenTrackingEnabled = (options.uiTestMode == false)
             // Nor any real desktop banners (a snapshot run must not buzz Notification Centre).
             viewModel.agentNotificationsEnabled = (options.uiTestMode == false)
             // Nor reads of the user's real transcripts for the card previews; then prime them once.
@@ -60,6 +61,9 @@ extension BoardViewModel {
             }
             if ProcessInfo.processInfo.environment["BALAGAN_FAKE_PR"] == "1" {
                 viewModel.seedFakePullRequestForSnapshot()
+            }
+            if ProcessInfo.processInfo.environment["BALAGAN_FIXTURE_TOKENS"] == "1" {
+                viewModel.seedTaskTokensForSnapshot()
             }
             if ProcessInfo.processInfo.environment["BALAGAN_FIXTURE_PORTS"] == "1" {
                 viewModel.seedDevServerPortsForSnapshot()
