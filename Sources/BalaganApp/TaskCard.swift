@@ -38,6 +38,7 @@ private struct TaskCardBody: View {
     var worktree: TaskWorktreeInfo? = nil
     var pullRequest: TaskPullRequest? = nil
     var activity: TaskActivity? = nil
+    var ports: [DevServerPort] = []
     @Environment(\.balaganUIScale) private var balaganUIScale
 
     var body: some View {
@@ -95,6 +96,10 @@ private struct TaskCardBody: View {
 
             if let pullRequest {
                 TaskCardPRBadge(pullRequest: pullRequest, scale: balaganUIScale)
+            }
+
+            if ports.isEmpty == false {
+                DevServerChips(ports: ports, compact: true)
             }
 
             if let activity {
@@ -160,6 +165,7 @@ struct TaskCard: View {
     var isWaiting = false
     var worktree: TaskWorktreeInfo? = nil
     var activity: TaskActivity? = nil
+    var ports: [DevServerPort] = []
     /// The board's lanes, offered in the card's "Move To" menu.
     var moveLanes: [Lane] = Lane.defaults
     @Environment(\.balaganUIScale) private var balaganUIScale
@@ -174,7 +180,7 @@ struct TaskCard: View {
     @MainActor private func makeDragSnapshot() -> NSImage? {
         guard frameInBoard.width > 1 else { return nil }
         let renderer = ImageRenderer(
-            content: TaskCardBody(task: task, projectName: projectName, isSelected: isSelected, drawShadow: false, worktree: worktree, pullRequest: pullRequest, activity: activity)
+            content: TaskCardBody(task: task, projectName: projectName, isSelected: isSelected, drawShadow: false, worktree: worktree, pullRequest: pullRequest, activity: activity, ports: ports)
                 .frame(width: frameInBoard.width)
                 .environment(\.balaganUIScale, balaganUIScale)
                 // ImageRenderer defaults to a light appearance; force dark so the dynamic label
@@ -187,7 +193,7 @@ struct TaskCard: View {
     }
 
     var body: some View {
-        TaskCardBody(task: task, projectName: projectName, isSelected: isSelected, isHovered: isHovered, needsAttention: needsAttention, isRunning: isRunning, isWaiting: isWaiting, worktree: worktree, pullRequest: pullRequest, activity: activity)
+        TaskCardBody(task: task, projectName: projectName, isSelected: isSelected, isHovered: isHovered, needsAttention: needsAttention, isRunning: isRunning, isWaiting: isWaiting, worktree: worktree, pullRequest: pullRequest, activity: activity, ports: ports)
             // While lifted, the in-place card becomes a dashed placeholder that keeps the column's layout.
             // A slept task is dimmed to read as inactive.
             .opacity(isDragged ? 0 : (isAsleep ? 0.6 : 1))

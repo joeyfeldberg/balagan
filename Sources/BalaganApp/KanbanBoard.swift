@@ -417,6 +417,7 @@ private struct KanbanColumn: View {
                 isWaiting: viewModel.taskIsWaiting(task),
                 worktree: viewModel.worktreeInfo(for: task),
                 activity: viewModel.taskActivity(task),
+                ports: viewModel.devServerPorts[task.id] ?? [],
                 moveLanes: viewModel.boardLanes
             )
 

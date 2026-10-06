@@ -229,6 +229,7 @@ extension BalaganApplication {
                     "running": viewModel.taskIsRunning(task),
                     "live": viewModel.taskIsDormant(task) == false,
                     "exitedAgent": task.workspace.surfaces.contains { viewModel.endedAgent(taskID: task.id, surfaceID: $0.id) != nil },
+                    "ports": (viewModel.devServerPorts[task.id] ?? []).map(\.port),
                     // The agent in each agent tab: from its session binding, or running but not yet bound.
                     "agents": task.workspace.surfaces.compactMap { surface -> String? in
                         if let name = surface.resumeBinding?.agentName, surface.resumeBinding?.kind == .agent {

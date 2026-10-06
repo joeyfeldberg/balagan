@@ -13,6 +13,7 @@ final class BalaganApplication: NSObject, NSApplicationDelegate, @unchecked Send
     var pullRequestPollTimer: Timer?
     var lifecycleReconcileTimer: Timer?
     var usagePollTimer: Timer?
+    var devServerTimer: Timer?
     var usageWatcher: DispatchSourceFileSystemObject?
     var autoSleepTimer: Timer?
     var memoryPressureSource: DispatchSourceMemoryPressure?
@@ -77,6 +78,7 @@ final class BalaganApplication: NSObject, NSApplicationDelegate, @unchecked Send
             startPullRequestPolling()
             startLifecycleReconcile()
             startUsagePolling()
+            startDevServerScan()
             startAutoSleep(viewModel: viewModel)
             viewModel.detectInstalledAgents()
         }

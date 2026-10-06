@@ -124,6 +124,10 @@ final class BoardViewModel: ObservableObject, @unchecked Sendable {
     @Published var agentUsage: [AgentUsage] = []
     /// Off in `--ui-test-mode`: reading it means reading real agent files.
     var usageTrackingEnabled = true
+    /// Local servers each task's terminals started (`BoardDevServers`).
+    @Published var devServerPorts: [TaskItem.ID: [DevServerPort]] = [:]
+    /// Off in `--ui-test-mode`: it scans the real process table.
+    var devServerTrackingEnabled = true
     /// Gates the app-posted agent banners ("waiting for your input" / "finished"). Disabled in
     /// `--ui-test-mode` so a snapshot run never buzzes the user's Notification Centre, and off by
     /// default inside any XCTest process — unit tests drive real running→idle transitions on fixture

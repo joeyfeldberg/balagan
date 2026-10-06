@@ -98,6 +98,7 @@ struct TaskTerminalWorkspaceScreen: View {
                     viewModel.moveSurfaceTab(taskID: task.id, fromOffset: from, toOffset: to)
                 },
                 workingDirectory: taskWorktreeDirectory(),
+                devServerPorts: viewModel.devServerPorts[task.id] ?? [],
                 onOpenInZed: EditorLauncher.isZedInstalled ? { openTaskInZed() } : nil,
                 onOpenInFork: EditorLauncher.isForkInstalled ? { openTaskInFork() } : nil,
                 tracksPullRequest: viewModel.tracksPullRequest(task),
@@ -186,6 +187,8 @@ private struct TerminalWorkspace: View {
     var onMoveSurfaceTab: (Int, Int) -> Void = { _, _ in }
     /// The task's checkout on disk, for "Open in → Finder" and "Copy Path".
     var workingDirectory: String? = nil
+    /// Local servers this task's terminals started.
+    var devServerPorts: [DevServerPort] = []
     var onOpenInZed: (() -> Void)?
     var onOpenInFork: (() -> Void)?
     var tracksPullRequest = false
@@ -418,6 +421,10 @@ private struct TerminalWorkspace: View {
                     onRefresh: onRefreshPullRequest,
                     scale: balaganUIScale
                 )
+            }
+
+            if devServerPorts.isEmpty == false {
+                DevServerChips(ports: devServerPorts)
             }
 
             openInMenu

@@ -592,6 +592,23 @@ scrolling. We drive it with binding actions (`search:<text>`, `navigate_search:n
 (`--text`, `--next 1`, `--end 1`) drives it headlessly and returns the counts; that's how it was
 verified live.
 
+## Dev server ports
+
+Every 3 s (not in `--ui-test-mode`), `BoardDevServers` scans for TCP listeners among the app's
+**descendant processes**. Every terminal is a child of the app, so a server you started elsewhere
+never shows. Each listener's working folder is matched to a task: the most specific of each live
+task's worktree or repo folder and its terminals' folders wins, and tasks sharing a checkout both
+show it. The result is `localhost:<port>` chips (`DevServerChips`) on the card (`:3000`) and in the
+task header, which open the browser, and `ports` in `balagan tasks --json`. The rules are the pure
+`DevServerPorts.assign`. Agents' own processes (claude, codex, …) and ephemeral ports (≥ 49152, used
+by MCP helpers and debuggers) are ignored.
+
+The I/O is `ListeningPortScanner` (libproc, no `lsof`). Two things were learned: parentage must
+come from `sysctl(KERN_PROC_ALL)`, because every terminal runs under `/usr/bin/login` (root) and
+libproc's `PROC_PIDTBSDINFO` refuses root processes, which cut the tree in two. And the kernel
+reports folders by real path (`/tmp` is `/private/tmp`), so task folders go through `realpath`
+first. `BALAGAN_FIXTURE_PORTS=1` seeds chips for a snapshot.
+
 ## Subscription usage
 
 The sidebar's meter (`SidebarUsageMeter`, `BoardAgentUsage.swift`) and `balagan usage` show each
