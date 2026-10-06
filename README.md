@@ -58,8 +58,8 @@ agent, the dev server and a spare shell all live with the task they belong to.
 <td width="40%">
 <h3>Live agent status on the card</h3>
 Each card shows whether its agent is running, waiting for you, or finished, and for how long. It also
-shows what the agent is working on and a preview of its last answer, so you can often decide without
-opening it.
+shows what the agent is working on, a preview of its last answer, any dev servers it started, and what
+the task has cost so far, so you can often decide without opening it.
 </td>
 <td width="60%" align="center"><img src="docs/images/cards.png" width="360" alt="Cards showing waiting and running agents"></td>
 </tr>

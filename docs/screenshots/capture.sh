@@ -22,7 +22,8 @@ snap base /dev/null
 python3 docs/screenshots/fixtures.py $W/base-state.json $W $W/acme-api
 zsh docs/screenshots/sample-repo.sh $W/acme-api
 
-ACTIVITY=(BALAGAN_FIXTURE_AGENT_STATES=1 BALAGAN_FIXTURE_AGENT_STATES_FILE=$W/activity.json)
+ACTIVITY=(BALAGAN_FIXTURE_AGENT_STATES=1 BALAGAN_FIXTURE_AGENT_STATES_FILE=$W/activity.json
+  BALAGAN_FIXTURE_USAGE=1 BALAGAN_FIXTURE_PORTS=1 BALAGAN_FIXTURE_TOKENS=1)
 snap board $W/board.json $ACTIVITY
 snap task $W/task.json $ACTIVITY
 snap changes $W/changes.json $ACTIVITY BALAGAN_SHOW_CHANGES=1 BALAGAN_CHANGES_FILE=src/auth/routes.ts

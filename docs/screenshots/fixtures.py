@@ -118,7 +118,18 @@ def snapshot(selected):
 json.dump(snapshot(None), open(f"{OUT}/board.json", "w"))
 json.dump(snapshot("passkeys"), open(f"{OUT}/task.json", "w"))
 projects[0]["repoPath"] = REPO
+# The Changes shot shows two review comments waiting to be sent to the agent.
+tasks[0]["reviewComments"] = [
+    {"id": "c1", "path": "src/auth/routes.ts", "side": "new", "line": 13,
+     "lineText": 'auth.post("/passkeys/register/options", passkeys.registerOptions);',
+     "body": 'Group these four under one auth.use("/passkeys", router) so the prefix lives in one place.',
+     "createdAt": "2026-10-01T16:00:00Z"},
+    {"id": "c2", "path": "src/auth/passkeys.ts", "side": "new", "line": 41,
+     "lineText": "if (!verified) return res.status(401).end();",
+     "body": "Log the failed verification before returning.", "createdAt": "2026-10-01T16:00:01Z"},
+]
 json.dump(snapshot("passkeys"), open(f"{OUT}/changes.json", "w"))
+del tasks[0]["reviewComments"]
 
 json.dump({
     "passkeys": {"state": "needs-input", "summary": "Passkey registration flow", "minutes": 3,
