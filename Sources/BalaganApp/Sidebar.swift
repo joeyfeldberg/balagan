@@ -260,6 +260,12 @@ struct Sidebar: View {
         .accessibilityIdentifier("sidebar-needs-you")
     }
 
+    /// Whether the open task belongs to this project.
+    private func isInside(_ project: Project) -> Bool {
+        guard viewModel.showingArchived == false, let task = viewModel.selectedTask else { return false }
+        return task.projectID == project.id
+    }
+
     /// A project row, draggable to reorder. The dragged row is hidden in place while a floating copy
     /// follows the cursor and an accent line shows where it will land.
     @ViewBuilder
@@ -273,8 +279,13 @@ struct Sidebar: View {
         SidebarProjectButton(
             title: project.name,
             subtitle: nil,
-            tooltip: project.repoPath,
-            isSelected: viewModel.selectedProjectID == project.id && isOnBoard,
+            tooltip: "\(project.name)\n\(project.repoPath)",
+            // On the board the project row is the filter you picked. Inside a task it marks the task's
+            // project, since the header no longer names it: in full while the task row is folded away,
+            // otherwise softer, so the task row stays the you-are-here marker.
+            isSelected: (viewModel.selectedProjectID == project.id && isOnBoard)
+                || (isInside(project) && isExpanded == false),
+            containsCurrent: isInside(project),
             terminalsActive: viewModel.selectedTaskID == "project-terminals-\(project.id)",
             terminalsOpen: viewModel.projectHasOpenTerminals(project.id),
             agentStatus: projectGlyph(project, agentState: agentState, isExpanded: isExpanded),
@@ -401,6 +412,8 @@ private struct SidebarProjectButton: View {
     let subtitle: String?
     var tooltip: String? = nil
     let isSelected: Bool
+    /// The open task is in this project: the name and the edge bar take the accent, without the fill.
+    var containsCurrent = false
     var terminalsActive: Bool = false
     var terminalsOpen: Bool = false
     /// Loudest agent state across the project's tasks (nil = nothing to say).
@@ -436,8 +449,9 @@ private struct SidebarProjectButton: View {
                 HStack(spacing: 6 * balaganUIScale) {
                     Text(title)
                         .font(.system(size: Theme.TextSize.title * balaganUIScale, weight: .semibold))
-                        .foregroundStyle(isSelected ? Color.accentColor : Theme.textPrimary)
+                        .foregroundStyle(isSelected || containsCurrent ? Color.accentColor : Theme.textPrimary)
                         .lineLimit(1)
+                        .truncationMode(.tail)
                     if let agentStatus {
                         AgentStatusIndicator(glyph: agentStatus, size: Theme.TextSize.micro * balaganUIScale)
                     }
@@ -490,7 +504,7 @@ private struct SidebarProjectButton: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(isSelected ? Theme.accentSoft : (isHovered ? Theme.surfaceHover : Color.clear))
         .overlay(alignment: .leading) {
-            SelectionAccentBar(isSelected: isSelected, verticalInset: 5 * balaganUIScale)
+            SelectionAccentBar(isSelected: isSelected || containsCurrent, verticalInset: 5 * balaganUIScale)
         }
         .clipShape(RoundedRectangle(cornerRadius: Theme.radiusButton, style: .continuous))
         .contentShape(RoundedRectangle(cornerRadius: Theme.radiusButton, style: .continuous))
@@ -542,6 +556,7 @@ private struct SidebarTaskRow: View {
                 .foregroundStyle(isSelected ? Color.accentColor : (isAsleep ? Theme.textTertiary : Theme.textSecondary))
                 .lineLimit(1)
                 .truncationMode(.tail)
+                .help(title)
 
             Spacer(minLength: 0)
 

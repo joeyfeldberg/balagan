@@ -401,8 +401,10 @@ position on the board). The order never follows agent state, so rows don't reshu
 cursor. Done tasks are hidden unless they're selected or still need you. A project folds with its
 chevron (`Project.sidebarCollapsed`, persisted). When a project is expanded, each task row carries
 its own glyph, so the project row only shows the glyph for its hidden Terminals workspace. The
-project rows are board filters, so they only highlight on the board. Inside a task, the task row is
-the you-are-here marker.
+project rows are board filters, so on the board they highlight as the selected filter. Inside a task,
+the task row is the you-are-here marker, and its project row takes the accent (name and edge bar, no
+fill) because the task header doesn't name the project; when that project is folded, its row gets
+the full highlight instead. Long project and task names cut off, with the full name in the tooltip.
 
 **⌘J** (`ShortcutAction.nextAgentNeedingYou`, rebindable, works from the board too) opens the next
 agent that needs you. Waiting agents come first, oldest first, then agents that finished off-screen.
@@ -484,7 +486,9 @@ text.
 
 ## Task header
 
-Left to right: the task breadcrumb (status / edit menu), the terminal tabs and `+`, then a
+Left to right: the task title (no project: the sidebar highlights it; the title cuts off with an
+ellipsis and its tooltip gives project / full title; a click opens Edit Task), the lane chip, the
+terminal tabs and `+`, then a
 **Terminal | Reader | Changes** switch (`WorkspaceViewSwitcher`, in `TerminalWorkspaceView.swift`).
 The three are views of the same task, backed by the existing exclusive `showingReaderMode` /
 `showingChangesView` toggles. After that comes the PR chip (when the task tracks a PR), one **Open in**
@@ -495,6 +499,10 @@ close button of their own: the switch or Esc goes back. The switch falls back to
 (`ViewThatFits`) when the header is tight, and never wraps a label. (A right-hand task inspector
 existed briefly and was removed: everything in it was already on the card, in Changes, in Open in,
 or in the card's right-click menu.)
+
+A tab is as wide as its name, up to 180pt (middle-truncated, full title in the tooltip). A tab whose
+title only repeats the task's (agents often name their terminal after the task) shows its agent
+instead, "Claude" or "Codex", or "Terminal" for a shell (`TabTitle`, Core).
 
 Right-click menus: a **tab** offers Restart Agent (agent tabs only, meaning ones with an agent session
 or an agent launch command; it restarts *that* tab through `TerminalRestart.restart(surfaceID:)`),

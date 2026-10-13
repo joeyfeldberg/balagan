@@ -15,6 +15,8 @@ private struct TabFrameKey: PreferenceKey {
 struct WorkspaceTabStrip: View {
     let surfaces: [Surface]
     let selectedID: Surface.ID
+    /// The task's title, so a tab that only repeats it can show its agent instead (`TabTitle`).
+    var taskTitle = ""
     var attentionIDs: Set<Surface.ID> = []
     /// Surfaces whose agent is blocked on the user. Unlike the attention dot this shows on the
     /// *selected* tab too — inside a task, "which tab is asking me something" is exactly the question.
@@ -51,6 +53,14 @@ struct WorkspaceTabStrip: View {
         .accessibilityIdentifier("terminal-tab-picker")
     }
 
+    private func title(for surface: Surface) -> String {
+        TabTitle.display(
+            title: surface.title,
+            taskTitle: taskTitle,
+            agentName: TabTitle.agentName(surface.agentKind?.profile?.displayName)
+        )
+    }
+
     private func label(_ title: String, selected: Bool, glyph: AgentStatusGlyph? = nil) -> some View {
         HStack(spacing: 5 * scale) {
             // Inside the chip, before the title: on the corner it overlapped the edge and was easy to miss.
@@ -61,7 +71,12 @@ struct WorkspaceTabStrip: View {
                 .font(.system(size: Theme.TextSize.title * scale, weight: selected ? .semibold : .regular))
                 .foregroundStyle(selected ? Theme.textPrimary : Theme.textSecondary)
                 .lineLimit(1)
+                .truncationMode(.middle)
         }
+            // As wide as its title, up to 180pt: a long agent summary stops there instead of crowding
+            // the rest of the header. (fixedSize asks for the ideal width, which the frame then caps.)
+            .frame(maxWidth: 180 * scale)
+            .fixedSize(horizontal: true, vertical: false)
             .padding(.horizontal, 10 * scale)
             .padding(.vertical, 5 * scale)
             .background(
@@ -123,7 +138,7 @@ struct WorkspaceTabStrip: View {
 
     @ViewBuilder
     private func chip(_ surface: Surface) -> some View {
-        label(surface.title, selected: surface.id == selectedID, glyph: AgentStatusGlyph.resolve(
+        label(title(for: surface), selected: surface.id == selectedID, glyph: AgentStatusGlyph.resolve(
             isRunning: false,
             isWaiting: waitingIDs.contains(surface.id),
             needsAttention: attentionIDs.contains(surface.id) && surface.id != selectedID
@@ -138,6 +153,7 @@ struct WorkspaceTabStrip: View {
                 }
             )
             .contentShape(Rectangle())
+            .help(surface.title)
             .overlay { MiddleClickCatcher { onClose(surface.id) } }
             .onTapGesture { onSelect(surface.id) }
             .contextMenu { tabMenu(surface) }
@@ -166,7 +182,7 @@ struct WorkspaceTabStrip: View {
     @ViewBuilder
     private var dragPreview: some View {
         if let id = dragID, let surface = surfaces.first(where: { $0.id == id }) {
-            label(surface.title, selected: true)
+            label(title(for: surface), selected: true)
                 .scaleEffect(1.03)
                 .shadow(color: .black.opacity(0.4), radius: 8, x: 0, y: 3)
                 .offset(x: dragStartFrame.minX + dragTranslation.width,

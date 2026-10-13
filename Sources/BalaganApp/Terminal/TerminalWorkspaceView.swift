@@ -238,35 +238,32 @@ private struct TerminalWorkspace: View {
     var onNewAgentOfKind: (String) -> Void = { _ in }
     @Environment(\.balaganUIScale) private var balaganUIScale
 
-    /// The left "breadcrumb": project / task title, opening a menu to edit the task.
+    /// The task's title, cut off with an ellipsis when it's long; hover shows the project and the full
+    /// title, and a click edits the task. The project isn't repeated here: the sidebar highlights it.
+    @ViewBuilder
     private func taskBreadcrumb() -> some View {
-        let hasMenu = onEditTask != nil
-        let label = breadcrumbText(showsChevron: hasMenu)
+        let tooltip = [projectName.map { "\($0) / \(task.title)" } ?? task.title, onEditTask == nil ? nil : "Click to edit the task"]
+            .compactMap { $0 }
+            .joined(separator: "\n")
+        let title = Text(task.title)
+            .font(.system(size: Theme.TextSize.title * balaganUIScale, weight: .semibold))
+            .foregroundStyle(Theme.textPrimary)
             .lineLimit(1)
+            .truncationMode(.tail)
             .accessibilityIdentifier("task-detail-title")
-
-        return Group {
-            if hasMenu {
-            Menu {
-                if let onEditTask {
-                    Button {
-                        onEditTask()
-                    } label: {
-                        Label("Edit Task…", systemImage: "pencil")
-                    }
+        Group {
+            if let onEditTask {
+                Button(action: onEditTask) { title }
+                    .buttonStyle(.plain)
                     .accessibilityIdentifier("edit-task-button")
-                }
-            } label: {
-                label
-            }
-            .menuStyle(.borderlessButton)
-            .menuIndicator(.hidden)
-            .fixedSize()
-            .help("Edit the task")
             } else {
-                label
+                title
             }
         }
+        // The title is what gives way when the header is tight, never the tabs or the controls.
+        .frame(maxWidth: 520 * balaganUIScale, alignment: .leading)
+        .layoutPriority(-1)
+        .help(tooltip)
     }
 
     /// The task's lane as a chip ("● Doing ⌄"), so you can see where it sits on the board and move it
@@ -307,30 +304,6 @@ private struct TerminalWorkspace: View {
         .disabled(onMoveTask == nil)
         .help("Move to another lane")
         .accessibilityIdentifier("task-lane-chip")
-    }
-
-    /// The breadcrumb as a single concatenated Text. A `borderlessButton` Menu label keeps only Text
-    /// (dropping Circle/Image views), so the status dot and disclosure chevron are inline SF Symbols.
-    private func breadcrumbText(showsChevron: Bool) -> Text {
-        var text = Text("")
-        if let projectName {
-            text = text
-                + Text("\(projectName) / ")
-                    .font(.system(size: Theme.TextSize.title * balaganUIScale))
-                    .foregroundColor(Theme.textTertiary)
-        }
-        text = text
-            + Text(task.title)
-                .font(.system(size: Theme.TextSize.title * balaganUIScale, weight: .semibold))
-                .foregroundColor(Theme.textPrimary)
-        if showsChevron {
-            text = text
-                + Text("  ")
-                + Text(Image(systemName: "chevron.down"))
-                    .font(.system(size: 9 * balaganUIScale, weight: .semibold))
-                    .foregroundColor(Theme.textTertiary)
-        }
-        return text
     }
 
     var body: some View {
@@ -408,6 +381,7 @@ private struct TerminalWorkspace: View {
                 WorkspaceTabStrip(
                     surfaces: workspace.tabSurfaces,
                     selectedID: workspace.currentTabRepresentativeSurfaceID ?? activeSurface.id,
+                    taskTitle: task.title,
                     attentionIDs: attentionSurfaceIDs,
                     waitingIDs: waitingSurfaceIDs,
                     scale: balaganUIScale,
