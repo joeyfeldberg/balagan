@@ -20,6 +20,31 @@ struct TitlebarControls: View {
             .buttonStyle(.plain)
             .help(viewModel.isSidebarVisible ? "Hide sidebar" : "Show sidebar")
 
+            // Back / forward between the boards and tasks you've visited, like a browser.
+            Button {
+                viewModel.navigateBack()
+            } label: {
+                Image(systemName: "chevron.left")
+                    .frame(width: 22, height: 22)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .disabled(viewModel.canNavigateBack == false)
+            .help("Back (\(viewModel.keyboardShortcuts.chord(for: .navigateBack).displayString))")
+            .accessibilityIdentifier("navigate-back-button")
+
+            Button {
+                viewModel.navigateForward()
+            } label: {
+                Image(systemName: "chevron.right")
+                    .frame(width: 22, height: 22)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .disabled(viewModel.canNavigateForward == false)
+            .help("Forward (\(viewModel.keyboardShortcuts.chord(for: .navigateForward).displayString))")
+            .accessibilityIdentifier("navigate-forward-button")
+
             // One menu, two badges: green = working, amber = blocked on you. Both counts are derived
             // from `activeAgentSessions()`, the same list the rows come from, so a badge can never
             // disagree with what opening the menu shows.

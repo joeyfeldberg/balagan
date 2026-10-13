@@ -210,7 +210,7 @@ These are the defaults. All of them can be rebound in Settings → Shortcuts.
 | <kbd>⇧⌘S</kbd> | Speak last response | | <kbd>⇧⌘[</kbd> / <kbd>⇧⌘]</kbd> | Previous / next tab |
 | <kbd>⌘F</kbd> | Find in terminal | | <kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd> | Move between cards on the board |
 | <kbd>⏎</kbd> | Open the highlighted card | | <kbd>1</kbd>–<kbd>9</kbd> / <kbd>⌘⌫</kbd> | Move it to lane N / archive it |
-| <kbd>⇧⌘B</kbd> | Back to the board | | | |
+| <kbd>⇧⌘B</kbd> | Back to the board | | <kbd>⌘[</kbd> / <kbd>⌘]</kbd> | Back / forward between places you've been |
 
 ## FAQ
 

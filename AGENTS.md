@@ -417,6 +417,13 @@ Pressing it again walks the queue and wraps; it beeps when nothing needs you. Th
 (`boardProjectBeforeTask`: All Projects or that project's board). Inside a task, the header's lane chip
 (`● Doing ⌄`, after the breadcrumb) shows the task's lane and moves it.
 
+**Back / forward** (‹ › in the titlebar next to the sidebar toggle, **⌘[ / ⌘]**,
+`ShortcutAction.navigateBack/Forward`) retrace the boards, Archived and tasks you've visited, like a
+browser. The pure `NavigationHistory<BoardLocation>` (Core) holds the stacks and skips (and forgets)
+places that are gone. `BoardNavigationHistory.swift` records off the three selection properties'
+`didSet`, coalesced to one record per run-loop turn, so every way of moving is covered without
+hooking each one. The unlisted control methods `nav.back` / `nav.forward` drive it headlessly.
+
 When the board is showing, it holds keyboard focus. The arrow keys move a highlight between cards
 (an accent ring), and so does a single click on a card; a double-click opens it. Up/down stay in a lane; left/right jump to the nearest lane with cards, keeping
 the row. The highlighted card scrolls into view. ⏎ opens it, 1–9 moves it to that lane (counting

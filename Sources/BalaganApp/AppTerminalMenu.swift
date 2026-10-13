@@ -43,6 +43,8 @@ extension BalaganApplication {
         add("Speak Last Response", #selector(menuSpeakLastResponse(_:)), .speakLastResponse)
         add("Next Agent Needing You", #selector(menuNextAgentNeedingYou(_:)), .nextAgentNeedingYou)
         add("Show Board", #selector(menuShowBoard(_:)), .showBoard)
+        add("Back", #selector(menuNavigateBack(_:)), .navigateBack)
+        add("Forward", #selector(menuNavigateForward(_:)), .navigateForward)
         menu.addItem(.separator())
         add("New Tab", #selector(menuNewTab(_:)), .newTab)
         add("New Agent Pane", #selector(menuNewAgentTab(_:)), .newAgentTab)
@@ -111,6 +113,14 @@ extension BalaganApplication {
         if viewModel?.jumpToNextAgentNeedingYou() != true {
             NSSound.beep()
         }
+    }
+
+    @objc @MainActor private func menuNavigateBack(_ sender: Any?) {
+        if viewModel?.navigateBack() != true { NSSound.beep() }
+    }
+
+    @objc @MainActor private func menuNavigateForward(_ sender: Any?) {
+        if viewModel?.navigateForward() != true { NSSound.beep() }
     }
 
     @objc @MainActor private func menuShowBoard(_ sender: Any?) {

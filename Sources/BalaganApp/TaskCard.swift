@@ -244,9 +244,11 @@ struct TaskCard: View {
             .animation(.easeOut(duration: 0.1), value: isHovered)
             .animation(.easeOut(duration: 0.14), value: isDragged)
             .onHover { isHovered = $0 }
-            // Double-click opens; a single click only highlights, the same as the arrow keys.
+            // Double-click opens; a single click only highlights, the same as the arrow keys. The
+            // highlight is a simultaneous tap, so it lands on the first click instead of waiting out the
+            // double-click interval (a double-click highlights, then opens, which is harmless).
             .onTapGesture(count: 2, perform: onSelect)
-            .onTapGesture(count: 1, perform: onHighlight)
+            .simultaneousGesture(TapGesture(count: 1).onEnded(onHighlight))
             .simultaneousGesture(
                 DragGesture(minimumDistance: 6, coordinateSpace: .named(boardSpace))
                     .onChanged { value in

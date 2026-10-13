@@ -52,6 +52,10 @@ extension BalaganApplication {
             return controlRestart(params: params, viewModel: viewModel)
         case "status":
             return controlStatus(viewModel: viewModel)
+        case "nav.back", "nav.forward":
+            // Unlisted: the titlebar's back / forward, for checking the history headlessly.
+            let moved = method == "nav.back" ? viewModel.navigateBack() : viewModel.navigateForward()
+            return ok(["moved": moved, "location": String(describing: viewModel.currentLocation)])
         case "reader.toggle":
             return controlToggleReader(viewModel: viewModel)
         case "task.speak":

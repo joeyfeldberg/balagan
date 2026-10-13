@@ -9,8 +9,11 @@ final class BoardViewModel: ObservableObject, @unchecked Sendable {
     /// Sidebar visibility lives on the view model so the AppKit titlebar toggle and the SwiftUI body
     /// share one source of truth.
     @Published var isSidebarVisible = true
-    @Published var selectedProjectID: Project.ID?
-    @Published var selectedTaskID: TaskItem.ID?
+    @Published var selectedProjectID: Project.ID? { didSet { scheduleNavigationRecord() } }
+    @Published var selectedTaskID: TaskItem.ID? { didSet { scheduleNavigationRecord() } }
+    /// Back/forward over the boards and tasks you've visited (‹ › in the titlebar, ⌘[ / ⌘]).
+    @Published var navigationHistory = NavigationHistory<BoardLocation>()
+    var navigationRecordPending = false
     /// The board a task was opened from (nil = All Projects), so Show Board goes back to it.
     var boardProjectBeforeTask: Project.ID?
     @Published var selectedWorkspaceID: String?
@@ -21,7 +24,7 @@ final class BoardViewModel: ObservableObject, @unchecked Sendable {
     /// Bumped by the New Task shortcut so `BoardScreen` opens the create-task form from anywhere.
     @Published var pendingNewTaskRequest = false
     /// When true, the main area shows the Archived view instead of the board.
-    @Published var showingArchived = false
+    @Published var showingArchived = false { didSet { scheduleNavigationRecord() } }
     /// Drives the ⌘⇧P command palette overlay.
     @Published var showingCommandPalette = false
     /// When true, the selected task's terminal pane is swapped for the reader view (a typographic
@@ -212,6 +215,7 @@ final class BoardViewModel: ObservableObject, @unchecked Sendable {
             self.tasks[index].workspace.selectedSurfaceID = selectedSurfaceID
         }
         recoverPendingCodexSurfaces()
+        recordNavigation()
     }
 
     var selectedTask: TaskItem? {
