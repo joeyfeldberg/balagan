@@ -487,7 +487,9 @@ text.
 ## Task header
 
 Left to right: the task title (no project: the sidebar highlights it; the title cuts off with an
-ellipsis and its tooltip gives project / full title; a click opens Edit Task), the lane chip, the
+ellipsis at 520pt via `CappedWidth`, which unlike `.frame(maxWidth:)` doesn't stretch a short title;
+its tooltip gives project / full title; a click opens Edit Task; a project's Terminals workspace reads
+"<project> Terminals"), the lane chip, the
 terminal tabs and `+`, then a
 **Terminal | Reader | Changes** switch (`WorkspaceViewSwitcher`, in `TerminalWorkspaceView.swift`).
 The three are views of the same task, backed by the existing exclusive `showingReaderMode` /
@@ -500,7 +502,7 @@ close button of their own: the switch or Esc goes back. The switch falls back to
 existed briefly and was removed: everything in it was already on the card, in Changes, in Open in,
 or in the card's right-click menu.)
 
-A tab is as wide as its name, up to 180pt (middle-truncated, full title in the tooltip). A tab whose
+A tab is as wide as its name, up to 180pt (cut off at the end, full title in the tooltip). A tab whose
 title only repeats the task's (agents often name their terminal after the task) shows its agent
 instead, "Claude" or "Codex", or "Terminal" for a shell (`TabTitle`, Core).
 

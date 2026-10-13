@@ -245,9 +245,13 @@ private struct TerminalWorkspace: View {
         let tooltip = [projectName.map { "\($0) / \(task.title)" } ?? task.title, onEditTask == nil ? nil : "Click to edit the task"]
             .compactMap { $0 }
             .joined(separator: "\n")
-        let title = Text(task.title)
+        // A project's Terminals workspace has no task title of its own, so it names the project.
+        let text = task.isProjectTerminals
+            ? Text(projectName ?? task.title).foregroundColor(Theme.textPrimary)
+                + Text("  Terminals").fontWeight(.regular).foregroundColor(Theme.textTertiary)
+            : Text(task.title).foregroundColor(Theme.textPrimary)
+        let title = text
             .font(.system(size: Theme.TextSize.title * balaganUIScale, weight: .semibold))
-            .foregroundStyle(Theme.textPrimary)
             .lineLimit(1)
             .truncationMode(.tail)
             .accessibilityIdentifier("task-detail-title")
@@ -260,9 +264,8 @@ private struct TerminalWorkspace: View {
                 title
             }
         }
-        // The title is what gives way when the header is tight, never the tabs or the controls.
-        .frame(maxWidth: 520 * balaganUIScale, alignment: .leading)
-        .layoutPriority(-1)
+        // As wide as the title, up to 520pt; it's what gives way when the header is tight.
+        .modifier(CappedWidthModifier(maxWidth: 520 * balaganUIScale))
         .help(tooltip)
     }
 

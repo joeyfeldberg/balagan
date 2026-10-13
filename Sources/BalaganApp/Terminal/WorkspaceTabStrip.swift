@@ -71,7 +71,7 @@ struct WorkspaceTabStrip: View {
                 .font(.system(size: Theme.TextSize.title * scale, weight: selected ? .semibold : .regular))
                 .foregroundStyle(selected ? Theme.textPrimary : Theme.textSecondary)
                 .lineLimit(1)
-                .truncationMode(.middle)
+                .truncationMode(.tail)
         }
             // As wide as its title, up to 180pt: a long agent summary stops there instead of crowding
             // the rest of the header. (fixedSize asks for the ideal width, which the frame then caps.)

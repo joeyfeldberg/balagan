@@ -52,6 +52,11 @@ extension BalaganApplication {
             return controlRestart(params: params, viewModel: viewModel)
         case "status":
             return controlStatus(viewModel: viewModel)
+        case "project.terminals":
+            // Unlisted: opens a project's Terminals workspace (the sidebar's >_), for snapshots.
+            guard let id = params["id"]?.nilIfBlank, viewModel.project(for: id) != nil else { return err("no such project") }
+            viewModel.openProjectTerminals(projectID: id)
+            return ok(["task": viewModel.selectedTaskID ?? ""])
         case "nav.back", "nav.forward":
             // Unlisted: the titlebar's back / forward, for checking the history headlessly.
             let moved = method == "nav.back" ? viewModel.navigateBack() : viewModel.navigateForward()

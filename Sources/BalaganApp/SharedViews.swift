@@ -182,3 +182,32 @@ struct PlaceholderTextEditor<Field: Hashable>: View {
         .formFieldChrome(focused: focus == field)
     }
 }
+
+/// Caps a view's width without making it stretch: it is as wide as its content up to `maxWidth`, and
+/// narrower when its container is tight. (`.frame(maxWidth:)` would fill the whole cap even for a
+/// short title, leaving a gap after it.)
+struct CappedWidth: Layout {
+    let maxWidth: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        guard let subview = subviews.first else { return .zero }
+        let width = min(proposal.width ?? subview.sizeThatFits(.unspecified).width, maxWidth)
+        return subview.sizeThatFits(ProposedViewSize(width: width, height: proposal.height))
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        subviews.first?.place(
+            at: CGPoint(x: bounds.minX, y: bounds.midY),
+            anchor: .leading,
+            proposal: ProposedViewSize(width: bounds.width, height: bounds.height)
+        )
+    }
+}
+
+struct CappedWidthModifier: ViewModifier {
+    let maxWidth: CGFloat
+
+    func body(content: Content) -> some View {
+        CappedWidth(maxWidth: maxWidth) { content }
+    }
+}
