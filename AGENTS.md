@@ -489,7 +489,7 @@ text.
 Left to right: the task title (no project: the sidebar highlights it; the title cuts off with an
 ellipsis at 520pt via `CappedWidth`, which unlike `.frame(maxWidth:)` doesn't stretch a short title;
 its tooltip gives project / full title; a click opens Edit Task; a project's Terminals workspace reads
-"<project> Terminals"), the lane chip, the
+just "Terminals", its project marked in the sidebar like any task's), the lane chip, the
 terminal tabs and `+`, then a
 **Terminal | Reader | Changes** switch (`WorkspaceViewSwitcher`, in `TerminalWorkspaceView.swift`).
 The three are views of the same task, backed by the existing exclusive `showingReaderMode` /

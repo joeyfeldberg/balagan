@@ -245,13 +245,9 @@ private struct TerminalWorkspace: View {
         let tooltip = [projectName.map { "\($0) / \(task.title)" } ?? task.title, onEditTask == nil ? nil : "Click to edit the task"]
             .compactMap { $0 }
             .joined(separator: "\n")
-        // A project's Terminals workspace has no task title of its own, so it names the project.
-        let text = task.isProjectTerminals
-            ? Text(projectName ?? task.title).foregroundColor(Theme.textPrimary)
-                + Text("  Terminals").fontWeight(.regular).foregroundColor(Theme.textTertiary)
-            : Text(task.title).foregroundColor(Theme.textPrimary)
-        let title = text
+        let title = Text(task.title)
             .font(.system(size: Theme.TextSize.title * balaganUIScale, weight: .semibold))
+            .foregroundStyle(Theme.textPrimary)
             .lineLimit(1)
             .truncationMode(.tail)
             .accessibilityIdentifier("task-detail-title")
