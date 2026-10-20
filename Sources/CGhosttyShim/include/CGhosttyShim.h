@@ -13,6 +13,12 @@ typedef struct balagan_ghostty_library balagan_ghostty_library_t;
 typedef struct balagan_ghostty_app balagan_ghostty_app_t;
 typedef struct balagan_ghostty_surface balagan_ghostty_surface_t;
 
+// The Ghostty release whose include/ghostty.h the shim's action-tag numbers (GHOSTTY_ACTION_* in
+// CGhosttyShim.c) were taken from. Ghostty.app updates itself, so the app compares this with what
+// ghostty_info() reports at launch (LibGhosttyVersionCheck) and warns when the major.minor differs.
+// Bump it after re-verifying the tags against the newer header.
+#define BALAGAN_GHOSTTY_PINNED_VERSION "1.3.1"
+
 typedef enum {
     BALAGAN_GHOSTTY_KEY_ENTER,
     BALAGAN_GHOSTTY_KEY_BACKSPACE,
@@ -74,6 +80,12 @@ int balagan_ghostty_library_open(
 );
 
 void balagan_ghostty_library_close(balagan_ghostty_library_t *library);
+
+// The version libghostty reports through ghostty_info() (e.g. "1.3.1"), copied NUL-terminated into
+// `buffer`. Returns false, leaving an empty buffer, when the symbol is missing or reports nothing.
+bool balagan_ghostty_library_version(balagan_ghostty_library_t *library, char *buffer, size_t buffer_len);
+// The same for a raw dlopen() handle, so the runtime probe can read it before the shim opens the library.
+bool balagan_ghostty_handle_version(void *dl_handle, char *buffer, size_t buffer_len);
 
 int balagan_ghostty_initialize(
     balagan_ghostty_library_t *library,

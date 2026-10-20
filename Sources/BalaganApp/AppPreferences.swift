@@ -13,6 +13,8 @@ enum AppPreferences {
         static let savedPrompts = "savedPrompts"
         /// Show the menu bar item (default on).
         static let menuBarItem = "showMenuBarItem"
+        /// The libghostty version the "doesn't match" alert was last shown for (once per version).
+        static let libGhosttyVersionWarned = "libGhosttyVersionWarnedFor"
     }
 
     /// The agent a new project is pre-filled with.

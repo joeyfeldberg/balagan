@@ -102,6 +102,7 @@ final class BalaganApplication: NSObject, NSApplicationDelegate, @unchecked Send
             }
         }
         if options.uiTestMode == false {
+            warnOnLibGhosttyVersionMismatch(runtime: terminalRuntime)
             adoptGhosttyConfigFontSize(viewModel: viewModel, runtime: terminalRuntime)
             configureWorktreeResolver(viewModel: viewModel, runtime: terminalRuntime)
         }

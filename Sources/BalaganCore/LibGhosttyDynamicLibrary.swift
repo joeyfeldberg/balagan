@@ -39,6 +39,9 @@ public final class LibGhosttyDynamicLibrary: @unchecked Sendable {
     private static let initializationState = LibGhosttyInitializationState()
     public let status: LibGhosttyRuntimeStatus
 
+    /// What the loaded libghostty reports through `ghostty_info()`, e.g. "1.3.1".
+    public var version: String? { status.version }
+
     deinit {
         balagan_ghostty_library_close(library)
     }
@@ -54,7 +57,8 @@ public final class LibGhosttyDynamicLibrary: @unchecked Sendable {
                     isAvailable: true,
                     source: .linkedProcess,
                     resolvedSymbols: LibGhosttyRuntimeProbe.requiredSymbols,
-                    missingSymbols: []
+                    missingSymbols: [],
+                    version: reportedVersion(of: library)
                 )
             )
         }
@@ -86,7 +90,8 @@ public final class LibGhosttyDynamicLibrary: @unchecked Sendable {
                         path: path,
                         checkedPaths: paths,
                         resolvedSymbols: LibGhosttyRuntimeProbe.requiredSymbols,
-                        missingSymbols: []
+                        missingSymbols: [],
+                        version: reportedVersion(of: library)
                     )
                 )
             }
@@ -122,6 +127,17 @@ public final class LibGhosttyDynamicLibrary: @unchecked Sendable {
             return
         }
         setenv("GHOSTTY_RESOURCES_DIR", resources, 1)
+    }
+
+    private static func reportedVersion(of library: OpaquePointer) -> String? {
+        var buffer = [CChar](repeating: 0, count: 128)
+        let reported = buffer.withUnsafeMutableBufferPointer { pointer in
+            balagan_ghostty_library_version(library, pointer.baseAddress, pointer.count)
+        }
+        guard reported else { return nil }
+        return buffer.withUnsafeBufferPointer { pointer in
+            pointer.baseAddress.map { String(cString: $0) }
+        }
     }
 
     private static func open(path: String?) -> OpaquePointer? {

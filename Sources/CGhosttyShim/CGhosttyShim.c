@@ -182,7 +182,10 @@ typedef struct {
     const char *body;
 } ghostty_action_desktop_notification_s;
 
-// Action tag values from ghostty 1.3.1 include/ghostty.h (ghostty_action_tag_e).
+// Action tag values from include/ghostty.h (ghostty_action_tag_e) at BALAGAN_GHOSTTY_PINNED_VERSION
+// (CGhosttyShim.h). They're positions in an enum, so a release that reorders it silently breaks every
+// event below; the app compares the pin with ghostty_info() at launch and warns on a different
+// major.minor. Re-verify here and bump the pin when upgrading.
 #define GHOSTTY_ACTION_DESKTOP_NOTIFICATION 31
 #define GHOSTTY_ACTION_SET_TITLE 32
 #define GHOSTTY_ACTION_PWD 35
@@ -229,6 +232,21 @@ typedef struct {
     ghostty_runtime_close_surface_cb close_surface_cb;
 } ghostty_runtime_config_s;
 
+// ghostty_info(): build mode + version string. Comptime constants in libghostty, safe before ghostty_init.
+typedef enum {
+    GHOSTTY_BUILD_MODE_DEBUG,
+    GHOSTTY_BUILD_MODE_RELEASE_SAFE,
+    GHOSTTY_BUILD_MODE_RELEASE_FAST,
+    GHOSTTY_BUILD_MODE_RELEASE_SMALL,
+} ghostty_build_mode_e;
+
+typedef struct {
+    ghostty_build_mode_e build_mode;
+    const char *version;
+    uintptr_t version_len;
+} ghostty_info_s;
+
+typedef ghostty_info_s (*ghostty_info_fn)(void);
 typedef int (*ghostty_init_fn)(uintptr_t, char **);
 typedef ghostty_config_t (*ghostty_config_new_fn)(void);
 typedef void (*ghostty_config_load_default_files_fn)(ghostty_config_t);
@@ -715,6 +733,36 @@ void balagan_ghostty_library_close(balagan_ghostty_library_t *library) {
         dlclose(library->sparkle_handle);
     }
     free(library);
+}
+
+static bool read_version_from_handle(void *handle, char *buffer, size_t buffer_len) {
+    if (buffer == NULL || buffer_len == 0) {
+        return false;
+    }
+    buffer[0] = '\0';
+    if (handle == NULL) {
+        return false;
+    }
+    ghostty_info_fn info_fn = (ghostty_info_fn)dlsym(handle, "ghostty_info");
+    if (info_fn == NULL) {
+        return false;
+    }
+    ghostty_info_s info = info_fn();
+    if (info.version == NULL || info.version_len == 0) {
+        return false;
+    }
+    size_t length = info.version_len < buffer_len - 1 ? info.version_len : buffer_len - 1;
+    memcpy(buffer, info.version, length);
+    buffer[length] = '\0';
+    return true;
+}
+
+bool balagan_ghostty_library_version(balagan_ghostty_library_t *library, char *buffer, size_t buffer_len) {
+    return read_version_from_handle(library != NULL ? library->dl_handle : NULL, buffer, buffer_len);
+}
+
+bool balagan_ghostty_handle_version(void *dl_handle, char *buffer, size_t buffer_len) {
+    return read_version_from_handle(dl_handle, buffer, buffer_len);
 }
 
 int balagan_ghostty_initialize(balagan_ghostty_library_t *library, uintptr_t argc, char **argv) {

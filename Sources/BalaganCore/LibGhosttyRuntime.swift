@@ -1,3 +1,4 @@
+import CGhosttyShim
 import Darwin
 import Foundation
 
@@ -15,6 +16,9 @@ public struct LibGhosttyRuntimeStatus: Codable, Equatable, Sendable {
     public var resolvedSymbols: [String]
     public var missingSymbols: [String]
     public var diagnostic: String?
+    /// What `ghostty_info()` reports (e.g. "1.3.1"); nil when unavailable. Compared with the shim's
+    /// pin by `LibGhosttyVersionCheck`.
+    public var version: String?
 
     public init(
         isAvailable: Bool,
@@ -23,7 +27,8 @@ public struct LibGhosttyRuntimeStatus: Codable, Equatable, Sendable {
         checkedPaths: [String] = [],
         resolvedSymbols: [String] = [],
         missingSymbols: [String] = [],
-        diagnostic: String? = nil
+        diagnostic: String? = nil,
+        version: String? = nil
     ) {
         self.isAvailable = isAvailable
         self.source = source
@@ -32,6 +37,7 @@ public struct LibGhosttyRuntimeStatus: Codable, Equatable, Sendable {
         self.resolvedSymbols = resolvedSymbols
         self.missingSymbols = missingSymbols
         self.diagnostic = diagnostic
+        self.version = version
     }
 }
 
@@ -93,7 +99,8 @@ public enum LibGhosttyRuntimeProbe {
                     path: path,
                     checkedPaths: paths,
                     resolvedSymbols: resolution.resolved,
-                    missingSymbols: []
+                    missingSymbols: [],
+                    version: reportedVersion(in: handle)
                 )
             }
 
@@ -153,8 +160,21 @@ public enum LibGhosttyRuntimeProbe {
             isAvailable: true,
             source: .linkedProcess,
             resolvedSymbols: resolution.resolved,
-            missingSymbols: []
+            missingSymbols: [],
+            version: reportedVersion(in: handle)
         )
+    }
+
+    /// The version string libghostty reports for a dlopen'd handle, or nil when it has no `ghostty_info`.
+    static func reportedVersion(in handle: UnsafeMutableRawPointer) -> String? {
+        var buffer = [CChar](repeating: 0, count: 128)
+        let reported = buffer.withUnsafeMutableBufferPointer { pointer in
+            balagan_ghostty_handle_version(handle, pointer.baseAddress, pointer.count)
+        }
+        guard reported else { return nil }
+        return buffer.withUnsafeBufferPointer { pointer in
+            pointer.baseAddress.map { String(cString: $0) }
+        }
     }
 
     private static func resolveSymbols(in handle: UnsafeMutableRawPointer) -> (resolved: [String], missing: [String]) {

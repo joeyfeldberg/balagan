@@ -233,6 +233,12 @@ macOS refuses notifications for ad-hoc signed apps, and for apps registered more
 `scripts/make-signing-cert.sh`, rebuild, and install with `scripts/install-app.sh`. `balagan status`
 shows the current permission state.
 
+**Ghostty updated itself. Is that a problem?**
+Usually not. Balagan is verified against one Ghostty release (1.3.1 today), and at launch it
+compares that with the version Ghostty.app reports. A different major.minor shows an alert once,
+because Ghostty's event numbering could have changed and terminal titles, bells and search might
+stop reaching Balagan. `balagan status` prints both versions.
+
 ## Development
 
 ```bash

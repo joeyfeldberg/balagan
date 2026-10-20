@@ -55,6 +55,17 @@ final class LibGhosttyRuntimeTests: XCTestCase {
         }
     }
 
+    func testInstalledRuntimeReportsAParsableVersion() throws {
+        let status = LibGhosttyRuntimeProbe.probe(environment: [:])
+        guard status.isAvailable, status.source == .dynamicLibrary else {
+            throw XCTSkip("no installed libghostty to probe here")
+        }
+        XCTAssertNotNil(
+            LibGhosttyVersionCheck.majorMinor(status.version ?? ""),
+            "ghostty_info should report a parsable version, got \(status.version ?? "nil")"
+        )
+    }
+
     func testDynamicLibraryLoadReportsUnavailableForMissingExplicitPath() {
         do {
             let library = try LibGhosttyDynamicLibrary.load(

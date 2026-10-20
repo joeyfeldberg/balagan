@@ -78,6 +78,12 @@ func printResult(method: String, result: Any?) {
         if let notifications = dict["notifications"] as? String {
             print("Notifications:  \(notifications)")
         }
+        if let ghostty = dict["ghostty"] as? String {
+            print("Ghostty:        \(ghostty) (Balagan verified against \(dict["ghosttyPinned"] as? String ?? "?"))")
+        }
+        if let warning = dict["ghosttyWarning"] as? String {
+            print("  ⚠ \(warning)")
+        }
 
     case "usage":
         let agents = (result as? [String: Any])?["agents"] as? [[String: Any]] ?? []

@@ -431,14 +431,22 @@ extension BalaganApplication {
     @MainActor
     private func controlStatus(viewModel: BoardViewModel) -> [String: Any] {
         let running = viewModel.tasks.filter { viewModel.taskIsRunning($0) }.map(\.id)
-        return ok([
+        var payload: [String: Any] = [
             "selectedProject": viewModel.selectedProjectID.map { $0 as Any } ?? NSNull(),
             "selectedTask": viewModel.selectedTaskID.map { $0 as Any } ?? NSNull(),
             "running": running,
             "taskCount": viewModel.tasks.count,
             "projectCount": viewModel.projects.count,
             "notifications": SystemNotificationPresenter.shared.authorizationState.description,
-        ])
+        ]
+        // The libghostty in use vs. the version the shim's action tags were verified against.
+        if let runtime = terminalRuntime, runtime.selection.kind == .libghostty {
+            let compatibility = LibGhosttyVersionCheck.check(reported: runtime.selection.libGhostty.version)
+            payload["ghostty"] = compatibility.reported ?? "unknown"
+            payload["ghosttyPinned"] = LibGhosttyVersionCheck.pinnedVersion
+            payload["ghosttyWarning"] = compatibility.warning.map { $0 as Any } ?? NSNull()
+        }
+        return ok(payload)
     }
 
     private var appVersionString: String {

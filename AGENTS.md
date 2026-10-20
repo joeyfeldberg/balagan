@@ -280,8 +280,16 @@ and all the SwiftUI views.
   derived, never stored: `ResumeBinding.agentName` (wrapper-reported) → `AgentLaunchMetadata.agentName` →
   a per-*token* scan of the launch command (`balagan-agent codex`); token-wise so
   `tmux attach -t task_resume_codex` isn't mistaken for an agent.
-- Target version: **Ghostty 1.3.1** (`/Applications/Ghostty.app/...`). Action-tag values in the shim
-  (`GHOSTTY_ACTION_*`) are matched to that version — re-verify against `include/ghostty.h` if upgrading.
+- Target version: **Ghostty 1.3.1** (`/Applications/Ghostty.app/...`), pinned as
+  `BALAGAN_GHOSTTY_PINNED_VERSION` in `CGhosttyShim.h`. Action-tag values in the shim
+  (`GHOSTTY_ACTION_*`) are positions in that header's enum, so a release that reorders it breaks the
+  title/bell/pwd/search events silently, and Ghostty.app updates itself (Sparkle). So at launch the
+  probe reads `ghostty_info()` into `LibGhosttyRuntimeStatus.version` and `LibGhosttyVersionCheck`
+  (Core, pure) compares major.minor with the pin. The result is logged, `balagan status` prints it
+  (`Ghostty: 1.3.1 (Balagan verified against 1.3.1)` plus a ⚠ line), `app-ready.json` carries
+  `version`/`pinnedVersion`, and a mismatch shows an alert once per reported version
+  (`AppPreferences.Keys.libGhosttyVersionWarned`). Upgrading = re-verify the tags against the new
+  `include/ghostty.h`, then bump the pin.
 - The shim's runtime `action_cb` is wired and routes events to Swift (via a global event callback +
   per-surface `userdata`): `SET_TITLE` (32), `PWD` (35), `DESKTOP_NOTIFICATION` (31), `RING_BELL` (50).
   Mouse (`mouse_button`/`mouse_pos`/`mouse_scroll`), selection (`has_selection`/`read_selection`),
