@@ -57,7 +57,7 @@ struct TerminalPane: View {
         ZStack(alignment: .topTrailing) {
             terminalContent
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color(nsColor: .textBackgroundColor))
+                .background(Theme.bgWindow)
 
             if let resumePlan = surface.resumeAffordancePlan(
                 taskID: taskID,
@@ -152,6 +152,6 @@ private struct TerminalUnavailableBanner: View {
         }
         .padding(10 * balaganUIScale)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(nsColor: .controlBackgroundColor))
+        .background(Theme.surface)
     }
 }

@@ -107,11 +107,13 @@ final class BalaganApplication: NSObject, NSApplicationDelegate, @unchecked Send
             configureWorktreeResolver(viewModel: viewModel, runtime: terminalRuntime)
         }
 
-        let rootView = BoardScreen(
-            viewModel: viewModel,
-            artifactDirectory: options.artifactDirectory,
-            terminalRuntime: terminalRuntime
-        )
+        let rootView = ThemedRoot(viewModel: viewModel) {
+            BoardScreen(
+                viewModel: viewModel,
+                artifactDirectory: options.artifactDirectory,
+                terminalRuntime: terminalRuntime
+            )
+        }
             .frame(minWidth: 1120, minHeight: 760)
 
         let window = makeMainWindow(rootView: rootView, viewModel: viewModel)
@@ -229,8 +231,8 @@ final class BalaganApplication: NSObject, NSApplicationDelegate, @unchecked Send
         )
         window.title = "Balagan"
         window.center()
-        // Dark titlebar to match the app's dark content (and so the titlebar control glyphs read light).
-        window.appearance = NSAppearance(named: .darkAqua)
+        // The titlebar follows the theme (dark or light), so its control glyphs read on it.
+        window.appearance = NSAppearance(named: Theme.isDark ? .darkAqua : .aqua)
         window.contentView = NSHostingView(rootView: rootView)
 
         // cmux-style titlebar controls next to the traffic lights: hide-sidebar toggle + notification

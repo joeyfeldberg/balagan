@@ -4,7 +4,7 @@ import BalaganCore
 
 struct AttentionDot: View {
     var size: CGFloat = 7
-    var color: Color = .accentColor
+    var color: Color = Theme.accent
 
     var body: some View {
         Circle()

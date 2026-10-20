@@ -5,31 +5,39 @@ import BalaganCore
 /// background → surface → raised-surface elevation ramp + hairline borders + status/priority color
 /// language, replacing the flat single-gray look.
 enum Theme {
-    // Surface elevation ramp (dark)
-    static let bgWindow = Color(red: 22 / 255, green: 23 / 255, blue: 26 / 255)        // #16171A
-    static let surface = Color(red: 29 / 255, green: 31 / 255, blue: 35 / 255)         // #1D1F23
-    static let surfaceRaised = Color(red: 38 / 255, green: 40 / 255, blue: 46 / 255)   // #26282E
-    static let surfaceHover = Color(red: 46 / 255, green: 49 / 255, blue: 56 / 255)    // #2E3138
+    /// The theme the chrome draws with. Set by `BoardViewModel.appThemeID` (and `BALAGAN_THEME` for a
+    /// snapshot); the root view is rebuilt on a change, so every token below is re-read.
+    nonisolated(unsafe) static var current: AppTheme = AppThemes.balagan
+
+    private static var palette: ThemePalette { current.palette }
+    static var isDark: Bool { current.isDark }
+
+    // Surface elevation ramp: window → surface → raised, plus hover.
+    static var bgWindow: Color { Color(palette.window) }
+    static var surface: Color { Color(palette.surface) }
+    static var surfaceRaised: Color { Color(palette.surfaceRaised) }
+    static var surfaceHover: Color { Color(palette.surfaceHover) }
 
     // Borders / separators
-    static let hairline = Color.white.opacity(0.08)
-    static let hairlineStrong = Color.white.opacity(0.14)
+    static var hairline: Color { Color(palette.hairline) }
+    static var hairlineStrong: Color { Color(palette.hairlineStrong) }
 
-    // Accent (rides the macOS system accent)
-    static let accent = Color.accentColor
-    static let accentSoft = Color.accentColor.opacity(0.14)
+    /// The theme's accent, or the macOS accent for themes that don't set one.
+    static var accent: Color { palette.accent.map { Color($0) } ?? Color.accentColor }
+    static var accentSoft: Color { accent.opacity(0.14) }
 
     /// "An agent is blocked on you" — one amber, shared by every place waiting is drawn (task card,
     /// sidebar project row, terminal tab, titlebar badge) so the state reads the same everywhere.
     static let agentWaiting = Color(red: 0.95, green: 0.55, blue: 0.15)
 
-    // Text — fixed light-on-dark values (mirroring macOS dark label colors) rather than the dynamic
-    // system label colors. The surface ramp is fixed-dark, so the UI is dark-only by design; fixed
-    // text keeps it correct under any system appearance AND renders correctly in ImageRenderer
-    // snapshots (dynamic label colors resolve to black in the renderer's default light appearance).
-    static let textPrimary = Color.white.opacity(0.92)
-    static let textSecondary = Color.white.opacity(0.56)
-    static let textTertiary = Color.white.opacity(0.34)
+    // Text: fixed colors from the theme rather than the dynamic system label colors, so text matches
+    // the theme's surfaces under any system appearance and renders the same in ImageRenderer snapshots.
+    static var textPrimary: Color { Color(palette.textPrimary) }
+    static var textSecondary: Color { Color(palette.textSecondary) }
+    static var textTertiary: Color { Color(palette.textTertiary) }
+
+    /// The SwiftUI color scheme matching the theme, for controls and snapshots.
+    static var colorScheme: ColorScheme { isDark ? .dark : .light }
 
     /// The type scale. Every text size in the chrome is one of these (times the UI scale), so rows,
     /// cards, the header and the panes line up instead of drifting across 10 / 10.5 / 11 / 11.5…
@@ -55,6 +63,10 @@ enum Theme {
 }
 
 extension Color {
+    init(_ themeColor: ThemeColor) {
+        self = Color(.sRGB, red: themeColor.red, green: themeColor.green, blue: themeColor.blue, opacity: themeColor.alpha)
+    }
+
     /// Builds a color from a `RRGGBB` hex string (no leading `#`). Falls back to a neutral slate on a
     /// malformed value so a bad lane color can never crash rendering.
     init(hexString: String) {

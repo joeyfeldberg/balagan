@@ -109,7 +109,7 @@ struct BoardScreen: View {
         }
         // Main-area scale (kanban / task header / terminal) — also the base for sheets & alerts.
         .balaganUIScale(viewModel.uiAppearance.uiScale)
-        .background(Color(nsColor: .windowBackgroundColor))
+        .background(Theme.bgWindow)
         // The New Task keyboard shortcut (⌘N) sets this flag on the view model; open the create form.
         .onChange(of: viewModel.pendingNewTaskRequest) { _, requested in
             guard requested else { return }
@@ -374,6 +374,10 @@ struct BoardScreen: View {
         })
         commands.append(PaletteCommand(id: "show-archived", title: "Show Archived", systemImage: "archivebox") {
             viewModel.showArchived()
+        })
+        commands.append(PaletteCommand(id: "change-theme", title: "Change Theme…", subtitle: Theme.current.name, systemImage: "paintpalette") {
+            SettingsSheet.lastCategory = .appearance
+            SettingsWindowController.shared.show(viewModel: viewModel)
         })
         commands.append(PaletteCommand(id: "settings", title: "Open Settings", systemImage: "gearshape", shortcut: "⌘,") {
             SettingsWindowController.shared.show(viewModel: viewModel)

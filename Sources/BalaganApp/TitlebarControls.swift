@@ -83,7 +83,7 @@ struct TitlebarControls: View {
             BadgedMenu(
                 systemImage: targets.isEmpty ? "bell" : "bell.fill",
                 count: targets.count,
-                badgeColor: Color.accentColor,
+                badgeColor: Theme.accent,
                 help: "Notifications — jump to an updated terminal"
             ) {
                 if targets.isEmpty {

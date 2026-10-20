@@ -14,14 +14,15 @@ final class SettingsWindowController {
             NSApp.activate(ignoringOtherApps: true)
             return
         }
-        let root = SettingsSheet(viewModel: viewModel)
+        let root = ThemedRoot(viewModel: viewModel) {
+            SettingsSheet(viewModel: viewModel)
+        }
             .environment(\.balaganUIScale, CGFloat(viewModel.uiAppearance.uiScale))
-            .environment(\.colorScheme, .dark)
         let window = NSWindow(contentViewController: NSHostingController(rootView: root))
         window.title = "Settings"
         window.styleMask = [.titled, .closable]
         window.isReleasedWhenClosed = false
-        window.appearance = NSAppearance(named: .darkAqua)
+        window.appearance = NSAppearance(named: Theme.isDark ? .darkAqua : .aqua)
         window.setFrameAutosaveName("BalaganSettings")
         window.center()
         window.makeKeyAndOrderFront(nil)

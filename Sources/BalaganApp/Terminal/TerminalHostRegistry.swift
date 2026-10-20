@@ -19,6 +19,19 @@ final class TerminalHostRegistry: @unchecked Sendable {
 
     private let lock = NSLock()
     private var hosts: [TerminalHostKey: LibGhosttyTerminalHostView] = [:]
+
+    /// Applies a changed Ghostty config (a new theme) to every live terminal. Each host runs its own
+    /// Ghostty app, so each one reloads.
+    @MainActor
+    func reloadGhosttyConfig() {
+        lock.lock()
+        let liveHosts = Array(hosts.values)
+        lock.unlock()
+        for host in liveHosts {
+            host.appHandle?.reloadConfig()
+            host.needsDisplay = true
+        }
+    }
     private weak var currentActiveHost: LibGhosttyTerminalHostView?
 
     /// Set once at launch with the view model in scope; lets a terminal host report

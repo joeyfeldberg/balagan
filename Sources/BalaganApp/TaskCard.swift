@@ -121,13 +121,13 @@ private struct TaskCardBody: View {
             SelectionAccentBar(
                 isSelected: isSelected || isWaiting,
                 verticalInset: 4 * balaganUIScale,
-                color: isSelected ? .accentColor : Theme.agentWaiting
+                color: isSelected ? Theme.accent : Theme.agentWaiting
             )
         }
         .overlay(
             RoundedRectangle(cornerRadius: Theme.radiusCard, style: .continuous)
                 .stroke(
-                    isSelected ? Color.accentColor.opacity(0.55) : (isWaiting ? Theme.agentWaiting.opacity(0.45) : Theme.hairline),
+                    isSelected ? Theme.accent.opacity(0.55) : (isWaiting ? Theme.agentWaiting.opacity(0.45) : Theme.hairline),
                     lineWidth: 1
                 )
         )
@@ -197,7 +197,7 @@ struct TaskCard: View {
                 .environment(\.balaganUIScale, balaganUIScale)
                 // ImageRenderer defaults to a light appearance; force dark so the dynamic label
                 // colors resolve to white (matching the live dark UI) instead of black.
-                .environment(\.colorScheme, .dark)
+                .environment(\.colorScheme, Theme.colorScheme)
         )
         renderer.scale = displayScale
         renderer.isOpaque = false
@@ -208,7 +208,7 @@ struct TaskCard: View {
         TaskCardBody(task: task, projectName: projectName, isSelected: isSelected, isHovered: isHovered, needsAttention: needsAttention, isRunning: isRunning, isWaiting: isWaiting, worktree: worktree, pullRequest: pullRequest, activity: activity, ports: ports, tokens: tokens)
             .overlay(
                 RoundedRectangle(cornerRadius: Theme.radiusCard, style: .continuous)
-                    .stroke(Color.accentColor, lineWidth: 2)
+                    .stroke(Theme.accent, lineWidth: 2)
                     .opacity(isKeyboardFocused ? 1 : 0)
             )
             // While lifted, the in-place card becomes a dashed placeholder that keeps the column's layout.

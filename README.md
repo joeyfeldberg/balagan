@@ -120,6 +120,9 @@ Beyond those, Balagan also has:
   <kbd>⇧⏎</kbd> step through them.
 - **Subscription usage at a glance.** The sidebar shows how much of your Claude and Codex 5-hour and
   weekly limits you've used, and when each resets. `balagan usage` prints the same.
+- **23 themes**, from Catppuccin, Tokyo Night, Dracula and Nord to Solarized and GitHub Light. Each one
+  recolors the app and switches your terminals to the matching Ghostty theme live, or keeps your own
+  Ghostty colors if you prefer. Pick one in Settings → Appearance.
 - **Native everywhere.** It's Swift, AppKit and SwiftUI on top of libghostty, with no Electron and no
   web view.
 

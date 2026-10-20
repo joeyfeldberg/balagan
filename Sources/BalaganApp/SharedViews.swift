@@ -82,7 +82,7 @@ private struct SheetFooterChrome: ViewModifier {
 struct SelectionAccentBar: View {
     let isSelected: Bool
     let verticalInset: CGFloat
-    var color: Color = .accentColor
+    var color: Color = Theme.accent
 
     var body: some View {
         RoundedRectangle(cornerRadius: Theme.radiusSelectionBar, style: .continuous)

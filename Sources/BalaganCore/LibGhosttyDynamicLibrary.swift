@@ -228,6 +228,13 @@ public final class LibGhosttyAppHandle: @unchecked Sendable {
         balagan_ghostty_app_tick(app)
     }
 
+    /// Re-reads the Ghostty config (the user's files plus Balagan's overrides) into this running app
+    /// and its terminal, e.g. after a theme change. False when the Ghostty build can't.
+    @discardableResult
+    public func reloadConfig() -> Bool {
+        balagan_ghostty_app_reload_config(app) == 0
+    }
+
     public func createSurface(descriptor: LibGhosttySurfaceDescriptor) throws -> LibGhosttySurfaceHandle {
         _ = LibGhosttyEventBridge.install
         let context = LibGhosttySurfaceContext()

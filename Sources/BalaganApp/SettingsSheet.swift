@@ -4,6 +4,7 @@ import BalaganCore
 
 enum SettingsCategory: String, CaseIterable, Identifiable {
     case general = "General"
+    case appearance = "Appearance"
     case agents = "Agents"
     case notifications = "Notifications"
     case prompts = "Prompts"
@@ -15,6 +16,7 @@ enum SettingsCategory: String, CaseIterable, Identifiable {
     var icon: String {
         switch self {
         case .general: return "gearshape"
+        case .appearance: return "paintpalette"
         case .agents: return "sparkles"
         case .notifications: return "bell.badge"
         case .prompts: return "text.bubble"
@@ -30,7 +32,9 @@ struct SettingsSheet: View {
     @Environment(\.balaganUIScale) private var balaganUIScale
     @State private var presentationScale: CGFloat?
     // Env hook lets the headless snapshot harness open a specific category (`BALAGAN_SETTINGS_CATEGORY`).
-    @State private var selectedCategory: SettingsCategory =
+    @State private var selectedCategory: SettingsCategory = SettingsSheet.lastCategory
+    /// The page last shown, so a theme change (which rebuilds this view) stays on the same page.
+    @MainActor static var lastCategory: SettingsCategory =
         SettingsCategory(rawValue: ProcessInfo.processInfo.environment["BALAGAN_SETTINGS_CATEGORY"] ?? "") ?? .general
     @AppStorage(AppPreferences.Keys.defaultAgent) private var defaultAgentRaw = AppPreferences.defaultAgent.rawValue
     @AppStorage(AppPreferences.Keys.waitingBanners) private var waitingBanners = true
@@ -63,7 +67,10 @@ struct SettingsSheet: View {
         }
         .frame(width: 640 * fixedScale, height: 460 * fixedScale)
         .background(Theme.bgWindow)
-        .onChange(of: selectedCategory) { _, _ in stopRecording() }
+        .onChange(of: selectedCategory) { _, category in
+            SettingsSheet.lastCategory = category
+            stopRecording()
+        }
         .onAppear {
             if presentationScale == nil {
                 presentationScale = balaganUIScale
@@ -89,7 +96,7 @@ struct SettingsSheet: View {
                         Image(systemName: category.icon)
                             .font(.system(size: 12 * scale))
                             .frame(width: 16 * scale)
-                            .foregroundStyle(selected ? Color.accentColor : Theme.textSecondary)
+                            .foregroundStyle(selected ? Theme.accent : Theme.textSecondary)
                         Text(category.rawValue)
                             .font(.system(size: 13 * scale, weight: selected ? .semibold : .regular))
                             .foregroundStyle(selected ? Theme.textPrimary : Theme.textSecondary)
@@ -153,6 +160,20 @@ struct SettingsSheet: View {
                 Toggle("", isOn: $showMenuBarItem).labelsHidden().toggleStyle(.switch)
                     .accessibilityIdentifier("menu-bar-item-toggle")
             }
+        case .appearance:
+            contentHeader("Appearance", scale: scale)
+            settingsRow("Use the theme's colors in terminals", scale: scale) {
+                Toggle("", isOn: Binding(
+                    get: { AppPreferences.themeTerminals },
+                    set: { viewModel.setThemeTerminals($0) }
+                ))
+                .labelsHidden()
+                .toggleStyle(.switch)
+                .accessibilityIdentifier("theme-terminals-toggle")
+            }
+            ThemePicker(selectedID: viewModel.appThemeID, scale: scale) { viewModel.selectAppTheme($0) }
+                .padding(.horizontal, 18 * scale)
+                .padding(.bottom, 18 * scale)
         case .agents:
             contentHeader("Agents", scale: scale)
             agentsSection(scale: scale)
@@ -473,7 +494,7 @@ struct SettingsSheet: View {
             }
             .buttonStyle(.plain)
             .font(.system(size: 11.5 * scale, weight: .medium))
-            .foregroundStyle(Color.accentColor)
+            .foregroundStyle(Theme.accent)
             .help("Restore every shortcut to its default")
             .accessibilityIdentifier("reset-all-shortcuts-button")
         }
@@ -532,17 +553,17 @@ struct SettingsSheet: View {
             } label: {
                 Text(isRecording ? "Press keys…" : chord.displayString)
                     .font(.system(size: 12 * scale, weight: .medium, design: .rounded))
-                    .foregroundStyle(isRecording ? Color.accentColor : Theme.textPrimary)
+                    .foregroundStyle(isRecording ? Theme.accent : Theme.textPrimary)
                     .frame(minWidth: 74 * scale)
                     .padding(.horizontal, 10 * scale)
                     .padding(.vertical, 4 * scale)
                     .background(
                         RoundedRectangle(cornerRadius: 6 * scale)
-                            .fill(isRecording ? Color.accentColor.opacity(0.12) : Theme.surface)
+                            .fill(isRecording ? Theme.accent.opacity(0.12) : Theme.surface)
                     )
                     .overlay(
                         RoundedRectangle(cornerRadius: 6 * scale)
-                            .strokeBorder(isRecording ? Color.accentColor : Theme.hairline, lineWidth: 1)
+                            .strokeBorder(isRecording ? Theme.accent : Theme.hairline, lineWidth: 1)
                     )
             }
             .buttonStyle(.plain)
@@ -625,7 +646,7 @@ struct SettingsSheet: View {
                     }
                     .buttonStyle(.plain)
                     .font(.system(size: 11.5 * scale, weight: .medium))
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(Theme.accent)
                     .help("Reveal your Ghostty config in Finder")
                 }
             }
@@ -745,7 +766,7 @@ struct CopyableVarChip: View {
                 Text(copied ? "Copied" : value)
                     .font(.system(.caption2, design: .monospaced))
             }
-            .foregroundStyle(copied ? Color.accentColor : Theme.textSecondary)
+            .foregroundStyle(copied ? Theme.accent : Theme.textSecondary)
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
             .background(
@@ -754,7 +775,7 @@ struct CopyableVarChip: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: Theme.radiusChip, style: .continuous)
-                    .stroke(copied ? Color.accentColor.opacity(0.5) : Theme.hairline, lineWidth: 1)
+                    .stroke(copied ? Theme.accent.opacity(0.5) : Theme.hairline, lineWidth: 1)
             )
         }
         .buttonStyle(.plain)

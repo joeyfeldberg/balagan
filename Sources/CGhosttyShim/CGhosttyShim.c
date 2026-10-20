@@ -257,6 +257,7 @@ typedef bool (*ghostty_config_get_fn)(ghostty_config_t, void *, const char *, ui
 typedef ghostty_app_t (*ghostty_app_new_fn)(const ghostty_runtime_config_s *, ghostty_config_t);
 typedef void (*ghostty_app_tick_fn)(ghostty_app_t);
 typedef void (*ghostty_app_free_fn)(ghostty_app_t);
+typedef void (*ghostty_app_update_config_fn)(ghostty_app_t, ghostty_config_t);
 typedef ghostty_surface_config_s (*ghostty_surface_config_new_fn)(void);
 typedef ghostty_surface_t (*ghostty_surface_new_fn)(ghostty_app_t, const ghostty_surface_config_s *);
 typedef void (*ghostty_surface_draw_fn)(ghostty_surface_t);
@@ -298,6 +299,7 @@ struct balagan_ghostty_library {
     ghostty_app_new_fn ghostty_app_new;
     ghostty_app_tick_fn ghostty_app_tick;
     ghostty_app_free_fn ghostty_app_free;
+    ghostty_app_update_config_fn ghostty_app_update_config;
     ghostty_surface_config_new_fn ghostty_surface_config_new;
     ghostty_surface_new_fn ghostty_surface_new;
     ghostty_surface_draw_fn ghostty_surface_draw;
@@ -530,6 +532,8 @@ static int resolve_library_symbols(balagan_ghostty_library_t *library, char *err
 #undef RESOLVE
 
     library->ghostty_config_free = (ghostty_config_free_fn)dlsym(library->dl_handle, "ghostty_config_free");
+    // Optional: lets a theme change reach running terminals without restarting them.
+    library->ghostty_app_update_config = (ghostty_app_update_config_fn)dlsym(library->dl_handle, "ghostty_app_update_config");
     // Optional: present on Ghostty builds that expose user-config loading. When available we load the
     // user's ~/.config/ghostty/config so embedded terminals inherit their theme/font/colors (matches cmux).
     library->ghostty_config_load_default_files = (ghostty_config_load_default_files_fn)dlsym(library->dl_handle, "ghostty_config_load_default_files");
@@ -882,6 +886,34 @@ double balagan_ghostty_library_config_font_size(balagan_ghostty_library_t *libra
         library->ghostty_config_free(config);
     }
     return ok ? (double)value : 0.0;
+}
+
+int balagan_ghostty_app_reload_config(balagan_ghostty_app_t *app) {
+    if (app == NULL || app->library->ghostty_app_update_config == NULL) {
+        return -1;
+    }
+    balagan_ghostty_library_t *library = app->library;
+    ghostty_config_t config = library->ghostty_config_new();
+    if (config == NULL) {
+        return -1;
+    }
+    // The same layering as at launch: the user's files, then Balagan's overrides.
+    if (library->ghostty_config_load_default_files != NULL) {
+        library->ghostty_config_load_default_files(config);
+    }
+    const char *overrides = getenv("BALAGAN_GHOSTTY_CONFIG_OVERRIDES");
+    if (overrides != NULL && overrides[0] != '\0' && library->ghostty_config_load_file != NULL) {
+        library->ghostty_config_load_file(config, overrides);
+    }
+    library->ghostty_config_finalize(config);
+
+    // Ghostty applies it to every surface; the previous config is ours to free, as Ghostty.app does.
+    library->ghostty_app_update_config(app->app, config);
+    if (library->ghostty_config_free != NULL) {
+        library->ghostty_config_free(app->config);
+    }
+    app->config = config;
+    return 0;
 }
 
 void balagan_ghostty_app_free(balagan_ghostty_app_t *app) {

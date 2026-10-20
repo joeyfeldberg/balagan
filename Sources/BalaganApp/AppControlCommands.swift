@@ -52,6 +52,13 @@ extension BalaganApplication {
             return controlRestart(params: params, viewModel: viewModel)
         case "status":
             return controlStatus(viewModel: viewModel)
+        case "theme.set":
+            // Unlisted: switches the app theme (`--id <theme>`), the same as picking it in Settings.
+            guard let id = params["id"]?.nilIfBlank, AppThemes.all.contains(where: { $0.id == id }) else {
+                return err("unknown theme; one of: \(AppThemes.all.map(\.id).joined(separator: ", "))")
+            }
+            viewModel.selectAppTheme(id)
+            return ok(["theme": id, "terminalTheme": GhosttyConfigOverrides.terminalTheme ?? ""])
         case "project.terminals":
             // Unlisted: opens a project's Terminals workspace (the sidebar's >_), for snapshots.
             guard let id = params["id"]?.nilIfBlank, viewModel.project(for: id) != nil else { return err("no such project") }

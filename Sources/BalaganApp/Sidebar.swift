@@ -224,7 +224,7 @@ struct Sidebar: View {
     /// is blocked on you; the calmer accent when they've only finished.
     private func needsYouRow(waiting: Int, finished: Int) -> some View {
         let chord = viewModel.keyboardShortcuts.chord(for: .nextAgentNeedingYou).displayString
-        let tint = waiting > 0 ? Theme.agentWaiting : Color.accentColor
+        let tint = waiting > 0 ? Theme.agentWaiting : Theme.accent
         let label = [waiting > 0 ? "\(waiting) waiting" : nil, finished > 0 ? "\(finished) finished" : nil]
             .compactMap { $0 }
             .joined(separator: " · ")
@@ -368,7 +368,7 @@ struct Sidebar: View {
     private var reorderInsertionLine: some View {
         if let id = dragProjectID, let dropIndex, let y = insertionLineY(dropIndex: dropIndex, draggedID: id) {
             Capsule()
-                .fill(Color.accentColor)
+                .fill(Theme.accent)
                 .frame(width: max(0, dragStartFrame.width - 24 * balaganUIScale), height: 2)
                 .offset(x: dragStartFrame.minX + 12 * balaganUIScale, y: y - 1)
                 .allowsHitTesting(false)
@@ -449,7 +449,7 @@ private struct SidebarProjectButton: View {
                 HStack(spacing: 6 * balaganUIScale) {
                     Text(title)
                         .font(.system(size: Theme.TextSize.title * balaganUIScale, weight: .semibold))
-                        .foregroundStyle(isSelected || containsCurrent ? Color.accentColor : Theme.textPrimary)
+                        .foregroundStyle(isSelected || containsCurrent ? Theme.accent : Theme.textPrimary)
                         .lineLimit(1)
                         .truncationMode(.tail)
                     if let agentStatus {
@@ -475,18 +475,18 @@ private struct SidebarProjectButton: View {
                 Button(action: onOpenTerminals) {
                     Text(">_")
                         .font(.system(size: Theme.TextSize.small * balaganUIScale, weight: .semibold, design: .monospaced))
-                        .foregroundStyle(lit ? Color.accentColor : Theme.textTertiary)
+                        .foregroundStyle(lit ? Theme.accent : Theme.textTertiary)
                         .padding(.horizontal, 6 * balaganUIScale)
                         .padding(.vertical, 2 * balaganUIScale)
                         .background(
                             RoundedRectangle(cornerRadius: Theme.radiusChip, style: .continuous)
-                                .fill(terminalsActive ? Color.accentColor.opacity(0.14)
-                                    : (terminalsOpen ? Color.accentColor.opacity(0.10) : Theme.surfaceRaised))
+                                .fill(terminalsActive ? Theme.accent.opacity(0.14)
+                                    : (terminalsOpen ? Theme.accent.opacity(0.10) : Theme.surfaceRaised))
                         )
                         .overlay(
                             RoundedRectangle(cornerRadius: Theme.radiusChip, style: .continuous)
-                                .stroke(terminalsActive ? Color.accentColor.opacity(0.5)
-                                    : (terminalsOpen ? Color.accentColor.opacity(0.35) : Theme.hairline), lineWidth: 1)
+                                .stroke(terminalsActive ? Theme.accent.opacity(0.5)
+                                    : (terminalsOpen ? Theme.accent.opacity(0.35) : Theme.hairline), lineWidth: 1)
                         )
                 }
                 .buttonStyle(.plain)
@@ -553,7 +553,7 @@ private struct SidebarTaskRow: View {
 
             Text(title)
                 .font(.system(size: Theme.TextSize.body * balaganUIScale, weight: isSelected ? .semibold : .regular))
-                .foregroundStyle(isSelected ? Color.accentColor : (isAsleep ? Theme.textTertiary : Theme.textSecondary))
+                .foregroundStyle(isSelected ? Theme.accent : (isAsleep ? Theme.textTertiary : Theme.textSecondary))
                 .lineLimit(1)
                 .truncationMode(.tail)
                 .help(title)

@@ -195,7 +195,7 @@ struct WorkspaceTabStrip: View {
     private var insertionLine: some View {
         if dragID != nil, let dropIndex, let x = insertionX(dropIndex: dropIndex) {
             Capsule()
-                .fill(Color.accentColor)
+                .fill(Theme.accent)
                 .frame(width: 2, height: max(0, dragStartFrame.height - 4 * scale))
                 .offset(x: x - 1, y: dragStartFrame.minY + 2 * scale)
                 .allowsHitTesting(false)

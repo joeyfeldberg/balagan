@@ -13,15 +13,28 @@ import Foundation
 /// variables survive the replay script's `exec`: zsh (`ZDOTDIR`), fish and elvish (`XDG_DATA_DIRS`).
 /// Bash's injection rewrites the command line itself, so forcing it onto the replay script would
 /// break the launch. A user who set `shell-integration` themselves is left alone.
+///
+/// The other is **the app theme's terminal colors**: a theme matched to a Ghostty theme sets
+/// `theme = <name>` (Ghostty resolves it in its own `themes` folder), unless the user turned terminal
+/// theming off.
 public enum GhosttyConfigOverrides {
     static let envInjectedShells: Set<String> = ["zsh", "fish", "elvish"]
 
+    /// The Ghostty theme the terminals should use (the app theme's, when terminal theming is on), or nil
+    /// for the user's own colors. Set by the app before the first terminal and on every theme change.
+    nonisolated(unsafe) public static var terminalTheme: String?
+
     /// The override lines for this user, or none.
-    public static func lines(userShell: String, userConfigText: String) -> [String] {
+    public static func lines(userShell: String, userConfigText: String, terminalTheme: String? = nil) -> [String] {
+        var lines: [String] = []
         let shell = (userShell as NSString).lastPathComponent
-        guard envInjectedShells.contains(shell) else { return [] }
-        if setsShellIntegration(userConfigText) { return [] }
-        return ["shell-integration = \(shell)"]
+        if envInjectedShells.contains(shell), setsShellIntegration(userConfigText) == false {
+            lines.append("shell-integration = \(shell)")
+        }
+        if let terminalTheme = terminalTheme?.trimmingCharacters(in: .whitespacesAndNewlines), terminalTheme.isEmpty == false {
+            lines.append("theme = \(terminalTheme)")
+        }
+        return lines
     }
 
     /// Whether any non-comment line of the user's config sets `shell-integration`.
@@ -47,7 +60,7 @@ public enum GhosttyConfigOverrides {
         let userConfig = userConfigPaths()
             .compactMap { try? String(contentsOfFile: $0, encoding: .utf8) }
             .joined(separator: "\n")
-        let overrides = lines(userShell: UserShell.defaultShellPath(), userConfigText: userConfig)
+        let overrides = lines(userShell: UserShell.defaultShellPath(), userConfigText: userConfig, terminalTheme: terminalTheme)
         guard overrides.isEmpty == false else {
             unsetenv("BALAGAN_GHOSTTY_CONFIG_OVERRIDES")
             return

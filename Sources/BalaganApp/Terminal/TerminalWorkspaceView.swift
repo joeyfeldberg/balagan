@@ -171,7 +171,7 @@ struct TaskTerminalWorkspaceScreen: View {
                 .accessibilityIdentifier("task-terminal-workspace")
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(nsColor: .textBackgroundColor))
+        .background(Theme.bgWindow)
     }
 }
 

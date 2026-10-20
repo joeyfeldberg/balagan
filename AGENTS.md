@@ -467,6 +467,31 @@ identifiers. Project rows are one line, with the repo path in the tooltip. Cards
 priority (a red flag, keeping the `priority-<level>` identifier), and tags render as quiet `#tag`
 text.
 
+## Themes
+
+**Settings → Appearance** picks the app's theme (`AppThemes` in Core; "Change Theme…" in the palette
+opens it). There are 23: the default **Balagan** (today's dark look, macOS accent, your own Ghostty
+colors), **Balagan Light**, and 21 matched to Ghostty themes of the same name (Catppuccin, Tokyo Night,
+Dracula, Nord, Gruvbox, One Dark, Rosé Pine, Kanagawa, Everforest, GitHub, Solarized, Monokai Pro, …),
+whose chrome palette is derived from that theme's background, foreground and an accent
+(`ThemePalette.derived`), so the chrome sits seamlessly around the terminal. The choice is per Mac
+(`AppPreferences.Keys.appTheme`). `Theme`'s color tokens are computed from `Theme.current`; each
+window's root is a `ThemedRoot`, which rebuilds the view tree (`.id`) on a change and sets the color
+scheme and tint, and `applyAppTheme` flips the windows between `darkAqua` and `aqua`. Use `Theme`
+tokens for every chrome color (never `Color.accentColor` or system background colors, which ignore
+the theme). `BALAGAN_THEME=<id>` picks a theme for a snapshot without saving it.
+
+**Terminals follow the theme** (Settings → Appearance → "Use the theme's colors in terminals",
+`AppPreferences.Keys.themeTerminals`, default on). `GhosttyConfigOverrides.terminalTheme` adds
+`theme = <Ghostty theme>` to the overrides file the shim layers on the user's config; Ghostty resolves
+the name in Ghostty.app's own `themes` folder (we export `GHOSTTY_RESOURCES_DIR`). Running terminals
+switch live: the shim's `balagan_ghostty_app_reload_config` rebuilds the config the way launch does and
+calls `ghostty_app_update_config`, and `TerminalHostRegistry.reloadGhosttyConfig` does that for every
+host (each host owns its own Ghostty app). The default theme sets no `theme =`, so the user's own
+Ghostty colors stay. All 21 Ghostty names were checked by loading each into a Ghostty config and
+reading `background` back; each equals the chrome's window color. The unlisted control method
+`theme.set --id <theme>` switches themes headlessly.
+
 ## Settings window, palette, first run
 
 - **Settings** is a real window (`SettingsWindowController` in `SettingsWindow.swift`), reached

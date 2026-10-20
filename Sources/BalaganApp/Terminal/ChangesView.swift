@@ -295,7 +295,7 @@ private struct ChangedFileRow: View {
             VStack(alignment: .leading, spacing: 1 * scale) {
                 Text(file.fileName)
                     .font(.system(size: Theme.TextSize.body * scale, weight: isSelected ? .semibold : .medium))
-                    .foregroundStyle(isSelected ? Color.accentColor : Theme.textPrimary)
+                    .foregroundStyle(isSelected ? Theme.accent : Theme.textPrimary)
                     .strikethrough(file.status == .deleted, color: Theme.textTertiary)
                 if file.directory.isEmpty == false {
                     Text(file.directory)
@@ -310,7 +310,7 @@ private struct ChangedFileRow: View {
                 Label("\(commentCount)", systemImage: "text.bubble.fill")
                     .labelStyle(.titleAndIcon)
                     .font(.system(size: Theme.TextSize.micro * scale, weight: .semibold))
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(Theme.accent)
                     .help(commentCount == 1 ? "1 comment" : "\(commentCount) comments")
             }
             if file.isUncommitted {
@@ -512,7 +512,7 @@ private struct DiffFileView: View {
                                 .font(.system(size: 10 * scale, weight: .bold))
                                 .foregroundStyle(.white)
                                 .frame(width: 16 * scale, height: 16 * scale)
-                                .background(RoundedRectangle(cornerRadius: 4 * scale).fill(Color.accentColor))
+                                .background(RoundedRectangle(cornerRadius: 4 * scale).fill(Theme.accent))
                         }
                         .buttonStyle(.plain)
                         .padding(.leading, 4 * scale)
@@ -549,7 +549,7 @@ private struct DiffFileView: View {
         } else {
             HStack(alignment: .top, spacing: 8 * scale) {
                 Image(systemName: "text.bubble.fill")
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(Theme.accent)
                 Text(comment.body)
                     .font(.system(size: Theme.TextSize.body * scale))
                     .foregroundStyle(Theme.textPrimary)
@@ -594,7 +594,7 @@ private struct DiffFileView: View {
                 .lineLimit(2...8)
                 .padding(8 * scale)
                 .background(RoundedRectangle(cornerRadius: 6 * scale).fill(Theme.bgWindow))
-                .overlay(RoundedRectangle(cornerRadius: 6 * scale).stroke(Color.accentColor.opacity(0.6)))
+                .overlay(RoundedRectangle(cornerRadius: 6 * scale).stroke(Theme.accent.opacity(0.6)))
                 .onExitCommand(perform: onCancel)
                 .accessibilityIdentifier("diff-comment-field")
             HStack(spacing: 8 * scale) {

@@ -13,6 +13,10 @@ enum AppPreferences {
         static let savedPrompts = "savedPrompts"
         /// Show the menu bar item (default on).
         static let menuBarItem = "showMenuBarItem"
+        /// The app theme's id (`AppThemes`). Absent = the default.
+        static let appTheme = "appTheme"
+        /// Terminals use the app theme's matching Ghostty theme (default on).
+        static let themeTerminals = "themeTerminals"
         /// The libghostty version the "doesn't match" alert was last shown for (once per version).
         static let libGhosttyVersionWarned = "libGhosttyVersionWarnedFor"
     }
@@ -50,6 +54,16 @@ enum AppPreferences {
                 ?? (AgentCommandDefaults.preferred == AgentCommandDefaults.claude ? .claude : .codex)
         }
         set { UserDefaults.standard.set(newValue.rawValue, forKey: Keys.defaultAgent) }
+    }
+
+    static var appThemeID: String {
+        get { UserDefaults.standard.string(forKey: Keys.appTheme) ?? AppThemes.balagan.id }
+        set { UserDefaults.standard.set(newValue, forKey: Keys.appTheme) }
+    }
+
+    static var themeTerminals: Bool {
+        get { UserDefaults.standard.object(forKey: Keys.themeTerminals) as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: Keys.themeTerminals) }
     }
 
     /// "Waiting for your input" banners. The in-app waiting glyphs are unaffected.

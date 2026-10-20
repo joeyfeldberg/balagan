@@ -448,7 +448,7 @@ private struct KanbanColumn: View {
         .background(Theme.surface)
         .overlay(
             RoundedRectangle(cornerRadius: Theme.radiusColumn, style: .continuous)
-                .stroke(isDropTarget ? Color.accentColor : Theme.hairline, lineWidth: isDropTarget ? 2 : 1)
+                .stroke(isDropTarget ? Theme.accent : Theme.hairline, lineWidth: isDropTarget ? 2 : 1)
         )
         .clipShape(RoundedRectangle(cornerRadius: Theme.radiusColumn, style: .continuous))
         .background(

@@ -105,6 +105,10 @@ int balagan_ghostty_create_app(
 // preferred terminal font size as the base size, matching their Ghostty.
 double balagan_ghostty_library_config_font_size(balagan_ghostty_library_t *library);
 
+// Rebuilds the config (user files + BALAGAN_GHOSTTY_CONFIG_OVERRIDES) and applies it to the running
+// app and its surfaces, e.g. after a theme change. Returns -1 when the Ghostty build can't.
+int balagan_ghostty_app_reload_config(balagan_ghostty_app_t *app);
+
 void balagan_ghostty_app_free(balagan_ghostty_app_t *app);
 void balagan_ghostty_app_tick(balagan_ghostty_app_t *app);
 

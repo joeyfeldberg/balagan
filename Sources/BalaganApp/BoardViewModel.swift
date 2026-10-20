@@ -9,6 +9,12 @@ final class BoardViewModel: ObservableObject, @unchecked Sendable {
     /// Sidebar visibility lives on the view model so the AppKit titlebar toggle and the SwiftUI body
     /// share one source of truth.
     @Published var isSidebarVisible = true
+    /// The app theme (`AppThemes`). An app-level preference, so it lives in UserDefaults, not the board;
+    /// `BALAGAN_THEME=<id>` overrides it for a snapshot without saving.
+    @Published var appThemeID: String = ProcessInfo.processInfo.environment["BALAGAN_THEME"]
+        ?? AppPreferences.appThemeID {
+        didSet { applyAppTheme() }
+    }
     @Published var selectedProjectID: Project.ID? { didSet { scheduleNavigationRecord() } }
     @Published var selectedTaskID: TaskItem.ID? { didSet { scheduleNavigationRecord() } }
     /// Back/forward over the boards and tasks you've visited (‹ › in the titlebar, ⌘[ / ⌘]).
@@ -216,6 +222,7 @@ final class BoardViewModel: ObservableObject, @unchecked Sendable {
         }
         recoverPendingCodexSurfaces()
         recordNavigation()
+        applyAppTheme()
     }
 
     var selectedTask: TaskItem? {

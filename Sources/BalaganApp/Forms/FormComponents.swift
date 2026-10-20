@@ -33,11 +33,11 @@ struct FormFieldChrome: ViewModifier {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: Theme.radiusButton, style: .continuous)
-                    .stroke(focused ? Color.accentColor : Theme.hairline, lineWidth: 1)
+                    .stroke(focused ? Theme.accent : Theme.hairline, lineWidth: 1)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: Theme.radiusButton, style: .continuous)
-                    .strokeBorder(Color.accentColor.opacity(focused ? 0.3 : 0), lineWidth: 3)
+                    .strokeBorder(Theme.accent.opacity(focused ? 0.3 : 0), lineWidth: 3)
             )
     }
 }
