@@ -14,9 +14,12 @@ extension BoardViewModel {
         let jobs: [(TaskItem.ID, [ResumeBinding])] = tasks.compactMap { task in
             if let taskIDs, taskIDs.contains(task.id) == false { return nil }
             // The current session and every earlier one the tab still remembers.
-            let bindings = task.workspace.surfaces
-                .flatMap { [$0.resumeBinding].compactMap { $0 } + ($0.previousSessions ?? []).map(\.binding) }
-                .filter { $0.kind == .agent }
+            var bindings: [ResumeBinding] = []
+            for surface in task.workspace.surfaces {
+                if let current = surface.resumeBinding { bindings.append(current) }
+                for record in surface.previousSessions ?? [] { bindings.append(record.binding) }
+            }
+            bindings = bindings.filter { $0.kind == .agent }
             return bindings.isEmpty ? nil : (task.id, bindings)
         }
         guard jobs.isEmpty == false else { return }

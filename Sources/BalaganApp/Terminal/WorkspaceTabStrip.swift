@@ -106,48 +106,25 @@ struct WorkspaceTabStrip: View {
         surface.resumeBinding?.kind == .agent || surface.agentKind != nil
     }
 
-    @ViewBuilder
+    /// The tab's right-click menu, built only from what it shows. A working agent changes its tab title
+    /// several times a second (the spinner); if the menu depended on the whole surface it was rebuilt on
+    /// every frame, and an open submenu (Earlier Sessions) blinked.
     private func tabMenu(_ surface: Surface) -> some View {
-        if let onRestartAgent, isAgentTab(surface) {
-            Button {
-                onRestartAgent(surface.id)
-            } label: {
-                Label("Restart Agent", systemImage: "arrow.clockwise")
-            }
-            .accessibilityIdentifier("tab-restart-agent-button")
-            if let onForkSession {
-                let blocker = forkBlocker(surface)
-                Button {
-                    onForkSession(surface.id)
-                } label: {
-                    Label("Fork Session", systemImage: "arrow.triangle.branch")
-                }
-                .disabled(blocker != nil)
-                .help(blocker ?? "Continue this conversation in a new tab, as a separate session")
-                .accessibilityIdentifier("tab-fork-session-button")
-            }
-            if let onResumeSession, let sessions = surface.previousSessions, sessions.isEmpty == false {
-                Menu("Earlier Sessions") {
-                    ForEach(sessions) { record in
-                        Button(Self.sessionLabel(record)) { onResumeSession(surface.id, record.id) }
-                    }
-                }
-                .accessibilityIdentifier("tab-sessions-menu")
-            }
-            Divider()
-        }
-        if let onRename {
-            Button {
-                onRename(surface)
-            } label: {
-                Label("Rename Tab…", systemImage: "pencil")
-            }
-        }
-        Button(role: .destructive) {
-            onClose(surface.id)
-        } label: {
-            Label("Close Tab", systemImage: "xmark")
-        }
+        TabContextMenu(
+            isAgentTab: isAgentTab(surface),
+            sessions: (surface.previousSessions ?? []).map { TabContextMenu.Session(id: $0.id, label: Self.sessionLabel($0)) },
+            forkBlocker: onForkSession == nil ? nil : forkBlocker(surface),
+            canRestart: onRestartAgent != nil,
+            canFork: onForkSession != nil,
+            canResume: onResumeSession != nil,
+            canRename: onRename != nil,
+            onRestart: { onRestartAgent?(surface.id) },
+            onFork: { onForkSession?(surface.id) },
+            onResume: { onResumeSession?(surface.id, $0) },
+            onRename: { onRename?(surface) },
+            onClose: { onClose(surface.id) }
+        )
+        .equatable()
     }
 
     @ViewBuilder
@@ -270,5 +247,67 @@ private final class MiddleClickNSView: NSView {
 
     override func otherMouseUp(with event: NSEvent) {
         if event.buttonNumber == 2 { onMiddleClick() } else { super.otherMouseUp(with: event) }
+    }
+}
+
+/// The tab menu's content. Equatable on its data only (never the closures), so SwiftUI leaves an open
+/// menu alone while the tab around it redraws.
+private struct TabContextMenu: View, Equatable {
+    struct Session: Equatable, Identifiable {
+        let id: SessionRecord.ID
+        let label: String
+    }
+
+    let isAgentTab: Bool
+    let sessions: [Session]
+    let forkBlocker: String?
+    let canRestart: Bool
+    let canFork: Bool
+    let canResume: Bool
+    let canRename: Bool
+    let onRestart: () -> Void
+    let onFork: () -> Void
+    let onResume: (SessionRecord.ID) -> Void
+    let onRename: () -> Void
+    let onClose: () -> Void
+
+    nonisolated static func == (lhs: TabContextMenu, rhs: TabContextMenu) -> Bool {
+        lhs.isAgentTab == rhs.isAgentTab && lhs.sessions == rhs.sessions && lhs.forkBlocker == rhs.forkBlocker
+            && lhs.canRestart == rhs.canRestart && lhs.canFork == rhs.canFork
+            && lhs.canResume == rhs.canResume && lhs.canRename == rhs.canRename
+    }
+
+    var body: some View {
+        if canRestart, isAgentTab {
+            Button(action: onRestart) {
+                Label("Restart Agent", systemImage: "arrow.clockwise")
+            }
+            .accessibilityIdentifier("tab-restart-agent-button")
+            if canFork {
+                Button(action: onFork) {
+                    Label("Fork Session", systemImage: "arrow.triangle.branch")
+                }
+                .disabled(forkBlocker != nil)
+                .help(forkBlocker ?? "Continue this conversation in a new tab, as a separate session")
+                .accessibilityIdentifier("tab-fork-session-button")
+            }
+            if canResume, sessions.isEmpty == false {
+                Menu("Earlier Sessions") {
+                    ForEach(sessions) { session in
+                        Button(session.label) { onResume(session.id) }
+                    }
+                }
+                .accessibilityIdentifier("tab-sessions-menu")
+            }
+            Divider()
+        }
+        if canRename {
+            Button(action: onRename) {
+                Label("Rename Tab…", systemImage: "pencil")
+            }
+        }
+        Button(role: .destructive, action: onClose) {
+            Label("Close Tab", systemImage: "xmark")
+        }
     }
 }
