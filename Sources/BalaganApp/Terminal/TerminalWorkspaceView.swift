@@ -51,6 +51,10 @@ struct TaskTerminalWorkspaceScreen: View {
                 },
                 onEditTask: task.isProjectTerminals ? nil : onEditTask,
                 onRestartAgent: task.isProjectTerminals ? nil : onRestartAgent,
+                onForkSession: task.isProjectTerminals ? nil : { surfaceID in
+                    viewModel.forkSession(taskID: task.id, surfaceID: surfaceID)
+                },
+                forkBlocker: { viewModel.forkBlocker($0) },
                 onResumeSession: task.isProjectTerminals ? nil : { surfaceID, recordID in
                     if viewModel.switchToPreviousSession(taskID: task.id, surfaceID: surfaceID, recordID: recordID) {
                         onRestartAgent(surfaceID)
@@ -187,6 +191,8 @@ private struct TerminalWorkspace: View {
     var onMoveTask: ((TaskStatus) -> Void)? = nil
     var onEditTask: (() -> Void)? = nil
     var onRestartAgent: ((Surface.ID) -> Void)? = nil
+    var onForkSession: ((Surface.ID) -> Void)? = nil
+    var forkBlocker: (Surface) -> String? = { _ in "Unavailable" }
     var onResumeSession: ((Surface.ID, SessionRecord.ID) -> Void)? = nil
     let onAddSurface: () -> Void
     var onNewDefaultSurface: () -> Void = {}
@@ -389,7 +395,9 @@ private struct TerminalWorkspace: View {
                     onClose: onDeleteSurface,
                     onRename: onRenameSurface,
                     onRestartAgent: onRestartAgent,
-                    onResumeSession: onResumeSession
+                    onResumeSession: onResumeSession,
+                    onForkSession: onForkSession,
+                    forkBlocker: forkBlocker
                 )
             }
 
@@ -562,6 +570,14 @@ private struct TerminalWorkspace: View {
             }
             .accessibilityIdentifier("zoom-pane-button")
             Divider()
+            if let onForkSession, forkBlocker(activeSurface) == nil {
+                Button {
+                    onForkSession(activeSurface.id)
+                } label: {
+                    Label("Fork Session", systemImage: "arrow.triangle.branch")
+                }
+                .accessibilityIdentifier("fork-session-button")
+            }
             if let onNewAgentSurface {
                 Button {
                     onNewAgentSurface()

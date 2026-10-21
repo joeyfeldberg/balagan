@@ -330,6 +330,13 @@ struct BoardScreen: View {
             })
         }
 
+        if let task = viewModel.selectedTask, task.isProjectTerminals == false,
+           let surface = viewModel.activeSurface(for: task), viewModel.forkBlocker(surface) == nil {
+            commands.append(PaletteCommand(id: "fork-session", title: "Fork Session", subtitle: surface.title, systemImage: "arrow.triangle.branch") {
+                viewModel.forkSession(taskID: task.id, surfaceID: surface.id)
+            })
+        }
+
         if let task = viewModel.selectedTask, task.isProjectTerminals == false {
             commands.append(PaletteCommand(id: "review-changes", title: "Review Changes", subtitle: task.title, systemImage: "plus.forwardslash.minus", shortcut: chord(.toggleChangesView)) {
                 if viewModel.showingChangesView == false { viewModel.toggleChangesView() }

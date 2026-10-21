@@ -97,6 +97,9 @@ Beyond those, Balagan also has:
   session (`claude --resume`, `codex resume`, …) and replays plain shells.
 - **Automatic sleep for idle tasks.** After 30 quiet minutes a task frees its terminals and memory, and
   it wakes exactly where it was.
+- **Fork a conversation.** Right-click an agent tab → Fork Session continues it in a new tab as a
+  separate session (Claude, Codex, pi and OpenCode), so you can try another direction without losing
+  the first.
 - **Earlier sessions stay one click away.** When an agent tab starts a new conversation, the old one
   is kept: right-click the tab → Earlier Sessions to resume it.
 - **Agents that update themselves don't cost you the tab.** If an agent exits right after starting, it

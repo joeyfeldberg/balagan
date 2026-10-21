@@ -30,6 +30,9 @@ public struct AgentProfile: Codable, Equatable, Sendable, Identifiable {
     public var sessionIDFlag: String?
     /// Arguments that resume a session, with `{session}` for the id (`["--resume", "{session}"]`).
     public var resumeArguments: [String]?
+    /// Arguments that fork a session into a new one carrying the whole conversation, with `{session}`
+    /// for the original's id (`["--resume", "{session}", "--fork-session"]`). nil = can't fork.
+    public var forkArguments: [String]?
     /// Flags that mean "you picked the session yourself" — Balagan then doesn't inject one. The first
     /// value after one of them that looks like an id is taken as the session.
     public var sessionFlags: [String]
@@ -46,6 +49,7 @@ public struct AgentProfile: Codable, Equatable, Sendable, Identifiable {
         command: String,
         sessionIDFlag: String? = nil,
         resumeArguments: [String]? = nil,
+        forkArguments: [String]? = nil,
         sessionFlags: [String] = [],
         passthroughSubcommands: [String] = [],
         passthroughFlags: [String] = [],
@@ -56,6 +60,7 @@ public struct AgentProfile: Codable, Equatable, Sendable, Identifiable {
         self.command = command
         self.sessionIDFlag = sessionIDFlag
         self.resumeArguments = resumeArguments
+        self.forkArguments = forkArguments
         self.sessionFlags = sessionFlags
         self.passthroughSubcommands = passthroughSubcommands
         self.passthroughFlags = passthroughFlags
@@ -63,7 +68,7 @@ public struct AgentProfile: Codable, Equatable, Sendable, Identifiable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, displayName, command, sessionIDFlag, resumeArguments, sessionFlags
+        case id, displayName, command, sessionIDFlag, resumeArguments, forkArguments, sessionFlags
         case passthroughSubcommands, passthroughFlags, integration
     }
 
@@ -75,6 +80,7 @@ public struct AgentProfile: Codable, Equatable, Sendable, Identifiable {
         displayName = try c.decodeIfPresent(String.self, forKey: .displayName) ?? id
         sessionIDFlag = try c.decodeIfPresent(String.self, forKey: .sessionIDFlag)
         resumeArguments = try c.decodeIfPresent([String].self, forKey: .resumeArguments)
+        forkArguments = try c.decodeIfPresent([String].self, forKey: .forkArguments)
         sessionFlags = try c.decodeIfPresent([String].self, forKey: .sessionFlags) ?? []
         passthroughSubcommands = try c.decodeIfPresent([String].self, forKey: .passthroughSubcommands) ?? []
         passthroughFlags = try c.decodeIfPresent([String].self, forKey: .passthroughFlags) ?? []
@@ -85,6 +91,23 @@ public struct AgentProfile: Codable, Equatable, Sendable, Identifiable {
     public func resumeArgv(sessionID: String) -> [String]? {
         guard let resumeArguments, resumeArguments.contains("{session}") else { return nil }
         return [command] + resumeArguments.map { $0 == "{session}" ? sessionID : $0 }
+    }
+
+    /// The argv that forks `sessionID` into a new session, or nil when the agent can't fork.
+    public func forkArgv(sessionID: String) -> [String]? {
+        guard let forkArguments, forkArguments.contains("{session}") else { return nil }
+        return [command] + forkArguments.map { $0 == "{session}" ? sessionID : $0 }
+    }
+
+    /// Whether these launch arguments fork a session: every part of `forkArguments` that a resume
+    /// doesn't have is there (`--fork-session`, the `fork` subcommand, `--fork`). A fork starts a *new*
+    /// session, so the id after it is the original's, not this run's.
+    public func isFork(arguments: [String]) -> Bool {
+        guard let forkArguments else { return false }
+        let resume = Set(resumeArguments ?? [])
+        let markers = forkArguments.filter { $0 != "{session}" && resume.contains($0) == false }
+        guard markers.isEmpty == false else { return false }
+        return markers.allSatisfy { arguments.contains($0) }
     }
 
     /// The resume command as one line (for the binding's display command).
@@ -114,6 +137,7 @@ public enum AgentProfiles {
         command: "claude",
         sessionIDFlag: "--session-id",
         resumeArguments: ["--resume", "{session}"],
+        forkArguments: ["--resume", "{session}", "--fork-session"],
         sessionFlags: ["--resume", "-r", "--session-id", "--continue", "-c"],
         passthroughSubcommands: [
             "mcp", "config", "doctor", "update", "upgrade", "install", "setup-token", "migrate-installer",
@@ -128,6 +152,7 @@ public enum AgentProfiles {
         displayName: "Codex",
         command: "codex",
         resumeArguments: ["resume", "{session}"],
+        forkArguments: ["fork", "{session}"],
         sessionFlags: ["--session-id", "--session"],
         passthroughSubcommands: [
             "exec", "e", "login", "logout", "mcp", "mcp-server", "app-server", "completion", "sandbox",
@@ -142,6 +167,7 @@ public enum AgentProfiles {
         displayName: "OpenCode",
         command: "opencode",
         resumeArguments: ["--session", "{session}"],
+        forkArguments: ["--session", "{session}", "--fork"],
         sessionFlags: ["--session", "-s"],
         passthroughSubcommands: [
             "completion", "acp", "mcp", "attach", "run", "debug", "providers", "auth", "agent", "upgrade",
@@ -158,6 +184,7 @@ public enum AgentProfiles {
         command: "pi",
         sessionIDFlag: "--session-id",
         resumeArguments: ["--session-id", "{session}"],
+        forkArguments: ["--fork", "{session}"],
         sessionFlags: ["--session-id", "--session", "--continue", "-c", "--resume", "-r", "--fork", "--no-session"],
         passthroughSubcommands: ["install", "remove", "uninstall", "update", "list", "config", "auth"],
         passthroughFlags: ["-p", "--print", "--export", "--list-models", "-v", "--version", "-h", "--help", "--mode"],

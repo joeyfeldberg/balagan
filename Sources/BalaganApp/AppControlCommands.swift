@@ -52,6 +52,16 @@ extension BalaganApplication {
             return controlRestart(params: params, viewModel: viewModel)
         case "status":
             return controlStatus(viewModel: viewModel)
+        case "tab.fork":
+            // Unlisted: Fork Session on a tab (`--id <task> [--surface <tab>]`, default the selected tab).
+            guard let id = params["id"]?.nilIfBlank, let task = viewModel.tasks.first(where: { $0.id == id }),
+                  let surfaceID = params["surface"]?.nilIfBlank ?? task.workspace.selectedSurfaceID,
+                  let surface = task.workspace.surfaces.first(where: { $0.id == surfaceID })
+            else { return err("no such task or tab") }
+            if let blocker = viewModel.forkBlocker(surface) { return err(blocker) }
+            viewModel.forkSession(taskID: task.id, surfaceID: surfaceID)
+            let fork = viewModel.tasks.first(where: { $0.id == id })?.workspace.selectedSurfaceID ?? ""
+            return ok(["fork": fork])
         case "theme.set":
             // Unlisted: switches the app theme (`--id <theme>`), the same as picking it in Settings.
             guard let id = params["id"]?.nilIfBlank, AppThemes.all.contains(where: { $0.id == id }) else {

@@ -638,6 +638,23 @@ binding never keeps its `pid`, because the OS may have reused it. And the switch
 *running* agent itself before rebinding, since the restart afterwards only knows the switched-to
 session, which has no process. Task token counts include every session the tabs remember.
 
+## Fork Session
+
+Right-click a tab → **Fork Session** (also in the header's ⋯ menu and the palette) opens a new tab,
+right after the original, that continues the conversation as a separate session. The original keeps
+running. It uses each agent's own fork command, `AgentProfile.forkArguments` (custom profiles can set
+one): `claude --resume <id> --fork-session`, `codex fork <id>`, `pi --fork <id>`,
+`opencode --session <id> --fork`, launched through the wrapper like any agent tab
+(`BoardSessionFork.swift`). The new tab must bind to the *fork's* session, not the original named on
+its command line, so `AgentProfile.isFork` (the fork command's parts a resume doesn't have) tells the
+wrapper planner it's a fork: Claude gets a fresh `--session-id` up front (Claude honors it alongside
+`--fork-session`; checked with a real fork that kept the conversation), Codex is captured like a fresh
+start, and pi/OpenCode report the new session through their integration. A tab can fork once its agent
+has reported a session (`forkBlocker` says why not otherwise). Both tabs share the task's checkout. The
+unlisted control method `tab.fork --id <task> [--surface <tab>]` forks headlessly; it was verified live
+against a real Claude session. When testing from inside a Balagan terminal, clear the inherited
+`BALAGAN_*` variables first, or `BALAGAN_AGENT_ACTIVE` makes the scratch app's wrapper pass through.
+
 ## Dormant vs live tasks
 
 Terminals only exist once a task is opened or woken in this run of the app. So after a restart

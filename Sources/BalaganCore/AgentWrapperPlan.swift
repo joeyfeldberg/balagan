@@ -189,7 +189,10 @@ public enum AgentWrapperPlanner {
     ) -> AgentWrapperPlan {
         var launchArguments = arguments
         var sessionID: String?
-        if AgentLaunchClassifier.userChoseSession(profile, arguments: arguments) {
+        if profile.isFork(arguments: arguments) {
+            // The id named is the original's; the fork's own is reported by the agent's integration.
+            sessionID = nil
+        } else if AgentLaunchClassifier.userChoseSession(profile, arguments: arguments) {
             sessionID = AgentLaunchClassifier.namedSession(profile, arguments: arguments)
         } else if let flag = profile.sessionIDFlag {
             let fresh = uuid().uuidString.lowercased()
@@ -243,6 +246,20 @@ public enum AgentWrapperPlanner {
             overrideEnvironmentKey: "BALAGAN_CLAUDE_EXECUTABLE",
             environment: environment
         )
+        // A fork (`--resume <original> --fork-session`) starts a new session: name it up front so the
+        // tab binds to the fork, not the original. Claude honors `--session-id` alongside the fork.
+        if AgentProfiles.claude.isFork(arguments: arguments) {
+            let explicit = value(afterAnyOf: ["--session-id"], in: arguments)
+            let forkID = explicit ?? uuid().uuidString.lowercased()
+            return AgentWrapperPlan(
+                agentName: "claude",
+                executablePath: executable,
+                arguments: explicit == nil ? ["--session-id", forkID] + arguments : arguments,
+                sessionID: forkID,
+                command: "claude --resume \(forkID)",
+                limitation: nil
+            )
+        }
         if let sessionID = value(afterAnyOf: ["--resume", "-r", "--session-id"], in: arguments) {
             return AgentWrapperPlan(
                 agentName: "claude",
@@ -283,7 +300,10 @@ public enum AgentWrapperPlanner {
             overrideEnvironmentKey: "BALAGAN_CODEX_EXECUTABLE",
             environment: environment
         )
-        let sessionID = environment["BALAGAN_AGENT_SESSION_ID"]
+        // `codex fork <original>` makes a new session whose id isn't known yet: capture it like a fresh
+        // start (the helper finds the session Codex creates after launch in this folder).
+        let isFork = AgentProfiles.codex.isFork(arguments: arguments)
+        let sessionID = isFork ? nil : environment["BALAGAN_AGENT_SESSION_ID"]
             ?? value(afterAnyOf: ["--session-id", "--session"], in: arguments)
             ?? value(afterCodexResumeIn: arguments)
         let command = sessionID.map { "codex resume \($0)" } ?? "codex"

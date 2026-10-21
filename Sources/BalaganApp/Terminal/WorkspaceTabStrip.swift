@@ -32,6 +32,9 @@ struct WorkspaceTabStrip: View {
     var onRestartAgent: ((Surface.ID) -> Void)? = nil
     /// Right-click → Sessions ▸ <earlier session>: resume that session in this tab.
     var onResumeSession: ((Surface.ID, SessionRecord.ID) -> Void)? = nil
+    /// Right-click → Fork Session (nil hides it), and why a tab can't fork (nil = it can).
+    var onForkSession: ((Surface.ID) -> Void)? = nil
+    var forkBlocker: (Surface) -> String? = { _ in "Unavailable" }
 
     @State private var frames: [Surface.ID: CGRect] = [:]
     @State private var dragID: Surface.ID?
@@ -112,6 +115,17 @@ struct WorkspaceTabStrip: View {
                 Label("Restart Agent", systemImage: "arrow.clockwise")
             }
             .accessibilityIdentifier("tab-restart-agent-button")
+            if let onForkSession {
+                let blocker = forkBlocker(surface)
+                Button {
+                    onForkSession(surface.id)
+                } label: {
+                    Label("Fork Session", systemImage: "arrow.triangle.branch")
+                }
+                .disabled(blocker != nil)
+                .help(blocker ?? "Continue this conversation in a new tab, as a separate session")
+                .accessibilityIdentifier("tab-fork-session-button")
+            }
             if let onResumeSession, let sessions = surface.previousSessions, sessions.isEmpty == false {
                 Menu("Earlier Sessions") {
                     ForEach(sessions) { record in
