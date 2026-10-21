@@ -35,6 +35,16 @@ extension BoardViewModel {
         projects[projectIndex].lanes[laneIndex].collapsed.toggle()
     }
 
+    /// Recolors a lane (`RRGGBB`, from `Lane.palette`).
+    func setLaneColor(projectID: Project.ID, laneID: Lane.ID, colorHex: String) {
+        guard let projectIndex = projects.firstIndex(where: { $0.id == projectID }),
+              let laneIndex = projects[projectIndex].lanes.firstIndex(where: { $0.id == laneID })
+        else {
+            return
+        }
+        projects[projectIndex].lanes[laneIndex].colorHex = colorHex
+    }
+
     func renameLane(projectID: Project.ID, laneID: Lane.ID, to name: String) {
         let trimmed = name.trimmedForStorage
         guard trimmed.isEmpty == false,

@@ -443,6 +443,17 @@ Movement is the pure `BoardKeyboardNavigation` (Core); the keys are `onKeyPress`
 highlight drops when its card leaves the board. Real key presses can't be tested headlessly;
 `BALAGAN_SHOW_BOARD_HIGHLIGHT=<task id>` starts with a card highlighted for a snapshot.
 
+## Editing lanes
+
+On a project's board, **Edit Lanes** (top right; becomes **Done**, Esc also finishes) puts the board
+itself into an editing mode, with no popover. Every column header turns into a name field, a color dot
+(a palette of `Lane.palette` swatches), ‹ › to move it, an eye to hide it (a hidden lane shows as a full
+column with a crossed-out eye while editing, and as a thin strip otherwise), and a trash can, enabled
+only for an empty lane that isn't the board's last. A dashed **New lane** column at the end adds one
+on Return. Cards dim and ignore clicks while editing. The views are in `LaneEditor.swift`, the
+mutations in `BoardLanes.swift`. Not on All Projects, whose lanes are a union of several projects'.
+`BALAGAN_SHOW_LANE_EDITING=1` starts in editing mode for a snapshot.
+
 ## Menu bar item
 
 `MenuBarStatus` puts an item in the menu bar (Settings → General → "Show agents in the menu bar",

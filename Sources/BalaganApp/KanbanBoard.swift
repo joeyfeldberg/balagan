@@ -36,7 +36,9 @@ struct KanbanBoard: View {
     @State private var columnFrames: [TaskStatus: CGRect] = [:]
     @State private var drag: CardDragContext?
     @State private var dropTarget: TaskStatus?
-    @State private var showingLaneEditor = false
+    /// Edit Lanes mode: column headers are editable in place, hidden lanes show as full columns, and
+    /// a dashed column at the end adds one. Only on a project's board (All Projects mixes projects).
+    @State private var editingLanes = ProcessInfo.processInfo.environment["BALAGAN_SHOW_LANE_EDITING"] == "1"
     /// The card the arrow keys have highlighted (⏎ opens it, 1–9 move it, ⌘⌫ archives it).
     // `BALAGAN_SHOW_BOARD_HIGHLIGHT=<task id>` starts with that card highlighted, for a snapshot.
     @State private var keyboardCardID: TaskItem.ID? = ProcessInfo.processInfo.environment["BALAGAN_SHOW_BOARD_HIGHLIGHT"]
@@ -66,6 +68,10 @@ struct KanbanBoard: View {
                     .onKeyPress(.rightArrow) { moveHighlight(.right) }
                     .onKeyPress(.return) { openHighlighted() }
                     .onKeyPress(.escape) {
+                        if editingLanes {
+                            editingLanes = false
+                            return .handled
+                        }
                         guard keyboardCardID != nil else { return .ignored }
                         keyboardCardID = nil
                         return .handled
@@ -82,6 +88,7 @@ struct KanbanBoard: View {
             }
         }
         .background(Theme.bgWindow)
+        .onChange(of: viewModel.selectedProjectID) { _, _ in editingLanes = false }
         .contextMenu {
             Button {
                 onCreateTask()
@@ -122,18 +129,27 @@ struct KanbanBoard: View {
 
             Spacer()
 
-            if let projectID = viewModel.selectedProjectID {
-                Button {
-                    showingLaneEditor = true
-                } label: {
-                    Label("Lanes", systemImage: "rectangle.split.3x1")
-                }
-                .buttonStyle(.bordered)
-                .font(.system(size: Theme.TextSize.title * balaganUIScale))
-                .help("Edit lanes")
-                .accessibilityIdentifier("edit-lanes-button")
-                .popover(isPresented: $showingLaneEditor, arrowEdge: .bottom) {
-                    LaneEditorView(viewModel: viewModel, projectID: projectID)
+            if viewModel.selectedProjectID != nil {
+                if editingLanes {
+                    Button {
+                        editingLanes = false
+                    } label: {
+                        Label("Done", systemImage: "checkmark")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .font(.system(size: Theme.TextSize.title * balaganUIScale))
+                    .help("Finish editing lanes (Esc)")
+                    .accessibilityIdentifier("edit-lanes-button")
+                } else {
+                    Button {
+                        editingLanes = true
+                    } label: {
+                        Label("Edit Lanes", systemImage: "rectangle.split.3x1")
+                    }
+                    .buttonStyle(.bordered)
+                    .font(.system(size: Theme.TextSize.title * balaganUIScale))
+                    .help("Rename, recolor, reorder, hide, add or delete lanes")
+                    .accessibilityIdentifier("edit-lanes-button")
                 }
             }
 
@@ -153,8 +169,9 @@ struct KanbanBoard: View {
 
     private var boardCanvas: some View {
         GeometryReader { geo in
-            let count = viewModel.boardLanes.count
-            let expandedCount = viewModel.boardLanes.filter { $0.collapsed == false }.count
+            // While editing, hidden lanes show as full columns and an Add column follows the last one.
+            let count = viewModel.boardLanes.count + (isEditing ? 1 : 0)
+            let expandedCount = isEditing ? count : viewModel.boardLanes.filter { $0.collapsed == false }.count
             let collapsedCount = count - expandedCount
             let spacing = 12 * balaganUIScale
             let pad = 16 * balaganUIScale
@@ -201,10 +218,12 @@ struct KanbanBoard: View {
         }
     }
 
+    private var isEditing: Bool { editingLanes && viewModel.selectedProjectID != nil }
+
     private func columnsRow(fixedWidth: CGFloat?, spacing: CGFloat) -> some View {
         HStack(alignment: .top, spacing: spacing) {
             ForEach(viewModel.boardLanes) { lane in
-                if lane.collapsed {
+                if lane.collapsed && isEditing == false {
                     CollapsedLaneColumn(
                         lane: lane,
                         count: viewModel.tasks(for: lane.status).count,
@@ -266,11 +285,24 @@ struct KanbanBoard: View {
                         canDeleteLane: viewModel.selectedProjectID.map {
                             viewModel.canDeleteLane(projectID: $0, laneID: lane.id)
                         } ?? false,
-                        canEditLanes: viewModel.selectedProjectID != nil
+                        canEditLanes: viewModel.selectedProjectID != nil,
+                        isEditing: isEditing,
+                        isFirstLane: lane.id == viewModel.boardLanes.first?.id,
+                        isLastLane: lane.id == viewModel.boardLanes.last?.id,
+                        onRecolorLane: { hex in
+                            if let projectID = viewModel.selectedProjectID {
+                                viewModel.setLaneColor(projectID: projectID, laneID: lane.id, colorHex: hex)
+                            }
+                        }
                     )
                     .frame(maxWidth: fixedWidth == nil ? CGFloat.infinity : nil)
                     .frame(width: fixedWidth)
                 }
+            }
+            if isEditing, let projectID = viewModel.selectedProjectID {
+                AddLaneColumn { name in viewModel.addLane(toProjectID: projectID, name: name) }
+                    .frame(maxWidth: fixedWidth == nil ? CGFloat.infinity : nil)
+                    .frame(width: fixedWidth)
             }
         }
     }
@@ -359,6 +391,10 @@ private struct KanbanColumn: View {
     var onCollapseLane: () -> Void = {}
     var canDeleteLane = true
     var canEditLanes = false
+    var isEditing = false
+    var isFirstLane = false
+    var isLastLane = false
+    var onRecolorLane: (String) -> Void = { _ in }
     @Environment(\.balaganUIScale) private var balaganUIScale
     @State private var isRenaming = false
     @State private var draftName = ""
@@ -378,6 +414,21 @@ private struct KanbanColumn: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10 * balaganUIScale) {
+            if isEditing {
+                EditableLaneHeader(
+                    lane: lane,
+                    count: tasks.count,
+                    isFirst: isFirstLane,
+                    isLast: isLastLane,
+                    canDelete: canDeleteLane,
+                    onRename: onRenameLane,
+                    onRecolor: onRecolorLane,
+                    onMove: onMoveLane,
+                    onToggleHidden: onCollapseLane,
+                    onDelete: onDeleteLane
+                )
+                .frame(height: 28 * balaganUIScale)
+            } else {
             HStack(spacing: 7 * balaganUIScale) {
                 Circle()
                     .fill(lane.color)
@@ -417,8 +468,8 @@ private struct KanbanColumn: View {
                     Divider()
                     Button("Delete Lane", role: .destructive) { onDeleteLane() }
                         .disabled(canDeleteLane == false)
-                        .accessibilityIdentifier("lane-delete-\(status.accessibilitySlug)")
                 }
+            }
             }
 
             if tasks.isEmpty {
@@ -434,6 +485,9 @@ private struct KanbanColumn: View {
                             }
                         }
                         .padding(.bottom, 4 * balaganUIScale)
+                        // While lanes are being edited the cards are scenery: dimmed and inert.
+                        .opacity(isEditing ? 0.45 : 1)
+                        .allowsHitTesting(isEditing == false)
                     }
                     .scrollDisabled(draggedTaskID != nil)
                     .onChange(of: keyboardCardID) { _, id in
