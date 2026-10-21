@@ -41,10 +41,12 @@ extension BoardViewModel {
 /// It also gives system controls the theme's color scheme and accent.
 struct ThemedRoot<Content: View>: View {
     @ObservedObject var viewModel: BoardViewModel
-    @ViewBuilder var content: Content
+    /// Built fresh on every render, not once: a view built when the window opened would carry that
+    /// moment's initial state into every rebuild (Settings jumped back to General on a theme change).
+    @ViewBuilder var content: () -> Content
 
     var body: some View {
-        content
+        content()
             .id(viewModel.appThemeID)
             .environment(\.colorScheme, Theme.colorScheme)
             .tint(Theme.accent)
