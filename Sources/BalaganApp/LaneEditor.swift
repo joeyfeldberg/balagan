@@ -5,16 +5,17 @@ import BalaganCore
 /// and a dashed column at the end adds a lane. Lanes live on `Project`; the edits go through
 /// `BoardLanes.swift` and autosave like any other change.
 
-/// A column header while editing: color, name, move left/right, hide, delete.
+/// A column header while editing: a grip to drag the lane, color, name, hide, delete.
 struct EditableLaneHeader: View {
     let lane: Lane
     let count: Int
-    let isFirst: Bool
-    let isLast: Bool
     let canDelete: Bool
+    /// The board's coordinate space, so drag translations line up with the column frames.
+    let boardSpace: String
     let onRename: (String) -> Void
     let onRecolor: (String) -> Void
-    let onMove: (Int) -> Void
+    let onDragChanged: (CGFloat) -> Void
+    let onDragEnded: (CGFloat) -> Void
     let onToggleHidden: () -> Void
     let onDelete: () -> Void
     @Environment(\.balaganUIScale) private var scale
@@ -24,6 +25,20 @@ struct EditableLaneHeader: View {
 
     var body: some View {
         HStack(spacing: 6 * scale) {
+            Image(systemName: "line.3.horizontal")
+                .font(.system(size: 11 * scale, weight: .semibold))
+                .foregroundStyle(Theme.textTertiary)
+                .frame(width: 16 * scale, height: 22 * scale)
+                .contentShape(Rectangle())
+                .onHover { inside in if inside { NSCursor.openHand.push() } else { NSCursor.pop() } }
+                .gesture(
+                    DragGesture(minimumDistance: 3, coordinateSpace: .named(boardSpace))
+                        .onChanged { onDragChanged($0.translation.width) }
+                        .onEnded { onDragEnded($0.translation.width) }
+                )
+                .help("Drag to move the lane")
+                .accessibilityIdentifier("lane-drag-\(lane.status.accessibilitySlug)")
+
             Button { showingColors = true } label: {
                 Circle()
                     .fill(lane.color)
@@ -56,8 +71,6 @@ struct EditableLaneHeader: View {
                 .onChange(of: nameFocused) { _, focused in if focused == false { commit() } }
                 .accessibilityIdentifier("lane-name-\(lane.status.accessibilitySlug)")
 
-            iconButton("chevron.left", help: "Move left", disabled: isFirst) { onMove(-1) }
-            iconButton("chevron.right", help: "Move right", disabled: isLast) { onMove(1) }
             iconButton(lane.collapsed ? "eye.slash" : "eye",
                        help: lane.collapsed ? "Hidden on the board (a thin strip); click to show" : "Hide on the board",
                        disabled: false, action: onToggleHidden)

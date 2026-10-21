@@ -39,6 +39,9 @@ struct KanbanBoard: View {
     /// Edit Lanes mode: column headers are editable in place, hidden lanes show as full columns, and
     /// a dashed column at the end adds one. Only on a project's board (All Projects mixes projects).
     @State private var editingLanes = ProcessInfo.processInfo.environment["BALAGAN_SHOW_LANE_EDITING"] == "1"
+    /// A lane being dragged in edit mode: how far it has moved, and its center when the drag began
+    /// (its live frame moves with the offset, so it can't be the reference).
+    @State private var laneDrag: (id: Lane.ID, dx: CGFloat, startMidX: CGFloat)?
     /// The card the arrow keys have highlighted (⏎ opens it, 1–9 move it, ⌘⌫ archives it).
     // `BALAGAN_SHOW_BOARD_HIGHLIGHT=<task id>` starts with that card highlighted, for a snapshot.
     @State private var keyboardCardID: TaskItem.ID? = ProcessInfo.processInfo.environment["BALAGAN_SHOW_BOARD_HIGHLIGHT"]
@@ -197,6 +200,8 @@ struct KanbanBoard: View {
                     }
                 }
 
+                laneDropIndicator
+
                 if let drag, let snapshot = drag.snapshot {
                     // A frozen bitmap of the card, captured once at drag start. Because it never
                     // re-lays-out, the notes can't re-wrap and the height can't oscillate as it moves.
@@ -287,8 +292,11 @@ struct KanbanBoard: View {
                         } ?? false,
                         canEditLanes: viewModel.selectedProjectID != nil,
                         isEditing: isEditing,
-                        isFirstLane: lane.id == viewModel.boardLanes.first?.id,
-                        isLastLane: lane.id == viewModel.boardLanes.last?.id,
+                        onLaneDragChanged: { dx in
+                            let start = laneDrag?.id == lane.id ? laneDrag?.startMidX : columnFrames[lane.status]?.midX
+                            if let start { laneDrag = (lane.id, dx, start) }
+                        },
+                        onLaneDragEnded: { dx in finishLaneDrag(lane, dx: dx) },
                         onRecolorLane: { hex in
                             if let projectID = viewModel.selectedProjectID {
                                 viewModel.setLaneColor(projectID: projectID, laneID: lane.id, colorHex: hex)
@@ -297,6 +305,10 @@ struct KanbanBoard: View {
                     )
                     .frame(maxWidth: fixedWidth == nil ? CGFloat.infinity : nil)
                     .frame(width: fixedWidth)
+                    // The lane being dragged follows the pointer, lifted above its neighbors.
+                    .offset(x: laneDrag?.id == lane.id ? laneDrag?.dx ?? 0 : 0)
+                    .zIndex(laneDrag?.id == lane.id ? 1 : 0)
+                    .shadow(color: .black.opacity(laneDrag?.id == lane.id ? 0.35 : 0), radius: 14, y: 8)
                 }
             }
             if isEditing, let projectID = viewModel.selectedProjectID {
@@ -304,6 +316,44 @@ struct KanbanBoard: View {
                     .frame(maxWidth: fixedWidth == nil ? CGFloat.infinity : nil)
                     .frame(width: fixedWidth)
             }
+        }
+    }
+
+    /// The dragged lane's other lanes, left to right, with their frames on the board.
+    private func otherLaneFrames(excluding laneID: Lane.ID) -> [CGRect] {
+        viewModel.boardLanes.filter { $0.id != laneID }.compactMap { columnFrames[$0.status] }
+    }
+
+    private func laneInsertionIndex(_ laneID: Lane.ID, dx: CGFloat) -> Int? {
+        guard let laneDrag, laneDrag.id == laneID else { return nil }
+        return LaneReorder.insertionIndex(
+            dropX: Double(laneDrag.startMidX + dx),
+            otherMidXs: otherLaneFrames(excluding: laneID).map { Double($0.midX) }
+        )
+    }
+
+    /// An accent line in the gap where the dragged lane would land.
+    @ViewBuilder
+    private var laneDropIndicator: some View {
+        if let laneDrag, let index = laneInsertionIndex(laneDrag.id, dx: laneDrag.dx) {
+            let others = otherLaneFrames(excluding: laneDrag.id)
+            let gap = 6 * balaganUIScale
+            let x = index < others.count ? others[index].minX - gap : (others.last?.maxX ?? 0) + gap
+            if let reference = others.first {
+                RoundedRectangle(cornerRadius: 1.5)
+                    .fill(Theme.accent)
+                    .frame(width: 3, height: reference.height)
+                    .offset(x: x - 1.5, y: reference.minY)
+                    .allowsHitTesting(false)
+            }
+        }
+    }
+
+    private func finishLaneDrag(_ lane: Lane, dx: CGFloat) {
+        defer { laneDrag = nil }
+        guard let projectID = viewModel.selectedProjectID, let index = laneInsertionIndex(lane.id, dx: dx) else { return }
+        withAnimation(.easeOut(duration: 0.18)) {
+            viewModel.moveLane(projectID: projectID, laneID: lane.id, toIndex: index)
         }
     }
 
@@ -392,8 +442,8 @@ private struct KanbanColumn: View {
     var canDeleteLane = true
     var canEditLanes = false
     var isEditing = false
-    var isFirstLane = false
-    var isLastLane = false
+    var onLaneDragChanged: (CGFloat) -> Void = { _ in }
+    var onLaneDragEnded: (CGFloat) -> Void = { _ in }
     var onRecolorLane: (String) -> Void = { _ in }
     @Environment(\.balaganUIScale) private var balaganUIScale
     @State private var isRenaming = false
@@ -418,12 +468,12 @@ private struct KanbanColumn: View {
                 EditableLaneHeader(
                     lane: lane,
                     count: tasks.count,
-                    isFirst: isFirstLane,
-                    isLast: isLastLane,
                     canDelete: canDeleteLane,
+                    boardSpace: boardSpace,
                     onRename: onRenameLane,
                     onRecolor: onRecolorLane,
-                    onMove: onMoveLane,
+                    onDragChanged: onLaneDragChanged,
+                    onDragEnded: onLaneDragEnded,
                     onToggleHidden: onCollapseLane,
                     onDelete: onDeleteLane
                 )

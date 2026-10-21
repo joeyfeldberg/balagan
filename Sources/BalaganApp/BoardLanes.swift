@@ -68,6 +68,17 @@ extension BoardViewModel {
         projects[projectIndex].lanes.swapAt(laneIndex, target)
     }
 
+    /// Moves a lane to `insertion`, an index among the project's other lanes (a drag and drop).
+    func moveLane(projectID: Project.ID, laneID: Lane.ID, toIndex insertion: Int) {
+        guard let projectIndex = projects.firstIndex(where: { $0.id == projectID }),
+              let laneIndex = projects[projectIndex].lanes.firstIndex(where: { $0.id == laneID })
+        else {
+            return
+        }
+        let reordered = LaneReorder.moving(projects[projectIndex].lanes, from: laneIndex, to: insertion)
+        if reordered != projects[projectIndex].lanes { projects[projectIndex].lanes = reordered }
+    }
+
     /// How many tasks currently sit in a lane (archived included, so deletion can never orphan a task).
     func laneTaskCount(projectID: Project.ID, laneID: Lane.ID) -> Int {
         tasks.filter { $0.projectID == projectID && $0.status.rawValue == laneID }.count

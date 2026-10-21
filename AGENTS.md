@@ -447,7 +447,10 @@ highlight drops when its card leaves the board. Real key presses can't be tested
 
 On a project's board, **Edit Lanes** (top right; becomes **Done**, Esc also finishes) puts the board
 itself into an editing mode, with no popover. Every column header turns into a name field, a color dot
-(a palette of `Lane.palette` swatches), ‹ › to move it, an eye to hide it (a hidden lane shows as a full
+(a palette of `Lane.palette` swatches), a ≡ grip to drag it (the column follows the pointer, an
+accent line marks the drop gap, and the pure `LaneReorder` (Core) picks the index from the column
+centers; the reference is the lane's center when the drag began, since its live frame moves with the
+offset), an eye to hide it (a hidden lane shows as a full
 column with a crossed-out eye while editing, and as a thin strip otherwise), and a trash can, enabled
 only for an empty lane that isn't the board's last. A dashed **New lane** column at the end adds one
 on Return. Cards dim and ignore clicks while editing. The views are in `LaneEditor.swift`, the
