@@ -189,7 +189,8 @@ extension Lane {
     }
 }
 
-/// The slim dashed + after the last lane; it opens into a name field, and Return adds the lane.
+/// A short dashed "+ Lane" after the last lane, at header height; it opens into a name field, and
+/// Return adds the lane.
 struct AddLaneButton: View {
     let onAdd: (String) -> Void
     @Environment(\.balaganUIScale) private var scale
@@ -217,19 +218,21 @@ struct AddLaneButton: View {
                         .font(.system(size: Theme.TextSize.micro * scale))
                         .foregroundStyle(Theme.textTertiary)
                 }
-                .padding(10 * scale)
                 .frame(width: KanbanBoard.laneWidth * scale, alignment: .topLeading)
             } else {
                 Button {
                     open = true
                     focused = true
                 } label: {
-                    Image(systemName: "plus")
-                        .font(.system(size: 14 * scale, weight: .medium))
+                    Label("Lane", systemImage: "plus")
+                        .font(.system(size: Theme.TextSize.small * scale, weight: .medium))
                         .foregroundStyle(Theme.textSecondary)
-                        .frame(width: 40 * scale)
-                        .frame(maxHeight: .infinity, alignment: .top)
-                        .padding(.top, 14 * scale)
+                        .padding(.horizontal, 10 * scale)
+                        .frame(height: 28 * scale)
+                        .background(
+                            RoundedRectangle(cornerRadius: Theme.radiusButton, style: .continuous)
+                                .strokeBorder(Theme.hairlineStrong, style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                        )
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -237,11 +240,8 @@ struct AddLaneButton: View {
                 .accessibilityIdentifier("add-lane-button")
             }
         }
+        .padding(.top, 6 * scale)
         .frame(maxHeight: .infinity, alignment: .top)
-        .background(
-            RoundedRectangle(cornerRadius: Theme.radiusColumn, style: .continuous)
-                .strokeBorder(Theme.hairlineStrong, style: StrokeStyle(lineWidth: 1, dash: [5, 4]))
-        )
     }
 
     private func add() {

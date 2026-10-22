@@ -140,19 +140,31 @@ struct KanbanBoard: View {
         .padding(16 * balaganUIScale)
     }
 
-    /// Every lane is the same fixed width and the board scrolls sideways, as on Trello, Linear and
-    /// GitHub Projects. Lanes used to stretch to share the window, so each extra lane squeezed the rest
-    /// and a short board had absurdly wide ones.
+    /// Lanes share the board's width, between these bounds: a few lanes fill most of a wide window
+    /// without getting absurdly wide, and past the minimum the board scrolls sideways instead of
+    /// squeezing them.
     static let laneWidth: CGFloat = 272
+    static let maxLaneWidth: CGFloat = 380
+
+    /// The width every visible lane gets for a board this wide.
+    private func laneWidth(boardWidth: CGFloat, spacing: CGFloat, pad: CGFloat) -> CGFloat {
+        let visible = CGFloat(max(viewModel.boardLanes.filter { $0.collapsed == false }.count, 1))
+        let hasHidden = viewModel.boardLanes.contains(where: \.collapsed)
+        // Room taken by the "+ Lane" button and the Hidden stack, which keep their own size.
+        let extras = (viewModel.selectedProjectID != nil ? 80 * balaganUIScale + spacing : 0)
+            + (hasHidden ? 170 * balaganUIScale + spacing : 0)
+        let share = (boardWidth - pad * 2 - extras - spacing * (visible - 1)) / visible
+        return min(max(share, Self.laneWidth * balaganUIScale), Self.maxLaneWidth * balaganUIScale)
+    }
 
     private var boardCanvas: some View {
         GeometryReader { geo in
-            let spacing = 12 * balaganUIScale
+            let spacing = 20 * balaganUIScale
             let pad = 16 * balaganUIScale
 
             ZStack(alignment: .topLeading) {
                 ScrollView(.horizontal, showsIndicators: true) {
-                    columnsRow(fixedWidth: Self.laneWidth * balaganUIScale, spacing: spacing)
+                    columnsRow(fixedWidth: laneWidth(boardWidth: geo.size.width, spacing: spacing, pad: pad), spacing: spacing)
                         .padding(.horizontal, pad)
                         .padding(.bottom, pad)
                         .frame(height: geo.size.height, alignment: .top)
@@ -420,14 +432,19 @@ private struct KanbanColumn: View {
                 }
             }
         }
-        .padding(10 * balaganUIScale)
+        // Open lanes: no box, just the header and the cards on the board (as on Linear), so a lane with
+        // two cards isn't a tall empty rectangle. A card dragged over a lane tints it.
+        .padding(.vertical, 6 * balaganUIScale)
+        .padding(.horizontal, 4 * balaganUIScale)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background(Theme.surface)
+        .background(
+            RoundedRectangle(cornerRadius: Theme.radiusColumn, style: .continuous)
+                .fill(isDropTarget ? Theme.accent.opacity(0.08) : Color.clear)
+        )
         .overlay(
             RoundedRectangle(cornerRadius: Theme.radiusColumn, style: .continuous)
-                .stroke(isDropTarget ? Theme.accent : Theme.hairline, lineWidth: isDropTarget ? 2 : 1)
+                .stroke(Theme.accent.opacity(isDropTarget ? 0.5 : 0), lineWidth: 1.5)
         )
-        .clipShape(RoundedRectangle(cornerRadius: Theme.radiusColumn, style: .continuous))
         .background(
             GeometryReader { proxy in
                 Color.clear.preference(
@@ -569,13 +586,10 @@ private struct HiddenLanesStack: View {
                 )
             }
         }
-        .padding(10 * scale)
+        .padding(.vertical, 6 * scale)
+        .padding(.horizontal, 4 * scale)
         .frame(width: 170 * scale, alignment: .topLeading)
         .frame(maxHeight: .infinity, alignment: .top)
-        .background(
-            RoundedRectangle(cornerRadius: Theme.radiusColumn, style: .continuous)
-                .fill(Theme.surface.opacity(0.4))
-        )
     }
 }
 

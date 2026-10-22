@@ -445,9 +445,12 @@ highlight drops when its card leaves the board. Real key presses can't be tested
 
 ## Lanes on the board
 
-Lanes are a fixed **272pt** wide (`KanbanBoard.laneWidth`) and the board scrolls sideways, as on
-Trello, Linear and GitHub Projects; they used to stretch to share the window, so every extra lane
-squeezed the rest. Everything about a lane is done on the lane itself, with no edit mode:
+Lanes are **open**, as on Linear: no box, just the header and the cards on the board background, so
+a lane with two cards isn't a tall empty rectangle; a card dragged over a lane tints it. They share
+the board's width between **272pt and 380pt** (`KanbanBoard.laneWidth` / `maxLaneWidth`), so a few
+lanes fill a wide window without getting absurdly wide, and past the minimum the board scrolls
+sideways instead of squeezing them. Everything about a lane is done on the lane itself, with no
+edit mode:
 
 - **Drag the header** to move it: the lane follows the pointer, an accent line marks the gap, and the
   pure `LaneReorder` (Core) picks the index from the lane centers (measured from the lane's center when
@@ -457,7 +460,8 @@ squeezed the rest. Everything about a lane is done on the lane itself, with no e
   Task Here, Rename…, Color (palette swatches drawn as non-template images so menus keep the color),
   Move Left/Right, Hide Lane, and Delete Lane, disabled with the reason when the lane has tasks or is
   the board's last.
-- A slim dashed **+** after the last lane opens into a name field; Return adds the lane.
+- A short dashed **+ Lane** button after the last lane, at header height, opens into a name field;
+  Return adds the lane.
 - **Hidden lanes** gather in one "Hidden" stack at the end (as Linear does). A row shows the lane again
   on click, and is a drop target, so a card can still be dragged into a hidden lane.
 - **"+ Add task"** at the bottom of each lane (and the header's +) opens a one-line title field; Return
