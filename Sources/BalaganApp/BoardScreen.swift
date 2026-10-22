@@ -516,6 +516,11 @@ struct BoardScreen: View {
                 },
                 onSleepTask: { task in
                     viewModel.sleepTask(taskID: task.id)
+                },
+                onCreateTaskInLane: { status in
+                    var draft = TaskFormDraft.create(projectID: viewModel.selectedProjectID ?? viewModel.projects.first?.id)
+                    draft.status = status
+                    pendingSheet = .taskForm(draft)
                 }
             )
         }

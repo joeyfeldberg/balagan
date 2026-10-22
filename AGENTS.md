@@ -443,19 +443,31 @@ Movement is the pure `BoardKeyboardNavigation` (Core); the keys are `onKeyPress`
 highlight drops when its card leaves the board. Real key presses can't be tested headlessly;
 `BALAGAN_SHOW_BOARD_HIGHLIGHT=<task id>` starts with a card highlighted for a snapshot.
 
-## Editing lanes
+## Lanes on the board
 
-On a project's board, **Edit Lanes** (top right; becomes **Done**, Esc also finishes) puts the board
-itself into an editing mode, with no popover. Every column header turns into a name field, a color dot
-(a palette of `Lane.palette` swatches), a ≡ grip to drag it (the column follows the pointer, an
-accent line marks the drop gap, and the pure `LaneReorder` (Core) picks the index from the column
-centers; the reference is the lane's center when the drag began, since its live frame moves with the
-offset), an eye to hide it (a hidden lane shows as a full
-column with a crossed-out eye while editing, and as a thin strip otherwise), and a trash can, enabled
-only for an empty lane that isn't the board's last. A dashed **New lane** column at the end adds one
-on Return. Cards dim and ignore clicks while editing. The views are in `LaneEditor.swift`, the
-mutations in `BoardLanes.swift`. Not on All Projects, whose lanes are a union of several projects'.
-`BALAGAN_SHOW_LANE_EDITING=1` starts in editing mode for a snapshot.
+Lanes are a fixed **272pt** wide (`KanbanBoard.laneWidth`) and the board scrolls sideways, as on
+Trello, Linear and GitHub Projects; they used to stretch to share the window, so every extra lane
+squeezed the rest. Everything about a lane is done on the lane itself, with no edit mode:
+
+- **Drag the header** to move it: the lane follows the pointer, an accent line marks the gap, and the
+  pure `LaneReorder` (Core) picks the index from the lane centers (measured from the lane's center when
+  the drag began, since its live frame moves with the offset).
+- **Double-click the name** to rename it in place.
+- **Hover** shows **+** (new task in this lane) and **⋯**, the lane menu (also on right-click): New
+  Task Here, Rename…, Color (palette swatches drawn as non-template images so menus keep the color),
+  Move Left/Right, Hide Lane, and Delete Lane, disabled with the reason when the lane has tasks or is
+  the board's last.
+- A slim dashed **+** after the last lane opens into a name field; Return adds the lane.
+- **Hidden lanes** gather in one "Hidden" stack at the end (as Linear does). A row shows the lane again
+  on click, and is a drop target, so a card can still be dragged into a hidden lane.
+- **"+ Add task"** at the bottom of each lane (and the header's +) opens a one-line title field; Return
+  creates the task in that lane with the New Task form's defaults (its own worktree, named from the
+  title) through `quickAddTask`, and the board stays put.
+
+Lane changes need one project, so on All Projects (a union of several projects' lanes) the menu only
+has New Task Here, which opens the full form preset to that lane, and there's no + column. The views
+are `LaneHeader`, `AddLaneButton` and `QuickAddTask` (`LaneEditor.swift`) and `HiddenLanesStack`
+(`KanbanBoard.swift`); the mutations are in `BoardLanes.swift`.
 
 ## Menu bar item
 

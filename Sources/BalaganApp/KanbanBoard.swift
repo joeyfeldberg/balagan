@@ -3,7 +3,7 @@ import SwiftUI
 import BalaganCore
 
 /// Board-space frame of each kanban column, used to resolve a drag's drop target by hit-testing.
-private struct ColumnFrameKey: PreferenceKey {
+struct ColumnFrameKey: PreferenceKey {
     static let defaultValue: [TaskStatus: CGRect] = [:]
     static func reduce(value: inout [TaskStatus: CGRect], nextValue: () -> [TaskStatus: CGRect]) {
         value.merge(nextValue(), uniquingKeysWith: { _, new in new })
@@ -32,14 +32,13 @@ struct KanbanBoard: View {
     var onRemoveWorktree: (TaskItem) -> Void = { _ in }
     var onArchiveTask: (TaskItem) -> Void = { _ in }
     var onSleepTask: (TaskItem) -> Void = { _ in }
+    /// The full New Task form, preset to a lane (used on All Projects, where a lane has no single project).
+    var onCreateTaskInLane: (TaskStatus) -> Void = { _ in }
     @Environment(\.balaganUIScale) private var balaganUIScale
     @State private var columnFrames: [TaskStatus: CGRect] = [:]
     @State private var drag: CardDragContext?
     @State private var dropTarget: TaskStatus?
-    /// Edit Lanes mode: column headers are editable in place, hidden lanes show as full columns, and
-    /// a dashed column at the end adds one. Only on a project's board (All Projects mixes projects).
-    @State private var editingLanes = ProcessInfo.processInfo.environment["BALAGAN_SHOW_LANE_EDITING"] == "1"
-    /// A lane being dragged in edit mode: how far it has moved, and its center when the drag began
+    /// A lane being dragged by its header: how far it has moved, and its center when the drag began
     /// (its live frame moves with the offset, so it can't be the reference).
     @State private var laneDrag: (id: Lane.ID, dx: CGFloat, startMidX: CGFloat)?
     /// The card the arrow keys have highlighted (⏎ opens it, 1–9 move it, ⌘⌫ archives it).
@@ -71,10 +70,6 @@ struct KanbanBoard: View {
                     .onKeyPress(.rightArrow) { moveHighlight(.right) }
                     .onKeyPress(.return) { openHighlighted() }
                     .onKeyPress(.escape) {
-                        if editingLanes {
-                            editingLanes = false
-                            return .handled
-                        }
                         guard keyboardCardID != nil else { return .ignored }
                         keyboardCardID = nil
                         return .handled
@@ -91,7 +86,6 @@ struct KanbanBoard: View {
             }
         }
         .background(Theme.bgWindow)
-        .onChange(of: viewModel.selectedProjectID) { _, _ in editingLanes = false }
         .contextMenu {
             Button {
                 onCreateTask()
@@ -132,30 +126,6 @@ struct KanbanBoard: View {
 
             Spacer()
 
-            if viewModel.selectedProjectID != nil {
-                if editingLanes {
-                    Button {
-                        editingLanes = false
-                    } label: {
-                        Label("Done", systemImage: "checkmark")
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .font(.system(size: Theme.TextSize.title * balaganUIScale))
-                    .help("Finish editing lanes (Esc)")
-                    .accessibilityIdentifier("edit-lanes-button")
-                } else {
-                    Button {
-                        editingLanes = true
-                    } label: {
-                        Label("Edit Lanes", systemImage: "rectangle.split.3x1")
-                    }
-                    .buttonStyle(.bordered)
-                    .font(.system(size: Theme.TextSize.title * balaganUIScale))
-                    .help("Rename, recolor, reorder, hide, add or delete lanes")
-                    .accessibilityIdentifier("edit-lanes-button")
-                }
-            }
-
             Button {
                 onCreateTask()
             } label: {
@@ -170,35 +140,24 @@ struct KanbanBoard: View {
         .padding(16 * balaganUIScale)
     }
 
+    /// Every lane is the same fixed width and the board scrolls sideways, as on Trello, Linear and
+    /// GitHub Projects. Lanes used to stretch to share the window, so each extra lane squeezed the rest
+    /// and a short board had absurdly wide ones.
+    static let laneWidth: CGFloat = 272
+
     private var boardCanvas: some View {
         GeometryReader { geo in
-            // While editing, hidden lanes show as full columns and an Add column follows the last one.
-            let count = viewModel.boardLanes.count + (isEditing ? 1 : 0)
-            let expandedCount = isEditing ? count : viewModel.boardLanes.filter { $0.collapsed == false }.count
-            let collapsedCount = count - expandedCount
             let spacing = 12 * balaganUIScale
             let pad = 16 * balaganUIScale
-            let minColumn = 248 * balaganUIScale
-            let collapsedWidth = 40 * balaganUIScale
-            let available = geo.size.width - pad * 2
-                - spacing * CGFloat(max(count - 1, 0))
-                - collapsedWidth * CGFloat(collapsedCount)
-            let fits = available >= minColumn * CGFloat(max(expandedCount, 1))
 
             ZStack(alignment: .topLeading) {
-                if fits {
-                    columnsRow(fixedWidth: nil, spacing: spacing)
+                ScrollView(.horizontal, showsIndicators: true) {
+                    columnsRow(fixedWidth: Self.laneWidth * balaganUIScale, spacing: spacing)
                         .padding(.horizontal, pad)
                         .padding(.bottom, pad)
-                        .frame(width: geo.size.width, height: geo.size.height, alignment: .top)
-                } else {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        columnsRow(fixedWidth: minColumn, spacing: spacing)
-                            .padding(.horizontal, pad)
-                            .padding(.bottom, pad)
-                            .frame(height: geo.size.height, alignment: .top)
-                    }
+                        .frame(height: geo.size.height, alignment: .top)
                 }
+                .scrollDisabled(drag != nil || laneDrag != nil)
 
                 laneDropIndicator
 
@@ -223,100 +182,93 @@ struct KanbanBoard: View {
         }
     }
 
-    private var isEditing: Bool { editingLanes && viewModel.selectedProjectID != nil }
-
-    private func columnsRow(fixedWidth: CGFloat?, spacing: CGFloat) -> some View {
-        HStack(alignment: .top, spacing: spacing) {
-            ForEach(viewModel.boardLanes) { lane in
-                if lane.collapsed && isEditing == false {
-                    CollapsedLaneColumn(
-                        lane: lane,
-                        count: viewModel.tasks(for: lane.status).count,
-                        onExpand: { toggleLaneCollapsed(lane) }
-                    )
-                } else {
-                    KanbanColumn(
-                        lane: lane,
-                        tasks: viewModel.tasks(for: lane.status),
-                        viewModel: viewModel,
-                        boardSpace: boardSpace,
-                        draggedTaskID: drag?.taskID,
-                        keyboardCardID: keyboardCardID,
-                        onHighlightTask: { id in
-                            keyboardCardID = id
-                            boardFocused = true
-                        },
-                        isDropTarget: drag != nil && dropTarget == lane.status,
-                        onEditTask: onEditTask,
-                        onDeleteTask: onDeleteTask,
-                        onRemoveWorktree: onRemoveWorktree,
-                        onArchiveTask: onArchiveTask,
-                        onSleepTask: onSleepTask,
-                        onCardDragBegan: { task, frame, snapshot in
-                            // Capture exactly once per drag so origin/snapshot never change mid-gesture.
-                            guard drag == nil else { return }
-                            drag = CardDragContext(
-                                taskID: task.id,
-                                sourceStatus: task.status,
-                                originFrame: frame,
-                                snapshot: snapshot
-                            )
-                            dropTarget = task.status
-                        },
-                        onCardDragChanged: { translation in
-                            guard drag != nil else { return }
-                            drag?.translation = translation
-                            dropTarget = statusUnderDrag(translation: translation)
-                        },
-                        onCardDragEnded: { translation in
-                            finishDrag(translation: translation)
-                        },
-                        onRenameLane: { newName in
-                            if let projectID = viewModel.selectedProjectID {
-                                viewModel.renameLane(projectID: projectID, laneID: lane.id, to: newName)
-                            }
-                        },
-                        onMoveLane: { offset in
-                            if let projectID = viewModel.selectedProjectID {
-                                viewModel.moveLane(projectID: projectID, laneID: lane.id, by: offset)
-                            }
-                        },
-                        onDeleteLane: {
-                            if let projectID = viewModel.selectedProjectID {
-                                viewModel.deleteLane(projectID: projectID, laneID: lane.id)
-                            }
-                        },
-                        onCollapseLane: { toggleLaneCollapsed(lane) },
-                        canDeleteLane: viewModel.selectedProjectID.map {
-                            viewModel.canDeleteLane(projectID: $0, laneID: lane.id)
-                        } ?? false,
-                        canEditLanes: viewModel.selectedProjectID != nil,
-                        isEditing: isEditing,
-                        onLaneDragChanged: { dx in
-                            let start = laneDrag?.id == lane.id ? laneDrag?.startMidX : columnFrames[lane.status]?.midX
-                            if let start { laneDrag = (lane.id, dx, start) }
-                        },
-                        onLaneDragEnded: { dx in finishLaneDrag(lane, dx: dx) },
-                        onRecolorLane: { hex in
-                            if let projectID = viewModel.selectedProjectID {
-                                viewModel.setLaneColor(projectID: projectID, laneID: lane.id, colorHex: hex)
-                            }
-                        }
-                    )
-                    .frame(maxWidth: fixedWidth == nil ? CGFloat.infinity : nil)
+    private func columnsRow(fixedWidth: CGFloat, spacing: CGFloat) -> some View {
+        let visible = viewModel.boardLanes.filter { $0.collapsed == false }
+        let hidden = viewModel.boardLanes.filter(\.collapsed)
+        return HStack(alignment: .top, spacing: spacing) {
+            ForEach(visible) { lane in
+                column(for: lane, isFirst: lane.id == visible.first?.id, isLast: lane.id == visible.last?.id)
                     .frame(width: fixedWidth)
                     // The lane being dragged follows the pointer, lifted above its neighbors.
                     .offset(x: laneDrag?.id == lane.id ? laneDrag?.dx ?? 0 : 0)
                     .zIndex(laneDrag?.id == lane.id ? 1 : 0)
                     .shadow(color: .black.opacity(laneDrag?.id == lane.id ? 0.35 : 0), radius: 14, y: 8)
-                }
             }
-            if isEditing, let projectID = viewModel.selectedProjectID {
-                AddLaneColumn { name in viewModel.addLane(toProjectID: projectID, name: name) }
-                    .frame(maxWidth: fixedWidth == nil ? CGFloat.infinity : nil)
-                    .frame(width: fixedWidth)
+            if let projectID = viewModel.selectedProjectID {
+                AddLaneButton { name in viewModel.addLane(toProjectID: projectID, name: name) }
+            }
+            if hidden.isEmpty == false {
+                HiddenLanesStack(
+                    lanes: hidden,
+                    counts: Dictionary(uniqueKeysWithValues: hidden.map { ($0.id, viewModel.tasks(for: $0.status).count) }),
+                    dropTarget: drag != nil ? dropTarget : nil,
+                    boardSpace: boardSpace,
+                    onShow: { toggleLaneCollapsed($0) }
+                )
             }
         }
+    }
+
+    /// One visible lane, with everything its header can do.
+    private func column(for lane: Lane, isFirst: Bool, isLast: Bool) -> some View {
+        let projectID = viewModel.selectedProjectID
+        var actions = LaneActions()
+        actions.canEdit = projectID != nil
+        actions.isFirst = isFirst
+        actions.isLast = isLast
+        if let projectID {
+            let count = viewModel.laneTaskCount(projectID: projectID, laneID: lane.id)
+            actions.deleteBlocker = viewModel.canDeleteLane(projectID: projectID, laneID: lane.id)
+                ? nil
+                : (count > 0 ? "move its \(count) task\(count == 1 ? "" : "s") out first" : "a board needs one lane")
+            actions.onRename = { viewModel.renameLane(projectID: projectID, laneID: lane.id, to: $0) }
+            actions.onRecolor = { viewModel.setLaneColor(projectID: projectID, laneID: lane.id, colorHex: $0) }
+            actions.onMove = { offset in
+                withAnimation(.easeOut(duration: 0.18)) { viewModel.moveLane(projectID: projectID, laneID: lane.id, by: offset) }
+            }
+            actions.onHide = { viewModel.toggleLaneCollapsed(projectID: projectID, laneID: lane.id) }
+            actions.onDelete = { viewModel.deleteLane(projectID: projectID, laneID: lane.id) }
+            actions.onDragChanged = { dx in
+                let start = laneDrag?.id == lane.id ? laneDrag?.startMidX : columnFrames[lane.status]?.midX
+                if let start { laneDrag = (lane.id, dx, start) }
+            }
+            actions.onDragEnded = { dx in finishLaneDrag(lane, dx: dx) }
+        }
+        return KanbanColumn(
+            lane: lane,
+            tasks: viewModel.tasks(for: lane.status),
+            viewModel: viewModel,
+            boardSpace: boardSpace,
+            draggedTaskID: drag?.taskID,
+            keyboardCardID: keyboardCardID,
+            onHighlightTask: { id in
+                keyboardCardID = id
+                boardFocused = true
+            },
+            isDropTarget: drag != nil && dropTarget == lane.status,
+            onEditTask: onEditTask,
+            onDeleteTask: onDeleteTask,
+            onRemoveWorktree: onRemoveWorktree,
+            onArchiveTask: onArchiveTask,
+            onSleepTask: onSleepTask,
+            onCardDragBegan: { task, frame, snapshot in
+                // Capture exactly once per drag so origin/snapshot never change mid-gesture.
+                guard drag == nil else { return }
+                drag = CardDragContext(taskID: task.id, sourceStatus: task.status, originFrame: frame, snapshot: snapshot)
+                dropTarget = task.status
+            },
+            onCardDragChanged: { translation in
+                guard drag != nil else { return }
+                drag?.translation = translation
+                dropTarget = statusUnderDrag(translation: translation)
+            },
+            onCardDragEnded: { translation in finishDrag(translation: translation) },
+            laneActions: actions,
+            quickAdd: projectID.map { projectID in
+                { title in viewModel.quickAddTask(projectID: projectID, title: title, status: lane.status) }
+            },
+            onCreateTaskInLane: { onCreateTaskInLane(lane.status) }
+        )
     }
 
     /// The dragged lane's other lanes, left to right, with their frames on the board.
@@ -435,115 +387,36 @@ private struct KanbanColumn: View {
     let onCardDragBegan: (TaskItem, CGRect, NSImage?) -> Void
     let onCardDragChanged: (CGSize) -> Void
     let onCardDragEnded: (CGSize) -> Void
-    var onRenameLane: (String) -> Void = { _ in }
-    var onMoveLane: (Int) -> Void = { _ in }
-    var onDeleteLane: () -> Void = {}
-    var onCollapseLane: () -> Void = {}
-    var canDeleteLane = true
-    var canEditLanes = false
-    var isEditing = false
-    var onLaneDragChanged: (CGFloat) -> Void = { _ in }
-    var onLaneDragEnded: (CGFloat) -> Void = { _ in }
-    var onRecolorLane: (String) -> Void = { _ in }
+    var laneActions = LaneActions()
+    /// Creates a task with just a title in this lane; nil on All Projects, which opens the form instead.
+    var quickAdd: ((String) -> Void)? = nil
+    var onCreateTaskInLane: () -> Void = {}
     @Environment(\.balaganUIScale) private var balaganUIScale
-    @State private var isRenaming = false
-    @State private var draftName = ""
-    @FocusState private var renameFieldFocused: Bool
-
-    private func beginRename() {
-        draftName = lane.name
-        isRenaming = true
-        renameFieldFocused = true
-    }
-
-    private func commitRename() {
-        let trimmed = draftName.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.isEmpty == false { onRenameLane(trimmed) }
-        isRenaming = false
-    }
+    @State private var addingTask = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10 * balaganUIScale) {
-            if isEditing {
-                EditableLaneHeader(
-                    lane: lane,
-                    count: tasks.count,
-                    canDelete: canDeleteLane,
-                    boardSpace: boardSpace,
-                    onRename: onRenameLane,
-                    onRecolor: onRecolorLane,
-                    onDragChanged: onLaneDragChanged,
-                    onDragEnded: onLaneDragEnded,
-                    onToggleHidden: onCollapseLane,
-                    onDelete: onDeleteLane
-                )
-                .frame(height: 28 * balaganUIScale)
-            } else {
-            HStack(spacing: 7 * balaganUIScale) {
-                Circle()
-                    .fill(lane.color)
-                    .frame(width: 7 * balaganUIScale, height: 7 * balaganUIScale)
-                if isRenaming {
-                    TextField("Lane name", text: $draftName)
-                        .textFieldStyle(.plain)
-                        .font(.system(size: Theme.TextSize.body * balaganUIScale, weight: .semibold))
-                        .foregroundStyle(Theme.textPrimary)
-                        .focused($renameFieldFocused)
-                        .onSubmit(commitRename)
-                        .onExitCommand { isRenaming = false }
-                        .accessibilityIdentifier("column-rename-field")
-                } else {
-                    Text(lane.name)
-                        .font(.system(size: Theme.TextSize.body * balaganUIScale, weight: .semibold))
-                        .foregroundStyle(Theme.textPrimary)
-                        .accessibilityIdentifier("column-\(status.accessibilitySlug)")
-                }
-                Spacer()
-                Text("\(tasks.count)")
-                    .font(.system(size: Theme.TextSize.small * balaganUIScale, weight: .medium, design: .rounded))
-                    .foregroundStyle(lane.color)
-                    .padding(.horizontal, 6 * balaganUIScale)
-                    .padding(.vertical, 1 * balaganUIScale)
-                    .background(lane.color.opacity(0.16), in: Capsule())
-            }
-            .frame(height: 28 * balaganUIScale)
-            .padding(.horizontal, 2 * balaganUIScale)
-            .contextMenu {
-                if canEditLanes {
-                    Button("Rename Lane") { beginRename() }
-                        .accessibilityIdentifier("lane-rename-\(status.accessibilitySlug)")
-                    Button("Move Left") { onMoveLane(-1) }
-                    Button("Move Right") { onMoveLane(1) }
-                    Button("Hide Lane") { onCollapseLane() }
-                    Divider()
-                    Button("Delete Lane", role: .destructive) { onDeleteLane() }
-                        .disabled(canDeleteLane == false)
-                }
-            }
-            }
+            LaneHeader(lane: lane, count: tasks.count, actions: headerActions, boardSpace: boardSpace)
 
-            if tasks.isEmpty {
-                EmptyColumn()
-                Spacer(minLength: 0)
-            } else {
-                ScrollViewReader { proxy in
-                    ScrollView(.vertical, showsIndicators: false) {
-                        LazyVStack(alignment: .leading, spacing: 8 * balaganUIScale) {
-                            ForEach(tasks) { task in
-                                card(for: task)
-                                    .id(task.id)
-                            }
+            // Cards, then "+ Add task" right after the last one, all in the lane's own scroll area.
+            ScrollViewReader { proxy in
+                ScrollView(.vertical, showsIndicators: false) {
+                    LazyVStack(alignment: .leading, spacing: 8 * balaganUIScale) {
+                        if tasks.isEmpty, addingTask == false {
+                            EmptyColumn()
                         }
-                        .padding(.bottom, 4 * balaganUIScale)
-                        // While lanes are being edited the cards are scenery: dimmed and inert.
-                        .opacity(isEditing ? 0.45 : 1)
-                        .allowsHitTesting(isEditing == false)
+                        ForEach(tasks) { task in
+                            card(for: task)
+                                .id(task.id)
+                        }
+                        quickAddRow
                     }
-                    .scrollDisabled(draggedTaskID != nil)
-                    .onChange(of: keyboardCardID) { _, id in
-                        guard let id, tasks.contains(where: { $0.id == id }) else { return }
-                        withAnimation(.easeOut(duration: 0.15)) { proxy.scrollTo(id) }
-                    }
+                    .padding(.bottom, 4 * balaganUIScale)
+                }
+                .scrollDisabled(draggedTaskID != nil)
+                .onChange(of: keyboardCardID) { _, id in
+                    guard let id, tasks.contains(where: { $0.id == id }) else { return }
+                    withAnimation(.easeOut(duration: 0.15)) { proxy.scrollTo(id) }
                 }
             }
         }
@@ -563,6 +436,33 @@ private struct KanbanColumn: View {
                 )
             }
         )
+    }
+
+    /// "+ Add task": an inline title field on a project's board; the full form on All Projects.
+    @ViewBuilder
+    private var quickAddRow: some View {
+        if let quickAdd {
+            QuickAddTask(isOpen: $addingTask, onAdd: quickAdd)
+        } else {
+            Button(action: onCreateTaskInLane) {
+                Label("Add task", systemImage: "plus")
+                    .font(.system(size: Theme.TextSize.small * balaganUIScale, weight: .medium))
+                    .foregroundStyle(Theme.textTertiary)
+                    .padding(.horizontal, 4 * balaganUIScale)
+                    .padding(.vertical, 5 * balaganUIScale)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("quick-add-task-button")
+        }
+    }
+
+    /// The header's actions, with "add a task" opening the inline field (or the form on All Projects).
+    private var headerActions: LaneActions {
+        var actions = laneActions
+        actions.onAddTask = { if quickAdd != nil { addingTask = true } else { onCreateTaskInLane() } }
+        return actions
     }
 
     /// One task card. Extracted from the `ForEach` so the large `TaskCard` initializer type-checks in
@@ -619,48 +519,63 @@ private struct KanbanColumn: View {
     }
 }
 
-/// A collapsed lane: a thin strip showing the lane's color, a vertical label and its count. Clicking it
-/// expands the lane back to a full column.
-private struct CollapsedLaneColumn: View {
-    let lane: Lane
-    let count: Int
-    let onExpand: () -> Void
-    @Environment(\.balaganUIScale) private var balaganUIScale
+/// Hidden lanes, gathered in one stack after the last lane (as Linear does) instead of strips between
+/// the lanes. A row shows the lane again on click, and is a drop target, so a card can still be moved
+/// into a hidden lane.
+private struct HiddenLanesStack: View {
+    let lanes: [Lane]
+    let counts: [Lane.ID: Int]
+    let dropTarget: TaskStatus?
+    let boardSpace: String
+    let onShow: (Lane) -> Void
+    @Environment(\.balaganUIScale) private var scale
 
     var body: some View {
-        Button(action: onExpand) {
-            VStack(spacing: 10 * balaganUIScale) {
-                Circle()
-                    .fill(lane.color)
-                    .frame(width: 7 * balaganUIScale, height: 7 * balaganUIScale)
-                Text("\(count)")
-                    .font(.system(size: Theme.TextSize.small * balaganUIScale, weight: .medium, design: .rounded))
-                    .foregroundStyle(lane.color)
-                Text(lane.name)
-                    .font(.system(size: Theme.TextSize.body * balaganUIScale, weight: .semibold))
-                    .foregroundStyle(Theme.textSecondary)
-                    .lineLimit(1)
-                    .fixedSize()
-                    .rotationEffect(.degrees(-90))
-                    .frame(height: 120 * balaganUIScale)   // reserve room for the rotated label
-                Spacer()
-            }
-            .frame(width: 40 * balaganUIScale)
-            .frame(maxHeight: .infinity, alignment: .top)
-            .padding(.vertical, 10 * balaganUIScale)
-            .background(
-                RoundedRectangle(cornerRadius: Theme.radiusCard, style: .continuous)
-                    .fill(lane.color.opacity(0.05))
+        VStack(alignment: .leading, spacing: 6 * scale) {
+            Text("HIDDEN · \(lanes.count)")
+                .font(.system(size: Theme.TextSize.micro * scale, weight: .semibold))
+                .tracking(0.6)
+                .foregroundStyle(Theme.textTertiary)
+                .frame(height: 28 * scale)
+            ForEach(lanes) { lane in
+                Button { onShow(lane) } label: {
+                    HStack(spacing: 7 * scale) {
+                        Circle().fill(lane.color).frame(width: 7 * scale, height: 7 * scale)
+                        Text(lane.name)
+                            .font(.system(size: Theme.TextSize.body * scale, weight: .medium))
+                            .foregroundStyle(Theme.textSecondary)
+                            .lineLimit(1)
+                        Spacer(minLength: 4 * scale)
+                        Text("\(counts[lane.id] ?? 0)")
+                            .font(.system(size: Theme.TextSize.small * scale).monospacedDigit())
+                            .foregroundStyle(Theme.textTertiary)
+                    }
+                    .padding(.horizontal, 8 * scale)
+                    .padding(.vertical, 7 * scale)
+                    .background(RoundedRectangle(cornerRadius: Theme.radiusButton).fill(Theme.surface))
                     .overlay(
-                        RoundedRectangle(cornerRadius: Theme.radiusCard, style: .continuous)
-                            .strokeBorder(Theme.hairline, lineWidth: 1)
+                        RoundedRectangle(cornerRadius: Theme.radiusButton)
+                            .stroke(dropTarget == lane.status ? Theme.accent : Theme.hairline, lineWidth: dropTarget == lane.status ? 2 : 1)
                     )
-            )
-            .contentShape(Rectangle())
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("Show \(lane.name) on the board")
+                .accessibilityIdentifier("hidden-lane-\(lane.status.accessibilitySlug)")
+                .background(
+                    GeometryReader { proxy in
+                        Color.clear.preference(key: ColumnFrameKey.self, value: [lane.status: proxy.frame(in: .named(boardSpace))])
+                    }
+                )
+            }
         }
-        .buttonStyle(.plain)
-        .help("Expand \(lane.name)")
-        .accessibilityIdentifier("collapsed-lane-\(lane.status.accessibilitySlug)")
+        .padding(10 * scale)
+        .frame(width: 170 * scale, alignment: .topLeading)
+        .frame(maxHeight: .infinity, alignment: .top)
+        .background(
+            RoundedRectangle(cornerRadius: Theme.radiusColumn, style: .continuous)
+                .fill(Theme.surface.opacity(0.4))
+        )
     }
 }
 

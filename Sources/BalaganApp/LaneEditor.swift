@@ -1,172 +1,316 @@
+import AppKit
 import SwiftUI
 import BalaganCore
 
-/// The board's lane editing mode (Edit Lanes → Done): every column header becomes editable in place,
-/// and a dashed column at the end adds a lane. Lanes live on `Project`; the edits go through
-/// `BoardLanes.swift` and autosave like any other change.
+/// Everything about a lane is done on the lane itself, as on Trello, Linear and GitHub Projects: drag
+/// its header to move it, double-click its name to rename it, and its ⋯ menu (also on right-click) for
+/// the rest. Lanes live on `Project`; the mutations are in `BoardLanes.swift`.
 
-/// A column header while editing: a grip to drag the lane, color, name, hide, delete.
-struct EditableLaneHeader: View {
+/// What a lane header can do. On All Projects (lanes from several projects) only adding a task is offered.
+struct LaneActions {
+    var canEdit = false
+    /// Why the lane can't be deleted, or nil when it can.
+    var deleteBlocker: String? = "Unavailable"
+    var isFirst = false
+    var isLast = false
+    var onRename: (String) -> Void = { _ in }
+    var onRecolor: (String) -> Void = { _ in }
+    var onMove: (Int) -> Void = { _ in }
+    var onHide: () -> Void = {}
+    var onDelete: () -> Void = {}
+    var onAddTask: () -> Void = {}
+    var onDragChanged: (CGFloat) -> Void = { _ in }
+    var onDragEnded: (CGFloat) -> Void = { _ in }
+}
+
+struct LaneHeader: View {
     let lane: Lane
     let count: Int
-    let canDelete: Bool
-    /// The board's coordinate space, so drag translations line up with the column frames.
+    let actions: LaneActions
+    /// The board's coordinate space, so drag translations line up with the lane frames.
     let boardSpace: String
-    let onRename: (String) -> Void
-    let onRecolor: (String) -> Void
-    let onDragChanged: (CGFloat) -> Void
-    let onDragEnded: (CGFloat) -> Void
-    let onToggleHidden: () -> Void
-    let onDelete: () -> Void
     @Environment(\.balaganUIScale) private var scale
+    @State private var hovering = false
+    @State private var renaming = false
     @State private var draft = ""
-    @State private var showingColors = false
     @FocusState private var nameFocused: Bool
 
     var body: some View {
-        HStack(spacing: 6 * scale) {
-            Image(systemName: "line.3.horizontal")
-                .font(.system(size: 11 * scale, weight: .semibold))
-                .foregroundStyle(Theme.textTertiary)
-                .frame(width: 16 * scale, height: 22 * scale)
-                .contentShape(Rectangle())
-                .onHover { inside in if inside { NSCursor.openHand.push() } else { NSCursor.pop() } }
-                .gesture(
-                    DragGesture(minimumDistance: 3, coordinateSpace: .named(boardSpace))
-                        .onChanged { onDragChanged($0.translation.width) }
-                        .onEnded { onDragEnded($0.translation.width) }
-                )
-                .help("Drag to move the lane")
-                .accessibilityIdentifier("lane-drag-\(lane.status.accessibilitySlug)")
-
-            Button { showingColors = true } label: {
-                Circle()
-                    .fill(lane.color)
-                    .frame(width: 11 * scale, height: 11 * scale)
-                    .overlay(Circle().stroke(Theme.hairlineStrong, lineWidth: 1))
-                    .contentShape(Rectangle().inset(by: -4))
+        HStack(spacing: 7 * scale) {
+            Circle()
+                .fill(lane.color)
+                .frame(width: 7 * scale, height: 7 * scale)
+            if renaming {
+                TextField("Lane name", text: $draft)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: Theme.TextSize.body * scale, weight: .semibold))
+                    .foregroundStyle(Theme.textPrimary)
+                    .padding(.horizontal, 5 * scale)
+                    .padding(.vertical, 2 * scale)
+                    .background(RoundedRectangle(cornerRadius: 5 * scale).fill(Theme.bgWindow))
+                    .overlay(RoundedRectangle(cornerRadius: 5 * scale).stroke(Theme.accent.opacity(0.6), lineWidth: 1))
+                    .focused($nameFocused)
+                    .onSubmit(commitRename)
+                    .onExitCommand { renaming = false }
+                    .onChange(of: nameFocused) { _, focused in if focused == false { commitRename() } }
+                    .accessibilityIdentifier("column-rename-field")
+            } else {
+                Text(lane.name)
+                    .font(.system(size: Theme.TextSize.body * scale, weight: .semibold))
+                    .foregroundStyle(Theme.textPrimary)
+                    .lineLimit(1)
+                    .onTapGesture(count: 2) { if actions.canEdit { beginRename() } }
+                    .accessibilityIdentifier("column-\(lane.status.accessibilitySlug)")
             }
-            .buttonStyle(.plain)
-            .help("Lane color")
-            .popover(isPresented: $showingColors, arrowEdge: .bottom) {
-                LaneColorPicker(selected: lane.colorHex) { hex in
-                    onRecolor(hex)
-                    showingColors = false
-                }
-            }
-
-            TextField("Lane name", text: $draft)
-                .textFieldStyle(.plain)
-                .font(.system(size: Theme.TextSize.body * scale, weight: .semibold))
-                .foregroundStyle(lane.collapsed ? Theme.textTertiary : Theme.textPrimary)
+            Text("\(count)")
+                .font(.system(size: Theme.TextSize.small * scale, weight: .medium, design: .rounded))
+                .foregroundStyle(lane.color)
                 .padding(.horizontal, 6 * scale)
-                .padding(.vertical, 3 * scale)
-                .background(RoundedRectangle(cornerRadius: 5 * scale).fill(Theme.bgWindow))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 5 * scale)
-                        .stroke(nameFocused ? Theme.accent.opacity(0.6) : Theme.hairline, lineWidth: 1)
-                )
-                .focused($nameFocused)
-                .onSubmit(commit)
-                .onChange(of: nameFocused) { _, focused in if focused == false { commit() } }
-                .accessibilityIdentifier("lane-name-\(lane.status.accessibilitySlug)")
-
-            iconButton(lane.collapsed ? "eye.slash" : "eye",
-                       help: lane.collapsed ? "Hidden on the board (a thin strip); click to show" : "Hide on the board",
-                       disabled: false, action: onToggleHidden)
-            iconButton("trash",
-                       help: canDelete ? "Delete lane" : (count > 0 ? "Move its \(count) task\(count == 1 ? "" : "s") out first" : "A board needs at least one lane"),
-                       disabled: canDelete == false, role: .destructive, action: onDelete)
-                .accessibilityIdentifier("lane-delete-\(lane.status.accessibilitySlug)")
-        }
-        .onAppear { draft = lane.name }
-        .onChange(of: lane.name) { _, name in if nameFocused == false { draft = name } }
-    }
-
-    private func commit() {
-        let trimmed = draft.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.isEmpty { draft = lane.name } else if trimmed != lane.name { onRename(trimmed) }
-    }
-
-    private func iconButton(
-        _ systemName: String, help: String, disabled: Bool, role: ButtonRole? = nil, action: @escaping () -> Void
-    ) -> some View {
-        Button(role: role, action: action) {
-            Image(systemName: systemName)
-                .font(.system(size: 10.5 * scale, weight: .semibold))
-                .frame(width: 18 * scale, height: 18 * scale)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .foregroundStyle(role == .destructive ? Color(red: 0.88, green: 0.36, blue: 0.36) : Theme.textSecondary)
-        .opacity(disabled ? 0.3 : 1)
-        .disabled(disabled)
-        .help(help)
-    }
-}
-
-/// The palette as swatches, for a lane's color.
-private struct LaneColorPicker: View {
-    let selected: String
-    let onPick: (String) -> Void
-
-    var body: some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.fixed(22), spacing: 8), count: 5), spacing: 8) {
-            ForEach(Lane.palette, id: \.self) { hex in
-                Button { onPick(hex) } label: {
-                    Circle()
-                        .fill(Color(hexString: hex))
-                        .frame(width: 20, height: 20)
-                        .overlay(Circle().stroke(Theme.textPrimary, lineWidth: hex.caseInsensitiveCompare(selected) == .orderedSame ? 2 : 0))
+                .padding(.vertical, 1 * scale)
+                .background(lane.color.opacity(0.16), in: Capsule())
+            Spacer(minLength: 0)
+            // + and ⋯ appear on hover, so a quiet board stays quiet.
+            Group {
+                Button(action: actions.onAddTask) {
+                    Image(systemName: "plus")
+                        .frame(width: 22 * scale, height: 22 * scale)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .help("New task in \(lane.name)")
+                .accessibilityIdentifier("lane-add-task-\(lane.status.accessibilitySlug)")
+                Menu {
+                    LaneMenuItems(lane: lane, actions: actions, onRename: beginRename)
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .frame(width: 22 * scale, height: 22 * scale)
+                        .contentShape(Rectangle())
+                }
+                .menuStyle(.borderlessButton)
+                .menuIndicator(.hidden)
+                .fixedSize()
+                .help("Lane actions")
+                .accessibilityIdentifier("lane-menu-\(lane.status.accessibilitySlug)")
             }
+            .font(.system(size: 11.5 * scale, weight: .semibold))
+            .foregroundStyle(Theme.textSecondary)
+            .opacity(hovering || renaming ? 1 : 0)
         }
-        .padding(12)
+        .frame(height: 28 * scale)
+        .padding(.horizontal, 2 * scale)
+        .contentShape(Rectangle())
+        .onHover { hovering = $0 }
+        .contextMenu { LaneMenuItems(lane: lane, actions: actions, onRename: beginRename) }
+        // Drag the header to move the lane (only where lanes can be edited).
+        .gesture(
+            DragGesture(minimumDistance: 6, coordinateSpace: .named(boardSpace))
+                .onChanged { if actions.canEdit, renaming == false { actions.onDragChanged($0.translation.width) } }
+                .onEnded { if actions.canEdit, renaming == false { actions.onDragEnded($0.translation.width) } },
+            including: actions.canEdit ? .all : .subviews
+        )
+        .help(actions.canEdit ? "Drag to move · double-click to rename" : "")
+    }
+
+    private func beginRename() {
+        draft = lane.name
+        renaming = true
+        nameFocused = true
+    }
+
+    private func commitRename() {
+        guard renaming else { return }
+        renaming = false
+        let trimmed = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty == false, trimmed != lane.name { actions.onRename(trimmed) }
     }
 }
 
-/// The dashed column at the end of the board while editing: type a name, ⏎ adds the lane.
-struct AddLaneColumn: View {
+/// The lane's ⋯ menu, also its right-click menu.
+private struct LaneMenuItems: View {
+    let lane: Lane
+    let actions: LaneActions
+    let onRename: () -> Void
+
+    var body: some View {
+        Button { actions.onAddTask() } label: { Label("New Task Here", systemImage: "plus") }
+        if actions.canEdit {
+            Button { onRename() } label: { Label("Rename…", systemImage: "pencil") }
+            Menu {
+                ForEach(Lane.palette, id: \.self) { hex in
+                    Button { actions.onRecolor(hex) } label: {
+                        Label { Text(Lane.colorName(hex)) } icon: { Image(nsImage: LaneColorDot.image(hex: hex)) }
+                    }
+                }
+            } label: { Label("Color", systemImage: "paintpalette") }
+            Divider()
+            Button { actions.onMove(-1) } label: { Label("Move Left", systemImage: "arrow.left") }
+                .disabled(actions.isFirst)
+            Button { actions.onMove(1) } label: { Label("Move Right", systemImage: "arrow.right") }
+                .disabled(actions.isLast)
+            Button { actions.onHide() } label: { Label("Hide Lane", systemImage: "eye.slash") }
+            Divider()
+            Button(role: .destructive) { actions.onDelete() } label: {
+                Label(actions.deleteBlocker.map { "Delete Lane (\($0))" } ?? "Delete Lane", systemImage: "trash")
+            }
+            .disabled(actions.deleteBlocker != nil)
+            .accessibilityIdentifier("lane-delete-\(lane.status.accessibilitySlug)")
+        }
+    }
+}
+
+/// A colored dot as a non-template image, so menus show the lane color instead of tinting it.
+enum LaneColorDot {
+    static func image(hex: String) -> NSImage {
+        let image = NSImage(size: NSSize(width: 12, height: 12), flipped: false) { rect in
+            NSColor(Color(hexString: hex)).setFill()
+            NSBezierPath(ovalIn: rect.insetBy(dx: 1, dy: 1)).fill()
+            return true
+        }
+        image.isTemplate = false
+        return image
+    }
+}
+
+extension Lane {
+    /// A name for each palette color, for the Color menu.
+    static func colorName(_ hex: String) -> String {
+        switch hex.uppercased() {
+        case "8A93A6": return "Slate"
+        case "4C8DFF": return "Blue"
+        case "3FB970": return "Green"
+        case "C98A2B": return "Amber"
+        case "B980FF": return "Purple"
+        case "FF6B6B": return "Red"
+        case "3FC7C7": return "Teal"
+        case "E0A23C": return "Gold"
+        case "7E8CA0": return "Gray"
+        default: return "#\(hex)"
+        }
+    }
+}
+
+/// The slim dashed + after the last lane; it opens into a name field, and Return adds the lane.
+struct AddLaneButton: View {
     let onAdd: (String) -> Void
     @Environment(\.balaganUIScale) private var scale
+    @State private var open = false
     @State private var name = ""
     @FocusState private var focused: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8 * scale) {
-            HStack(spacing: 6 * scale) {
-                Image(systemName: "plus")
-                    .font(.system(size: 11 * scale, weight: .semibold))
-                    .foregroundStyle(Theme.textTertiary)
-                TextField("New lane", text: $name)
-                    .textFieldStyle(.plain)
-                    .font(.system(size: Theme.TextSize.body * scale, weight: .semibold))
-                    .focused($focused)
-                    .onSubmit(add)
-                    .accessibilityIdentifier("new-lane-field")
+        Group {
+            if open {
+                VStack(alignment: .leading, spacing: 6 * scale) {
+                    TextField("Lane name", text: $name)
+                        .textFieldStyle(.plain)
+                        .font(.system(size: Theme.TextSize.body * scale, weight: .semibold))
+                        .padding(.horizontal, 7 * scale)
+                        .padding(.vertical, 5 * scale)
+                        .background(RoundedRectangle(cornerRadius: 6 * scale).fill(Theme.bgWindow))
+                        .overlay(RoundedRectangle(cornerRadius: 6 * scale).stroke(Theme.accent.opacity(0.6), lineWidth: 1))
+                        .focused($focused)
+                        .onSubmit(add)
+                        .onExitCommand(perform: close)
+                        .onChange(of: focused) { _, isFocused in if isFocused == false, name.isEmpty { close() } }
+                        .accessibilityIdentifier("new-lane-field")
+                    Text("Return adds the lane · Esc cancels")
+                        .font(.system(size: Theme.TextSize.micro * scale))
+                        .foregroundStyle(Theme.textTertiary)
+                }
+                .padding(10 * scale)
+                .frame(width: KanbanBoard.laneWidth * scale, alignment: .topLeading)
+            } else {
+                Button {
+                    open = true
+                    focused = true
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 14 * scale, weight: .medium))
+                        .foregroundStyle(Theme.textSecondary)
+                        .frame(width: 40 * scale)
+                        .frame(maxHeight: .infinity, alignment: .top)
+                        .padding(.top, 14 * scale)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("Add a lane")
+                .accessibilityIdentifier("add-lane-button")
             }
-            .frame(height: 28 * scale)
-            Text("Type a name and press Return")
-                .font(.system(size: Theme.TextSize.small * scale))
-                .foregroundStyle(Theme.textTertiary)
-            Spacer(minLength: 0)
         }
-        .padding(10 * scale)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .frame(maxHeight: .infinity, alignment: .top)
         .background(
             RoundedRectangle(cornerRadius: Theme.radiusColumn, style: .continuous)
                 .strokeBorder(Theme.hairlineStrong, style: StrokeStyle(lineWidth: 1, dash: [5, 4]))
         )
-        .contentShape(Rectangle())
-        .onTapGesture { focused = true }
     }
 
     private func add() {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed.isEmpty == false else { return }
+        guard trimmed.isEmpty == false else { return close() }
         onAdd(trimmed)
         name = ""
         focused = true
+    }
+
+    private func close() {
+        open = false
+        name = ""
+    }
+}
+
+/// The one-line "+ Add task" at the bottom of a lane: Return creates a task with that title in this lane.
+struct QuickAddTask: View {
+    @Binding var isOpen: Bool
+    let onAdd: (String) -> Void
+    @Environment(\.balaganUIScale) private var scale
+    @State private var title = ""
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        if isOpen {
+            VStack(alignment: .leading, spacing: 5 * scale) {
+                TextField("Task title", text: $title)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: Theme.TextSize.title * scale, weight: .semibold))
+                    .padding(.horizontal, 10 * scale)
+                    .padding(.vertical, 8 * scale)
+                    .background(RoundedRectangle(cornerRadius: Theme.radiusCard).fill(Theme.surfaceRaised))
+                    .overlay(RoundedRectangle(cornerRadius: Theme.radiusCard).stroke(Theme.accent.opacity(0.55), lineWidth: 1))
+                    .focused($focused)
+                    .onSubmit(add)
+                    .onExitCommand(perform: close)
+                    .onChange(of: focused) { _, isFocused in if isFocused == false, title.isEmpty { close() } }
+                    .onAppear { focused = true }
+                    .accessibilityIdentifier("quick-add-task-field")
+                Text("Return adds it · Esc cancels · ⌘N for the full form")
+                    .font(.system(size: Theme.TextSize.micro * scale))
+                    .foregroundStyle(Theme.textTertiary)
+            }
+        } else {
+            Button { isOpen = true } label: {
+                Label("Add task", systemImage: "plus")
+                    .font(.system(size: Theme.TextSize.small * scale, weight: .medium))
+                    .foregroundStyle(Theme.textTertiary)
+                    .padding(.horizontal, 4 * scale)
+                    .padding(.vertical, 5 * scale)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("quick-add-task-button")
+        }
+    }
+
+    private func add() {
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.isEmpty == false else { return close() }
+        onAdd(trimmed)
+        title = ""
+        focused = true
+    }
+
+    private func close() {
+        isOpen = false
+        title = ""
     }
 }

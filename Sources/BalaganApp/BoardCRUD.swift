@@ -323,3 +323,16 @@ extension BoardViewModel {
         tasks[index].updatedAt = date
     }
 }
+
+extension BoardViewModel {
+    /// "+ Add task" in a lane: a task with just a title, in that lane, set up the way the New Task form
+    /// sets one up by default (its own worktree, named from the title). The board stays where it is.
+    @discardableResult
+    func quickAddTask(projectID: Project.ID, title: String, status: TaskStatus) -> TaskItem? {
+        var draft = TaskFormDraft.create(projectID: projectID)
+        draft.title = title
+        draft.status = status
+        draft.branchOrWorktree = BranchNaming.slug(from: title)
+        return createTask(from: draft, selectsOnBoard: false)
+    }
+}
