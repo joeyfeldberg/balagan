@@ -587,9 +587,9 @@ with uncommitted edits get an amber dot, and the header shows commits ahead and 
 
 It loads on open, on task switch, when that task's agent stops (idle / needs-input), and on the
 refresh button. The data path is read-only git, run off-main (inline in `--ui-test-mode`), with
-`GIT_OPTIONAL_LOCKS=0` so it never takes `index.lock` while an agent commits. The runner reads stdout
-*before* waiting, because waiting first deadlocks once a big diff fills the pipe buffer, and
-`GitWorktreeManager.runGit` still does that. Caps: 8 MB of diff, 200 untracked files at 512 KB each,
+`GIT_OPTIONAL_LOCKS=0` so it never takes `index.lock` while an agent commits. All git runs go through
+`GitRunner` (Core), which reads stdout *before* waiting, because waiting first deadlocks once a big
+diff or `git status` fills the pipe buffer (`GitRunnerTests` hangs without it). Caps: 8 MB of diff, 200 untracked files at 512 KB each,
 and 5000 rendered lines per file. Past those, a "truncated" note points at the editor. Pure parsing is
 `GitDiffParser` and git I/O is `TaskChangesLoader` (Core). The glue is `BoardTaskChanges.swift`, and
 the view is `Terminal/ChangesView.swift`. `BALAGAN_SHOW_CHANGES=1` opens it for a snapshot. Point

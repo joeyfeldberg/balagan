@@ -7,10 +7,10 @@ import BalaganCore
 /// line, and reads back one JSON response line — letting the CLI drive the running app (list / create /
 /// open tasks, query state).
 ///
-/// Modeled on `SessionReportServer`, with two differences: it's bidirectional (writes a response), and
-/// it runs accept + socket I/O on its **own background queue** so a slow/blocked read can never stall
-/// the main thread. Each request's handler is hopped to the main thread (where `BoardViewModel` lives)
-/// via `DispatchQueue.main.sync` — safe here because the main thread never waits on this queue.
+/// Unlike `SessionReportServer`, it's bidirectional (writes a response) and runs accept + socket I/O on
+/// its **own background queue**, so a slow read can never stall the main thread. Each request's handler
+/// runs on the main actor (where `BoardViewModel` lives) via `DispatchQueue.main.async`, which also
+/// writes the reply and closes the connection.
 final class ControlSocketServer: @unchecked Sendable {
     /// Handles one request on the **main actor** and returns the JSON-serialized response
     /// (a single object like `{"ok":true,"result":…}`, **without** a trailing newline — the server
@@ -105,6 +105,8 @@ final class ControlSocketServer: @unchecked Sendable {
                 flags &= ~O_NONBLOCK
                 _ = fcntl(clientFD, F_SETFL, flags)
             }
+            // One stalled client would otherwise block every later command on this serial queue.
+            UnixSocketHelpers.setReceiveTimeout(clientFD, seconds: 2)
             var noSigpipe: Int32 = 1
             _ = setsockopt(clientFD, SOL_SOCKET, SO_NOSIGPIPE, &noSigpipe, socklen_t(MemoryLayout<Int32>.size))
             handle(clientFD: clientFD)

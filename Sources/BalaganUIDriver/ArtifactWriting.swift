@@ -42,28 +42,3 @@ extension NativeFlowDriver {
         try text.write(to: artifactDirectory.appendingPathComponent(fileName), atomically: true, encoding: .utf8)
     }
 }
-
-extension String {
-    var safeArtifactComponent: String {
-        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_."))
-        return String(unicodeScalars.map { scalar -> Character in
-            if allowed.contains(scalar) {
-                return Character(scalar)
-            }
-            return "-"
-        })
-    }
-
-    var accessibilitySlug: String {
-        let scalars = trimmingCharacters(in: .whitespacesAndNewlines).lowercased().unicodeScalars.map { scalar -> Character in
-            if CharacterSet.alphanumerics.contains(scalar) {
-                return Character(scalar)
-            }
-            return "-"
-        }
-        let slug = String(scalars)
-            .split(separator: "-")
-            .joined(separator: "-")
-        return slug.isEmpty ? "item" : slug
-    }
-}

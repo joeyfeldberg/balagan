@@ -198,11 +198,11 @@ public enum AgentIntegrationFiles {
     """
 }
 
-/// Paths under Balagan's home (`~/.balagan`) for the integration files.
+/// Paths under Balagan's home (`BalaganHome`) for the integration files.
 public struct AgentIntegrationPaths: Equatable, Sendable {
     public var root: String
 
-    public init(root: String = NSHomeDirectory() + "/.balagan") {
+    public init(root: String = BalaganHome.root()) {
         self.root = root
     }
 

@@ -119,7 +119,7 @@ BALAGAN_CAPTURE_TERMINAL_STATE=1
 BALAGAN_LIBGHOSTTY_PATH=<optional path to libghostty.dylib for non-test launches>
 ```
 
-In `--ui-test-mode`, the app must not start real agents, shells, or repo-mutating commands. Terminal panes should render deterministic fake output from the selected fixture, animations should be disabled, and timestamps should use `BALAGAN_FREEZE_TIME`.
+In `--ui-test-mode`, the app must not start real agents, shells, or repo-mutating commands. Terminal panes should render deterministic fake output from the selected fixture, and animations should be disabled. (`BALAGAN_FREEZE_TIME` only fixes the timestamps the harness seeds into fixture databases; the app doesn't read it.)
 
 Outside UI test mode, the app selects its terminal backend explicitly:
 
@@ -438,7 +438,7 @@ balagan-agent claude [claude arguments...]
 balagan-agent codex [codex arguments...]
 ```
 
-The wrapper requires `BALAGAN_TASK_ID`, `BALAGAN_WORKSPACE_ID`, `BALAGAN_SURFACE_ID`, and `BALAGAN_SOCKET_PATH`. It reports a `session-start` event through the same `SessionReportEvent` parser/encoder and Unix socket sender used by `BalaganUIDriver --send-session-report`, then runs the real agent with inherited stdio and exits with the child exit code.
+The wrapper requires `BALAGAN_TASK_ID`, `BALAGAN_WORKSPACE_ID`, `BALAGAN_SURFACE_ID`, and `BALAGAN_SOCKET_PATH`. It reports a `session-start` event through the same `SessionReportEvent` parser/encoder and Unix socket sender used by `BalaganUIDriver --send-session-report`, then `exec`s the real agent in its place, so the agent inherits the wrapper's pid and stdio.
 
 Project defaults should use the stable commands `balagan-agent codex` or `balagan-agent claude`. Balagan stores that command on `Project.defaultAgentCommand`. The initial task agent surface and the explicit agent-tab action use the project default as the new surface `startupCommand`; ordinary shell tabs created with the plain plus button still have no startup command and launch the user's default shell.
 

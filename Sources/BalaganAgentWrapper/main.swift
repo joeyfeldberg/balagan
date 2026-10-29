@@ -97,19 +97,23 @@ enum BalaganAgentWrapper {
             fputs("balagan-agent: session report failed (continuing): \(String(describing: error))\n", stderr)
             logSessionStartSendFailure(error, environment: environment, balaganEnvironment: balaganEnvironment)
         }
+        // Also best-effort: without the helper the tab just never learns Codex's session id.
         if plan.needsCodexSessionCapture {
-            try startCodexCaptureHelper(
-                wrapperEnvironment: balaganEnvironment,
-                plan: plan,
-                environment: environment,
-                cwd: cwd,
-                startMs: startMs,
-                pid: pid
-            )
+            do {
+                try startCodexCaptureHelper(
+                    plan: plan,
+                    environment: environment,
+                    cwd: cwd,
+                    startMs: startMs,
+                    pid: pid
+                )
+            } catch {
+                fputs("balagan-agent: Codex session capture failed to start (continuing): \(String(describing: error))\n", stderr)
+            }
         }
 
         var execPlan = plan
-        let paths = AgentIntegrationPaths(root: environment["BALAGAN_HOME"] ?? (NSHomeDirectory() + "/.balagan"))
+        let paths = AgentIntegrationPaths(root: BalaganHome.root(environment: environment))
         switch AgentProfiles.named(plan.agentName)?.integration {
         case .claudeHooks:
             // Hooks via --settings, which *merges* with the user's settings: the session id is
@@ -179,7 +183,6 @@ enum BalaganAgentWrapper {
     }
 
     private static func startCodexCaptureHelper(
-        wrapperEnvironment _: AgentWrapperEnvironment,
         plan: AgentWrapperPlan,
         environment: [String: String],
         cwd: String,
@@ -404,7 +407,10 @@ enum BalaganAgentWrapper {
         } catch {
             return 1
         }
-        stdin.fileHandleForWriting.write(input)
+        // The user's command may never read stdin (`echo …`); writing to its closed pipe must not kill
+        // us with SIGPIPE, and the throwing write turns EPIPE into an ignorable error.
+        signal(SIGPIPE, SIG_IGN)
+        try? stdin.fileHandleForWriting.write(contentsOf: input)
         try? stdin.fileHandleForWriting.close()
         process.waitUntilExit()
         return process.terminationStatus

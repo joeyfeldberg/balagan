@@ -17,8 +17,8 @@ enum CIStatusStyle {
 
     static func color(_ state: CIState) -> Color {
         switch state {
-        case .success: return Color(red: 0.25, green: 0.73, blue: 0.44)
-        case .failure: return Color(red: 0.88, green: 0.36, blue: 0.36)
+        case .success: return Theme.positive
+        case .failure: return Theme.negative
         case .pending: return Color(red: 0.90, green: 0.68, blue: 0.24)
         case .neutral, .noChecks: return Theme.textTertiary
         }
@@ -165,11 +165,11 @@ struct PullRequestPopover: View {
                 .help("Open PR in browser")
             }
             Text(pullRequest.title)
-                .font(.system(size: 12))
+                .font(.system(size: Theme.TextSize.body))
                 .foregroundStyle(Theme.textSecondary)
                 .lineLimit(2)
             if let decision = reviewDecisionLabel {
-                Text(decision).font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.textTertiary)
+                Text(decision).font(.system(size: Theme.TextSize.small, weight: .medium)).foregroundStyle(Theme.textTertiary)
             }
         }
     }
@@ -179,14 +179,14 @@ struct PullRequestPopover: View {
         let (text, color): (String, Color) = {
             switch pullRequest.state {
             case .merged: return ("Merged", Color(red: 0.63, green: 0.46, blue: 0.86))
-            case .closed: return ("Closed", Color(red: 0.88, green: 0.36, blue: 0.36))
+            case .closed: return ("Closed", Theme.negative)
             case .open: return pullRequest.isDraft
                 ? ("Draft", Theme.textTertiary)
-                : ("Open", Color(red: 0.25, green: 0.73, blue: 0.44))
+                : ("Open", Theme.positive)
             }
         }()
         Text(text)
-            .font(.system(size: 10, weight: .semibold))
+            .font(.system(size: Theme.TextSize.micro, weight: .semibold))
             .padding(.horizontal, 6).padding(.vertical, 2)
             .background(color.opacity(0.18), in: Capsule())
             .foregroundStyle(color)
@@ -194,9 +194,9 @@ struct PullRequestPopover: View {
 
     private var checksSection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("CHECKS").font(.system(size: 10, weight: .bold)).foregroundStyle(Theme.textTertiary)
+            Text("CHECKS").font(.system(size: Theme.TextSize.micro, weight: .bold)).foregroundStyle(Theme.textTertiary)
             if pullRequest.checks.isEmpty {
-                Text("No checks reported.").font(.system(size: 11)).foregroundStyle(Theme.textTertiary)
+                Text("No checks reported.").font(.system(size: Theme.TextSize.small)).foregroundStyle(Theme.textTertiary)
             } else {
                 ForEach(pullRequest.checks) { check in
                     Button { if let url = check.url { open(url) } } label: {
@@ -204,7 +204,7 @@ struct PullRequestPopover: View {
                             Image(systemName: CIStatusStyle.symbol(check.state))
                                 .foregroundStyle(CIStatusStyle.color(check.state))
                                 .font(.system(size: 11))
-                            Text(check.name).font(.system(size: 12)).foregroundStyle(Theme.textPrimary)
+                            Text(check.name).font(.system(size: Theme.TextSize.body)).foregroundStyle(Theme.textPrimary)
                                 .lineLimit(1)
                             Spacer()
                             if check.url != nil {
@@ -223,7 +223,7 @@ struct PullRequestPopover: View {
     private var activitySection: some View {
         let now = Date()
         return VStack(alignment: .leading, spacing: 8) {
-            Text("CONVERSATION").font(.system(size: 10, weight: .bold)).foregroundStyle(Theme.textTertiary)
+            Text("CONVERSATION").font(.system(size: Theme.TextSize.micro, weight: .bold)).foregroundStyle(Theme.textTertiary)
             ForEach(pullRequest.activity) { item in
                 PRActivityCard(item: item, now: now)
             }
@@ -271,7 +271,7 @@ private struct PRActivityCard: View {
                 headerRow
                 if isCollapsible && expanded == false {
                     Text(PRCommentMarkdown.synopsis(from: item.body))
-                        .font(.system(size: 12)).foregroundStyle(Theme.textTertiary)
+                        .font(.system(size: Theme.TextSize.body)).foregroundStyle(Theme.textTertiary)
                         .lineLimit(1)
                 } else {
                     MarkdownBlockView(blocks: PRCommentMarkdown.blocks(from: bodyForDisplay))
@@ -292,15 +292,15 @@ private struct PRActivityCard: View {
 
     private var headerRow: some View {
         HStack(spacing: 6) {
-            if item.isBot { Text("🤖").font(.system(size: 11)) }
+            if item.isBot { Text("🤖").font(.system(size: Theme.TextSize.small)) }
             Text(item.author)
-                .font(.system(size: 11.5, weight: item.isBot ? .medium : .semibold))
+                .font(.system(size: Theme.TextSize.small, weight: item.isBot ? .medium : .semibold))
                 .foregroundStyle(item.isBot ? Theme.textSecondary : Theme.textPrimary)
                 .lineLimit(1)
             if let state = item.reviewState { reviewStatePill(state) }
             if let location = item.codeLocation { codeLocationChip(location) }
             Text(relativePRTime(fromISO: item.timestamp, relativeTo: now))
-                .font(.system(size: 10.5)).foregroundStyle(Theme.textTertiary)
+                .font(.system(size: Theme.TextSize.micro)).foregroundStyle(Theme.textTertiary)
             Spacer(minLength: 4)
             if isCollapsible {
                 Button { expanded.toggle() } label: {
@@ -349,8 +349,8 @@ private struct PRActivityCard: View {
     private var accentColor: Color {
         if item.codeLocation != nil { return Color(red: 0.42, green: 0.55, blue: 0.86) }  // code = blue
         switch item.reviewState?.uppercased() {
-        case "APPROVED": return Color(red: 0.25, green: 0.73, blue: 0.44)
-        case "CHANGES_REQUESTED", "DISMISSED": return Color(red: 0.88, green: 0.36, blue: 0.36)
+        case "APPROVED": return Theme.positive
+        case "CHANGES_REQUESTED", "DISMISSED": return Theme.negative
         default: return item.isBot ? Color.clear : Theme.textTertiary.opacity(0.5)
         }
     }
@@ -461,19 +461,19 @@ struct MarkdownBlockView: View {
                 .font(.system(size: level <= 2 ? 12.5 : 11.5, weight: .semibold))
                 .foregroundStyle(Theme.textPrimary)
         case .paragraph(let text):
-            inline(text).font(.system(size: 12)).foregroundStyle(Theme.textPrimary)
+            inline(text).font(.system(size: Theme.TextSize.body)).foregroundStyle(Theme.textPrimary)
                 .fixedSize(horizontal: false, vertical: true)
         case .bullet(let depth, let text):
             HStack(alignment: .top, spacing: 6) {
                 Text("•").foregroundStyle(Theme.textTertiary)
                 inline(text).fixedSize(horizontal: false, vertical: true)
             }
-            .font(.system(size: 12)).foregroundStyle(Theme.textPrimary)
+            .font(.system(size: Theme.TextSize.body)).foregroundStyle(Theme.textPrimary)
             .padding(.leading, CGFloat(depth) * 12)
         case .quote(let text):
             HStack(spacing: 6) {
                 RoundedRectangle(cornerRadius: 1).fill(Theme.hairlineStrong).frame(width: 2)
-                inline(text).font(.system(size: 12)).foregroundStyle(Theme.textSecondary)
+                inline(text).font(.system(size: Theme.TextSize.body)).foregroundStyle(Theme.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
         case .code(let code):
@@ -484,7 +484,7 @@ struct MarkdownBlockView: View {
             .background(Theme.surface, in: RoundedRectangle(cornerRadius: 5, style: .continuous))
         case .table(let rows):
             Label("Table (\(rows.counted("row"))) — open on GitHub", systemImage: "tablecells")
-                .font(.system(size: 11)).foregroundStyle(Theme.textTertiary)
+                .font(.system(size: Theme.TextSize.small)).foregroundStyle(Theme.textTertiary)
         case .rule:
             Divider()
         }

@@ -61,10 +61,7 @@ extension BoardViewModel {
         // must never carry a "needs attention" badge (and a late edge could otherwise strand one).
         let sleptTaskID = tasks[taskIndex].id
         for surface in tasks[taskIndex].workspace.surfaces {
-            if let pid = surface.resumeBinding?.pid, pid > 0 {
-                _ = kill(-pid, SIGTERM)   // process group (claude + node children), if pid leads it
-                _ = kill(pid, SIGTERM)    // and the process itself
-            }
+            terminateAgent(taskID: sleptTaskID, surface: surface)
             setSurfaceLifecycle(nil as AgentLifecycle?, taskID: sleptTaskID, surfaceID: surface.id)
             clearSurfaceAttention(taskID: sleptTaskID, surfaceID: surface.id)
             titleWorkingSignals[hostKey(sleptTaskID, surface.id)] = nil

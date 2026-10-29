@@ -45,14 +45,10 @@ extension BoardViewModel {
             after: selectedTaskID,
             surfaceID: selectedSurfaceID,
             in: attentionQueueEntries()
-        ),
-            let task = task(for: next.taskID)
-        else {
+        ) else {
             return false
         }
-        select(task: task)
-        select(surfaceID: next.surfaceID, forTaskID: next.taskID)
-        return true
+        return openSurface(taskID: next.taskID, surfaceID: next.surfaceID)
     }
 
     /// The tasks listed under a project in the sidebar. A done task stays listed while it's selected

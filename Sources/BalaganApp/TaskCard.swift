@@ -83,8 +83,8 @@ private struct TaskCardBody: View {
             }
 
             if let worktree {
-                let live = Color(red: 0.25, green: 0.73, blue: 0.44)
-                let gone = Color(red: 0.86, green: 0.45, blue: 0.43)
+                let live = Theme.positive
+                let gone = Theme.negative
                 HStack(spacing: 5 * balaganUIScale) {
                     Image(systemName: "arrow.triangle.branch")
                         .font(.system(size: 9.5 * balaganUIScale, weight: .semibold))

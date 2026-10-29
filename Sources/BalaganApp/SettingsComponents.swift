@@ -1,6 +1,11 @@
 import SwiftUI
 import BalaganCore
 
+/// The left and right inset every Settings row shares, so labels line up down a page.
+enum SettingsLayout {
+    static let inset: CGFloat = 18
+}
+
 /// A label + segmented −/value/+ pill + quiet inline Reset. Shared by the UI-scale and terminal-font rows.
 struct SettingsStepperRow: View {
     let label: String
@@ -18,7 +23,7 @@ struct SettingsStepperRow: View {
     var body: some View {
         HStack(spacing: 12 * scale) {
             Text(label)
-                .font(.system(size: 13 * scale))
+                .font(.system(size: Theme.TextSize.body * scale))
                 .foregroundStyle(Theme.textPrimary)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -27,7 +32,7 @@ struct SettingsStepperRow: View {
                     .accessibilityIdentifier(decreaseID)
                 Rectangle().fill(Theme.hairline).frame(width: 1, height: 24 * scale)
                 Text(value)
-                    .font(.system(size: 12 * scale, design: .monospaced))
+                    .font(.system(size: Theme.TextSize.body * scale, design: .monospaced))
                     .foregroundStyle(Theme.textPrimary)
                     .frame(minWidth: 48 * scale)
                     .accessibilityIdentifier(valueID)
@@ -47,13 +52,13 @@ struct SettingsStepperRow: View {
 
             Button("Reset", action: onReset)
                 .buttonStyle(.plain)
-                .font(.system(size: 12 * scale))
+                .font(.system(size: Theme.TextSize.body * scale))
                 .help("Reset to default")
                 .foregroundStyle(isAtDefault ? Theme.textTertiary : Theme.textSecondary)
                 .disabled(isAtDefault)
                 .accessibilityIdentifier(resetID)
         }
-        .padding(.horizontal, 16 * scale)
+        .padding(.horizontal, SettingsLayout.inset * scale)
         .padding(.vertical, 8 * scale)
         .frame(minHeight: 32 * scale)
     }

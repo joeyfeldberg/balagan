@@ -495,10 +495,9 @@ extension BalaganApplication {
     /// Brings Balagan forward and selects the task + surface behind a clicked notification.
     @MainActor
     func focusSurfaceFromNotification(taskID: TaskItem.ID, surfaceID: Surface.ID) {
-        guard let viewModel, let task = viewModel.task(for: taskID) else { return }
+        guard let viewModel, viewModel.task(for: taskID) != nil else { return }
         window?.makeKeyAndOrderFront(nil)
-        viewModel.select(task: task)
-        viewModel.select(surfaceID: surfaceID, forTaskID: taskID)
+        viewModel.openSurface(taskID: taskID, surfaceID: surfaceID)
     }
 
     /// From the menu bar: bring Balagan to the front, on an agent when one was picked.

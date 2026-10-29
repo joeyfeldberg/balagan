@@ -101,7 +101,7 @@ struct TitlebarControls: View {
                 }
             }
         }
-        .font(.system(size: 13, weight: .medium))
+        .font(.system(size: Theme.TextSize.body, weight: .medium))
         .foregroundStyle(.primary)
         .padding(.horizontal, 8)
     }

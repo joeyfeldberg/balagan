@@ -29,6 +29,10 @@ enum Theme {
     /// "An agent is blocked on you" — one amber, shared by every place waiting is drawn (task card,
     /// sidebar project row, terminal tab, titlebar badge) so the state reads the same everywhere.
     static let agentWaiting = Color(red: 0.95, green: 0.55, blue: 0.15)
+    /// Something live or passing: an installed agent, a running server, green CI, an approved review.
+    static let positive = Color(red: 0.25, green: 0.73, blue: 0.44)
+    /// Something failed or gone: red CI, a closed PR, requested changes, a missing worktree.
+    static let negative = Color(red: 0.88, green: 0.36, blue: 0.36)
 
     // Text: fixed colors from the theme rather than the dynamic system label colors, so text matches
     // the theme's surfaces under any system appearance and renders the same in ImageRenderer snapshots.

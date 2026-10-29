@@ -51,4 +51,11 @@ public enum UnixSocketHelpers {
             }
         }
     }
+
+    /// Makes a blocking read on `fd` give up after `seconds` instead of waiting forever, so a peer that
+    /// connects and never sends (or never closes) can't hang the reader.
+    public static func setReceiveTimeout(_ fd: Int32, seconds: Int) {
+        var timeout = timeval(tv_sec: seconds, tv_usec: 0)
+        _ = setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
+    }
 }

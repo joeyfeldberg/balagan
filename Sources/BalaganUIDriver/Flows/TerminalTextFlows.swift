@@ -16,28 +16,28 @@ extension NativeFlowDriver {
 
         let typedOutputURL = artifactDirectory.appendingPathComponent("terminal-input-typed.txt")
         let typedMarker = "BALAGAN_TYPED_INPUT_OK"
-        typeOnly("printf \(shellSingleQuoted(typedMarker + "\\n")) > \(shellSingleQuoted(typedOutputURL.path))\n")
+        typeOnly("printf \((typedMarker + "\\n").shellQuoted) > \(typedOutputURL.path.shellQuoted)\n")
         try waitForFile(typedOutputURL, timeout: 10)
 
         let outputURL = artifactDirectory.appendingPathComponent("terminal-input-output.txt")
         let marker = "BALAGAN_TERMINAL_INPUT_OK"
         typeOnly("export BALAGAN_TAB_STATE_OK=\(marker)\n")
         let firstTabBeforeSwitchURL = artifactDirectory.appendingPathComponent("terminal-input-before-switch.txt")
-        pasteOnly("printf 'BALAGAN_FIRST_TAB_BEFORE_SWITCH_OK\\n' > \(shellSingleQuoted(firstTabBeforeSwitchURL.path))\n")
+        pasteOnly("printf 'BALAGAN_FIRST_TAB_BEFORE_SWITCH_OK\\n' > \(firstTabBeforeSwitchURL.path.shellQuoted)\n")
         try waitForFile(firstTabBeforeSwitchURL, timeout: 10)
 
         try press(identifier: "create-terminal-tab-button")
         try waitForElement(identifier: "terminal-pane-tab-2", timeout: 5)
         let secondTabOutputURL = artifactDirectory.appendingPathComponent("terminal-input-second-tab.txt")
-        pasteOnly("printf 'BALAGAN_SECOND_TAB_OK\\n' > \(shellSingleQuoted(secondTabOutputURL.path))\n")
+        pasteOnly("printf 'BALAGAN_SECOND_TAB_OK\\n' > \(secondTabOutputURL.path.shellQuoted)\n")
         try waitForFile(secondTabOutputURL, timeout: 10)
 
         try selectPicker(identifier: "terminal-tab-picker", value: "agent")
         let afterSwitchOutputURL = artifactDirectory.appendingPathComponent("terminal-input-after-switch.txt")
-        pasteOnly("printf 'BALAGAN_FIRST_TAB_AFTER_SWITCH_OK\\n' > \(shellSingleQuoted(afterSwitchOutputURL.path))\n")
+        pasteOnly("printf 'BALAGAN_FIRST_TAB_AFTER_SWITCH_OK\\n' > \(afterSwitchOutputURL.path.shellQuoted)\n")
         try waitForFile(afterSwitchOutputURL, timeout: 10)
 
-        let command = "printf \"$BALAGAN_TAB_STATE_OK\\n\" > \(shellSingleQuoted(outputURL.path))\n"
+        let command = "printf \"$BALAGAN_TAB_STATE_OK\\n\" > \(outputURL.path.shellQuoted)\n"
         pasteOnly(command)
         try waitForFile(outputURL, timeout: 10)
 
@@ -121,7 +121,7 @@ extension NativeFlowDriver {
         let marker = "BALAGAN_NAVIGATION_STATE_OK"
 
         pasteOnly("export BALAGAN_NAV_STATE=\(marker)\n")
-        pasteOnly("printf \(shellSingleQuoted("BALAGAN_NAVIGATION_BEFORE_OK\\n")) > \(shellSingleQuoted(beforeNavigationURL.path))\n")
+        pasteOnly("printf \(("BALAGAN_NAVIGATION_BEFORE_OK\\n").shellQuoted) > \(beforeNavigationURL.path.shellQuoted)\n")
         try waitForFile(beforeNavigationURL, timeout: 10)
 
         try showProjectTasks()
@@ -131,7 +131,7 @@ extension NativeFlowDriver {
         try waitForTerminalHostMounted(surfaceID: "surface-harness-task-main")
         try clickAny(identifiers: terminalIdentifiers)
 
-        pasteOnly("printf \"$BALAGAN_NAV_STATE\\n\" > \(shellSingleQuoted(afterNavigationURL.path))\n")
+        pasteOnly("printf \"$BALAGAN_NAV_STATE\\n\" > \(afterNavigationURL.path.shellQuoted)\n")
         try waitForFile(afterNavigationURL, timeout: 10)
 
         try finishFlow([

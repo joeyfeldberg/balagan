@@ -7,21 +7,6 @@ import Foundation
 // split's pane arrangement changes (then it re-balances).
 
 extension WorkspaceLayout {
-    /// Surface ids contained in this node, in layout order. Used as a stable key for a split's
-    /// current pane arrangement.
-    public var orderedLeafSurfaceIDs: [Surface.ID] {
-        switch self {
-        case .single:
-            return []
-        case .surface(let id):
-            return [id]
-        case .tabs(let children):
-            return children.flatMap { $0.orderedLeafSurfaceIDs }
-        case .split(_, let children):
-            return children.flatMap { $0.orderedLeafSurfaceIDs }
-        }
-    }
-
     /// Number of leaf pane-slots under this node.
     public var paneSpanCount: Int {
         switch self {
@@ -36,7 +21,7 @@ extension WorkspaceLayout {
 
     /// Stable identity for a split node's current arrangement.
     public var splitKey: String {
-        orderedLeafSurfaceIDs.joined(separator: "|")
+        surfaceIDs().joined(separator: "|")
     }
 
     /// Pane-count-proportional weights for this split's children (the equalized distribution).

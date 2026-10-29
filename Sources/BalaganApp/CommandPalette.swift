@@ -57,7 +57,7 @@ struct CommandPalette: View {
 
                 if results.isEmpty {
                     Text("No matching commands")
-                        .font(.system(size: 13 * scale))
+                        .font(.system(size: Theme.TextSize.body * scale))
                         .foregroundStyle(Theme.textTertiary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(14 * scale)
@@ -124,7 +124,7 @@ struct CommandPalette: View {
                     .foregroundStyle(Theme.textPrimary)
                 if let subtitle = command.subtitle {
                     Text(subtitle)
-                        .font(.system(size: 11 * scale))
+                        .font(.system(size: Theme.TextSize.small * scale))
                         .foregroundStyle(Theme.textTertiary)
                 }
             }

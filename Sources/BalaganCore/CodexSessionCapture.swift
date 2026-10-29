@@ -115,7 +115,7 @@ public enum CodexResumeRecovery {
 
         guard CodexCommandHeuristics.isFreshBalaganCodexCommand(startupCommand),
               let snapshot = surface.scrollbackSnapshot?.nilIfBlank,
-              CodexCommandHeuristics.snapshotContainsFreshCodexLaunch(snapshot)
+              CodexCommandHeuristics.snapshotMentionsCodex(snapshot)
         else {
             return nil
         }
@@ -147,18 +147,14 @@ public struct CodexSessionCapture: Sendable {
         self.startSkewAllowanceMs = startSkewAllowanceMs
     }
 
-    public static func `default`(homeDirectory: URL = FileManager.default.homeDirectoryForCurrentUser) -> CodexSessionCapture {
-        CodexSessionCapture(
-            stateDatabaseURL: homeDirectory.appendingPathComponent(".codex/state_5.sqlite"),
-            sessionsDirectoryURL: homeDirectory.appendingPathComponent(".codex/sessions")
-        )
-    }
-
-    /// Builds a capture rooted at `BALAGAN_CODEX_CAPTURE_HOME` (when set) or the current user's home
-    /// directory otherwise. Folds the resolution repeated across the recovery, smoke, and wrapper paths.
+    /// A capture over Codex's folder (`AgentHomes.codex`: `$CODEX_HOME`, `~/.codex`, or the
+    /// `BALAGAN_CODEX_CAPTURE_HOME` test override).
     public static func fromEnvironment(_ environment: [String: String]) -> CodexSessionCapture {
-        let captureHome = environment["BALAGAN_CODEX_CAPTURE_HOME"].map(URL.init(fileURLWithPath:))
-        return `default`(homeDirectory: captureHome ?? FileManager.default.homeDirectoryForCurrentUser)
+        let codex = AgentHomes.codex(environment: environment)
+        return CodexSessionCapture(
+            stateDatabaseURL: codex.appendingPathComponent("state_5.sqlite"),
+            sessionsDirectoryURL: codex.appendingPathComponent("sessions")
+        )
     }
 
     public func capture(cwd: String, startMs: Int64) throws -> CodexSessionCaptureResult {

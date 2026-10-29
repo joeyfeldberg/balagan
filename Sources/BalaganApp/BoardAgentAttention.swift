@@ -57,14 +57,16 @@ extension BoardViewModel {
     /// agents only, so a plain shell running a service (which can still emit an OSC-9 desktop
     /// notification or a bell) doesn't raise a banner or an attention highlight.
     func surfaceIsAgentTerminal(taskID: TaskItem.ID, surfaceID: Surface.ID) -> Bool {
-        if surfaceLifecycle[hostKey(taskID, surfaceID)] != nil { return true }
-        if runningAgents[hostKey(taskID, surfaceID)] != nil { return true }
-        guard let task = task(for: taskID),
-              let surface = task.workspace.surface(id: surfaceID)
-        else {
-            return false
-        }
-        return surface.resumeBinding?.kind == .agent
+        guard let surface = task(for: taskID)?.workspace.surface(id: surfaceID) else { return false }
+        return isAgentSurface(taskID: taskID, surface)
+    }
+
+    /// The one answer to "is this tab an agent?": it has reported a working-state, an agent is running
+    /// in it that hasn't reported a session yet, or it holds an agent session. (An exited tab is judged
+    /// by `handleEndedProcess`, which also goes by the launch command, since its state is gone.)
+    func isAgentSurface(taskID: TaskItem.ID, _ surface: Surface) -> Bool {
+        let key = hostKey(taskID, surface.id)
+        return surfaceLifecycle[key] != nil || runningAgents[key] != nil || surface.resumeBinding?.kind == .agent
     }
 
     func surfaceNeedsAttention(taskID: TaskItem.ID, surfaceID: Surface.ID) -> Bool {
@@ -113,27 +115,16 @@ extension BoardViewModel {
     /// row shows exactly what the loudest card under it shows.
     func projectAgentState(_ projectID: Project.ID) -> TaskAgentState {
         guard surfaceLifecycle.isEmpty == false else { return .none }
-        var sawNeedsInput = false
-        var sawIdle = false
-        for task in tasks where task.projectID == projectID && task.isArchived == false {
-            switch taskAgentState(task) {
-            case .running: return .running
-            case .needsInput: sawNeedsInput = true
-            case .idle: sawIdle = true
-            case .asleep, .none: continue
-            }
-        }
-        if sawNeedsInput { return .needsInput }
-        return sawIdle ? .idle : .none
+        return TaskAgentState.loudest(
+            tasks.filter { $0.projectID == projectID && $0.isArchived == false }.map(taskAgentState)
+        )
     }
 
     /// The task's aggregate agent state (running / needs-input / idle / asleep / none) — powers the
     /// control-socket `state` and `wait` commands an orchestrator uses to track a sub-agent.
     func taskAgentState(_ task: TaskItem) -> TaskAgentState {
         let lifecycles = task.workspace.surfaces.map { surfaceLifecycle[hostKey(task.id, $0.id)] }
-        let hasAgentSurface = task.workspace.surfaces.contains { surface in
-            surfaceLifecycle[hostKey(task.id, surface.id)] != nil || surface.resumeBinding?.kind == .agent
-        }
+        let hasAgentSurface = task.workspace.surfaces.contains { isAgentSurface(taskID: task.id, $0) }
         return TaskAgentState.aggregate(
             lifecycles: lifecycles,
             hasAgentSurface: hasAgentSurface,
@@ -192,7 +183,7 @@ extension BoardViewModel {
                 targets.append(AttentionTarget(
                     taskID: task.id,
                     surfaceID: surface.id,
-                    title: task.isProjectTerminals ? "\(projectName(for: task.projectID)) — Terminals" : task.title,
+                    title: displayTitle(for: task),
                     detail: task.isProjectTerminals ? surface.title : projectName(for: task.projectID)
                 ))
             }
@@ -202,9 +193,22 @@ extension BoardViewModel {
 
     /// Jumps to a flagged surface (selecting its task + surface, which clears its attention highlight).
     func jumpToAttention(_ target: AttentionTarget) {
-        guard let task = task(for: target.taskID) else { return }
+        openSurface(taskID: target.taskID, surfaceID: target.surfaceID)
+    }
+
+    /// Opens a task on one of its tabs. False when the task is gone.
+    @discardableResult
+    func openSurface(taskID: TaskItem.ID, surfaceID: Surface.ID) -> Bool {
+        guard let task = task(for: taskID) else { return false }
         select(task: task)
-        select(surfaceID: target.surfaceID, forTaskID: target.taskID)
+        select(surfaceID: surfaceID, forTaskID: taskID)
+        return true
+    }
+
+    /// How an agent's task is named in menus and banners: its title, or "<Project> — Terminals" for a
+    /// project's Terminals workspace.
+    func displayTitle(for task: TaskItem) -> String {
+        task.isProjectTerminals ? "\(projectName(for: task.projectID)) — Terminals" : task.title
     }
 
     /// Every agent terminal across the board (a captured agent session, or one that has reported a
@@ -219,12 +223,11 @@ extension BoardViewModel {
         for task in tasks where task.isArchived == false && hibernatedTaskIDs.contains(task.id) == false {
             for surface in task.workspace.surfaces {
                 let key = hostKey(task.id, surface.id)
-                let isAgent = surfaceLifecycle[key] != nil || surface.resumeBinding?.kind == .agent
-                guard isAgent else { continue }
+                guard isAgentSurface(taskID: task.id, surface) else { continue }
                 items.append(AgentSessionItem(
                     taskID: task.id,
                     surfaceID: surface.id,
-                    taskTitle: task.isProjectTerminals ? "\(projectName(for: task.projectID)) — Terminals" : task.title,
+                    taskTitle: displayTitle(for: task),
                     surfaceTitle: surface.title,
                     lifecycle: surfaceLifecycle[key]
                 ))
@@ -252,10 +255,6 @@ extension BoardViewModel {
         activeAgentSessions().filter { $0.lifecycle == .needsInput }.count
     }
 
-    /// Seeds deterministic agent states for headless snapshots (`BALAGAN_FIXTURE_AGENT_STATES=1`):
-    /// the first task waiting on the user, the second working, the third finished off-screen. One
-    /// capture then shows all three glyphs at once — on the cards, on the sidebar project rows, and
-    /// (for the selected task) on its terminal tab.
     /// One task's seeded activity, read from `BALAGAN_FIXTURE_AGENT_STATES_FILE` (a JSON object keyed by
     /// task id) so a snapshot can show varied, realistic cards instead of the three canned ones.
     struct SnapshotActivity: Decodable {
@@ -265,6 +264,10 @@ extension BoardViewModel {
         var minutes: Double?
     }
 
+    /// Seeds deterministic agent states for headless snapshots (`BALAGAN_FIXTURE_AGENT_STATES=1`):
+    /// the first task waiting on the user, the second working, the third finished off-screen. One
+    /// capture then shows all three glyphs at once — on the cards, on the sidebar project rows, and
+    /// (for the selected task) on its terminal tab.
     func seedAgentStatesForSnapshot() {
         if let path = ProcessInfo.processInfo.environment["BALAGAN_FIXTURE_AGENT_STATES_FILE"],
            let data = FileManager.default.contents(atPath: path),
@@ -321,8 +324,6 @@ extension BoardViewModel {
 
     /// Jumps to an agent session's task + surface.
     func jumpToSession(_ item: AgentSessionItem) {
-        guard let task = task(for: item.taskID) else { return }
-        select(task: task)
-        select(surfaceID: item.surfaceID, forTaskID: item.taskID)
+        openSurface(taskID: item.taskID, surfaceID: item.surfaceID)
     }
 }

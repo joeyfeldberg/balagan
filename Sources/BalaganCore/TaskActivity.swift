@@ -208,25 +208,12 @@ extension AgentTranscriptParser {
         format: AgentTranscriptFormat,
         tailBytes: Int = 256 * 1024
     ) -> String? {
-        guard let handle = FileHandle(forReadingAtPath: path) else { return nil }
-        defer { try? handle.close() }
-        guard let size = try? handle.seekToEnd() else { return nil }
-
-        let start = size > UInt64(tailBytes) ? size - UInt64(tailBytes) : 0
-        try? handle.seek(toOffset: start)
-        guard let data = try? handle.readToEnd(), var text = String(data: data, encoding: .utf8)
-            ?? String(data: data.drop(while: { $0 & 0xC0 == 0x80 }), encoding: .utf8)
-        else {
-            return nil
-        }
-        // Mid-file start: the first line is partial.
-        if start > 0, let newline = text.firstIndex(of: "\n") {
-            text = String(text[text.index(after: newline)...])
-        }
+        guard let tail = FileTail.read(atPath: path, maxBytes: tailBytes) else { return nil }
+        let text = tail.text
         if let response = lastAssistantResponse(in: entries(fromJSONL: text, format: format)) {
             return response
         }
-        guard start > 0, let whole = try? String(contentsOfFile: path, encoding: .utf8) else { return nil }
+        guard tail.isWholeFile == false, let whole = try? String(contentsOfFile: path, encoding: .utf8) else { return nil }
         return lastAssistantResponse(in: entries(fromJSONL: whole, format: format))
     }
 }

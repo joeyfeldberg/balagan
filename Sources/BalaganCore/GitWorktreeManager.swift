@@ -162,27 +162,6 @@ public enum GitWorktreeManager {
     /// Runs git and returns stdout on success (exit 0), or `nil` on launch failure / non-zero exit.
     @discardableResult
     private static func runGit(_ arguments: [String], cwd: String) -> String? {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
-        process.arguments = arguments
-        process.currentDirectoryURL = URL(fileURLWithPath: cwd)
-
-        let stdout = Pipe()
-        let stderr = Pipe()
-        process.standardOutput = stdout
-        process.standardError = stderr
-
-        do {
-            try process.run()
-        } catch {
-            return nil
-        }
-        process.waitUntilExit()
-
-        guard process.terminationStatus == 0 else {
-            return nil
-        }
-        let data = stdout.fileHandleForReading.readDataToEndOfFile()
-        return String(decoding: data, as: UTF8.self)
+        GitRunner.run(arguments, in: cwd)?.text
     }
 }

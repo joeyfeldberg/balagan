@@ -56,4 +56,12 @@ final class TaskAgentStateTests: XCTestCase {
         XCTAssertNil(TaskAgentState.parseUntil("bogus"))
         XCTAssertNil(TaskAgentState.parseUntil("idle,bogus"))
     }
+
+    func testLoudestPrefersRunningThenWaitingThenIdle() {
+        XCTAssertEqual(TaskAgentState.loudest([.idle, .needsInput, .running]), .running)
+        XCTAssertEqual(TaskAgentState.loudest([.idle, .needsInput, .asleep]), .needsInput)
+        XCTAssertEqual(TaskAgentState.loudest([.none, .idle]), .idle)
+        XCTAssertEqual(TaskAgentState.loudest([.asleep, .none]), .none)
+        XCTAssertEqual(TaskAgentState.loudest([]), .none)
+    }
 }

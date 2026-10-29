@@ -175,6 +175,20 @@ extension Workspace {
         orderedSurfaceIDs.last
     }
 
+    /// Moves the tab at `from` to `to` (an index among the other tabs), keeping a tab's splits intact,
+    /// and re-sorts `surfaces` into the new visual order (persistence and fallbacks rely on it).
+    /// Returns false when there's no tab at `from`.
+    @discardableResult
+    public mutating func moveTab(from: Int, to: Int) -> Bool {
+        let tabs = layout.tabContents
+        guard tabs.indices.contains(from) else { return false }
+        let reordered = DragReorder.moving(tabs, from: from, to: to)
+        layout = .tabs(reordered)
+        let rank = Dictionary(uniqueKeysWithValues: layout.surfaceIDs().enumerated().map { ($1, $0) })
+        surfaces.sort { (rank[$0.id] ?? Int.max) < (rank[$1.id] ?? Int.max) }
+        return true
+    }
+
     /// Migrates the layout to the canonical Ghostty shape (root `.tabs`, splits inside tabs). Applied
     /// when loading persisted boards so legacy/“inverted” layouts render correctly.
     public mutating func canonicalizeLayout() {

@@ -88,58 +88,29 @@ extension BoardViewModel {
             return
         }
 
-        let existingIDs = Set(tasks[index].workspace.surfaces.map(\.id))
-        let surfaceID = uniqueID(base: title, existingIDs: existingIDs)
-        var surface = Surface(
-            id: surfaceID,
-            workspaceID: tasks[index].workspace.id,
-            title: title.trimmedForStorage,
-            cwd: cwd.trimmedForStorage,
-            environment: taskTerminalEnvironment(
-                projectID: tasks[index].projectID,
-                cwd: cwd.trimmedForStorage,
-                agentName: tasks[index].title
-            ),
-            startupCommand: startupCommand?.nilIfBlank,
-            agentLaunchMetadata: agentLaunchMetadata(
-                startupCommand: startupCommand,
-                cwd: cwd.trimmedForStorage
-            )
-        )
-        surface.output = [Surface.pwdPlaceholderSeed, cwd.trimmedForStorage]
-
+        let surface = makeSurface(in: tasks[index], title: title, cwd: cwd, startupCommand: startupCommand)
         // New tab: append a tab at the root, preserving existing tabs and any splits inside them.
         let layoutBeforeAdd = tasks[index].workspace.layout
         tasks[index].workspace.surfaces.append(surface)
         tasks[index].workspace.layout = layoutBeforeAdd.addingTab(.surface(surface.id))
-        tasks[index].workspace.selectedSurfaceID = surface.id
-        tasks[index].touchWorkspace()
-        if selectedTaskID == taskID {
-            selectedWorkspaceID = tasks[index].workspace.id
-            selectedSurfaceID = surface.id
-        }
+        selectNewSurface(surface.id, inTaskAt: index)
     }
 
     func createDefaultSurface(taskID: TaskItem.ID) {
-        guard let index = taskIndex(for: taskID) else {
+        guard let task = task(for: taskID) else {
             return
         }
-
-        let surfaceNumber = tasks[index].workspace.surfaces.count + 1
-        let cwd = activeSurface(for: tasks[index])?.cwd
-            ?? project(for: tasks[index].projectID)?.repoPath
-            ?? FileManager.default.homeDirectoryForCurrentUser.path
         createSurface(
             taskID: taskID,
-            title: "tab \(surfaceNumber)",
-            cwd: cwd,
+            title: "tab \(task.workspace.surfaces.count + 1)",
+            cwd: newSurfaceDirectory(for: task),
             startupCommand: nil
         )
     }
 
     func createAgentSurface(taskID: TaskItem.ID) {
-        guard let index = taskIndex(for: taskID),
-              let project = project(for: tasks[index].projectID),
+        guard let task = task(for: taskID),
+              let project = project(for: task.projectID),
               let startupCommand = AgentStartupCommandResolver.startupCommand(
                 defaultAgentCommand: project.defaultAgentCommand,
                 wrapperPath: agentWrapperPath
@@ -148,15 +119,10 @@ extension BoardViewModel {
             createDefaultSurface(taskID: taskID)
             return
         }
-
-        let surfaceNumber = tasks[index].workspace.surfaces.count + 1
-        let cwd = activeSurface(for: tasks[index])?.cwd
-            ?? tasks[index].repoPathOverride
-            ?? project.repoPath
         createSurface(
             taskID: taskID,
-            title: "agent \(surfaceNumber)",
-            cwd: cwd,
+            title: "agent \(task.workspace.surfaces.count + 1)",
+            cwd: newSurfaceDirectory(for: task),
             startupCommand: startupCommand
         )
     }
@@ -164,7 +130,7 @@ extension BoardViewModel {
     /// A new tab running a specific agent (the `+` menu's "New <agent> Tab"), whatever the project's
     /// default is.
     func createAgentSurface(taskID: TaskItem.ID, profileID: String) {
-        guard let index = taskIndex(for: taskID),
+        guard let task = task(for: taskID),
               let profile = AgentProfiles.named(profileID),
               let startupCommand = AgentStartupCommandResolver.startupCommand(
                   defaultAgentCommand: AgentCommandDefaults.command(for: profile.id),
@@ -173,11 +139,7 @@ extension BoardViewModel {
         else {
             return
         }
-        let cwd = activeSurface(for: tasks[index])?.cwd
-            ?? tasks[index].repoPathOverride
-            ?? project(for: tasks[index].projectID)?.repoPath
-            ?? FileManager.default.homeDirectoryForCurrentUser.path
-        createSurface(taskID: taskID, title: profile.command, cwd: cwd, startupCommand: startupCommand)
+        createSurface(taskID: taskID, title: profile.command, cwd: newSurfaceDirectory(for: task), startupCommand: startupCommand)
     }
 
     func splitSurface(taskID: TaskItem.ID, axis: SplitAxis) {
@@ -186,24 +148,14 @@ extension BoardViewModel {
         }
 
         let task = tasks[index]
-        let activeSurface = activeSurface(for: task)
-        let cwd = activeSurface?.cwd
-            ?? project(for: task.projectID)?.repoPath
-            ?? FileManager.default.homeDirectoryForCurrentUser.path
-        let title = axis == .horizontal ? "right \(task.workspace.surfaces.count + 1)" : "down \(task.workspace.surfaces.count + 1)"
-        let existingIDs = Set(tasks[index].workspace.surfaces.map(\.id))
-        let surfaceID = uniqueID(base: title, existingIDs: existingIDs)
-        var surface = Surface(
-            id: surfaceID,
-            workspaceID: tasks[index].workspace.id,
-            title: title,
-            cwd: cwd,
-            environment: taskTerminalEnvironment(projectID: task.projectID, cwd: cwd),
+        let count = task.workspace.surfaces.count + 1
+        let surface = makeSurface(
+            in: task,
+            title: axis == .horizontal ? "right \(count)" : "down \(count)",
+            cwd: newSurfaceDirectory(for: task),
             startupCommand: nil
         )
-        surface.output = [Surface.pwdPlaceholderSeed, cwd]
-
-        let activeSurfaceID = activeSurface?.id ?? surfaceID
+        let activeSurfaceID = activeSurface(for: task)?.id ?? surface.id
         let currentLayout = task.workspace.layout
         tasks[index].workspace.surfaces.append(surface)
         // Split within the active surface's tab (tabs stay at the root). The fallback only fires if the
@@ -211,11 +163,42 @@ extension BoardViewModel {
         tasks[index].workspace.layout = currentLayout.splittingSurface(
             activeSurfaceID,
             axis: axis,
-            newSurfaceID: surfaceID
-        ) ?? currentLayout.addingTab(.surface(surfaceID))
+            newSurfaceID: surface.id
+        ) ?? currentLayout.addingTab(.surface(surface.id))
+        selectNewSurface(surface.id, inTaskAt: index)
+    }
+
+    /// Where a new tab or pane starts: the focused tab's folder, else the task's checkout, else home.
+    func newSurfaceDirectory(for task: TaskItem) -> String {
+        activeSurface(for: task)?.cwd
+            ?? task.repoPathOverride?.nilIfBlank
+            ?? project(for: task.projectID)?.repoPath
+            ?? FileManager.default.homeDirectoryForCurrentUser.path
+    }
+
+    /// A new surface for a task's workspace: a unique id, the task's terminal environment (with the
+    /// task title as the agent's session name), and the launch metadata its command needs.
+    private func makeSurface(in task: TaskItem, title: String, cwd: String, startupCommand: String?) -> Surface {
+        let cwd = cwd.trimmedForStorage
+        let surfaceID = uniqueID(base: title, existingIDs: Set(task.workspace.surfaces.map(\.id)))
+        var surface = Surface(
+            id: surfaceID,
+            workspaceID: task.workspace.id,
+            title: title.trimmedForStorage,
+            cwd: cwd,
+            environment: taskTerminalEnvironment(projectID: task.projectID, cwd: cwd, agentName: task.title),
+            startupCommand: startupCommand?.nilIfBlank,
+            agentLaunchMetadata: agentLaunchMetadata(startupCommand: startupCommand, cwd: cwd)
+        )
+        surface.output = [Surface.pwdPlaceholderSeed, cwd]
+        return surface
+    }
+
+    /// Focuses a surface just added to a task, and follows it on screen when that task is open.
+    private func selectNewSurface(_ surfaceID: Surface.ID, inTaskAt index: Int) {
         tasks[index].workspace.selectedSurfaceID = surfaceID
         tasks[index].touchWorkspace()
-        if selectedTaskID == taskID {
+        if selectedTaskID == tasks[index].id {
             selectedWorkspaceID = tasks[index].workspace.id
             selectedSurfaceID = surfaceID
         }
@@ -249,24 +232,10 @@ extension BoardViewModel {
     /// Reorders the workspace's tabs by moving the tab at `fromOffset` to `toOffset` (insertion index
     /// among the remaining tabs). Reorders whole tabs, so a tab that contains a split moves intact.
     func moveSurfaceTab(taskID: TaskItem.ID, fromOffset: Int, toOffset: Int) {
-        guard let taskIndex = taskIndex(for: taskID) else {
+        guard let taskIndex = taskIndex(for: taskID),
+              tasks[taskIndex].workspace.moveTab(from: fromOffset, to: toOffset)
+        else {
             return
-        }
-
-        var tabs = tasks[taskIndex].workspace.layout.tabContents
-        guard tabs.indices.contains(fromOffset) else {
-            return
-        }
-        let moved = tabs.remove(at: fromOffset)
-        let clamped = min(max(toOffset, 0), tabs.count)
-        tabs.insert(moved, at: clamped)
-
-        tasks[taskIndex].workspace.layout = .tabs(tabs)
-        // Keep the stored surfaces array in the same visual order (persistence / fallbacks rely on it).
-        let newOrder = WorkspaceLayout.tabs(tabs).surfaceIDs()
-        let rank = Dictionary(uniqueKeysWithValues: newOrder.enumerated().map { ($1, $0) })
-        tasks[taskIndex].workspace.surfaces.sort {
-            (rank[$0.id] ?? Int.max) < (rank[$1.id] ?? Int.max)
         }
         tasks[taskIndex].updatedAt = Date()
     }

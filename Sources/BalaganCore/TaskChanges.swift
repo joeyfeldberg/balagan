@@ -140,39 +140,19 @@ public enum TaskChangesLoader {
         return run(arguments, in: directory, limit: maxDiffBytes, truncated: &ignored)
     }
 
-    /// Runs git and returns stdout, or nil on a non-zero exit. Reads the pipe *before* waiting, so a
-    /// large diff can't fill the pipe buffer and deadlock the child.
+    /// Runs git and returns stdout, or nil on a non-zero exit.
     private static func run(_ arguments: [String], in directory: String, limit: Int, truncated: inout Bool) -> String? {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
-        // quotePath=false keeps non-ASCII paths readable instead of octal-escaped.
-        process.arguments = ["-c", "core.quotePath=false"] + arguments
-        process.currentDirectoryURL = URL(fileURLWithPath: directory)
         var environment = ProcessInfo.processInfo.environment
         environment["GIT_OPTIONAL_LOCKS"] = "0"   // never take index.lock while an agent is committing
-        process.environment = environment
-        let stdout = Pipe()
-        process.standardOutput = stdout
-        process.standardError = FileHandle.nullDevice
-        do {
-            try process.run()
-        } catch {
-            return nil
-        }
-
-        var data = Data()
-        let handle = stdout.fileHandleForReading
-        while let chunk = try? handle.read(upToCount: 64 * 1024), chunk.isEmpty == false {
-            if data.count < limit {
-                data.append(chunk.prefix(limit - data.count))
-            } else {
-                truncated = true
-            }
-        }
-        if data.count >= limit { truncated = true }
-        process.waitUntilExit()
-        guard process.terminationStatus == 0 else { return nil }
-        return String(decoding: data, as: UTF8.self)
+        // quotePath=false keeps non-ASCII paths readable instead of octal-escaped.
+        guard let output = GitRunner.run(
+            ["-c", "core.quotePath=false"] + arguments,
+            in: directory,
+            environment: environment,
+            limit: limit
+        ) else { return nil }
+        if output.truncated { truncated = true }
+        return output.text
     }
 }
 

@@ -30,7 +30,7 @@ struct ArchivedTasksScreen: View {
                     .foregroundStyle(Theme.textPrimary)
                 if archived.isEmpty == false {
                     Text("\(archived.count)")
-                        .font(.system(size: 12 * balaganUIScale))
+                        .font(.system(size: Theme.TextSize.small * balaganUIScale))
                         .foregroundStyle(Theme.textTertiary)
                 }
                 Spacer()
@@ -49,10 +49,10 @@ struct ArchivedTasksScreen: View {
                         .font(.system(size: 32 * balaganUIScale))
                         .foregroundStyle(Theme.textTertiary)
                     Text("No archived tasks")
-                        .font(.system(size: 14 * balaganUIScale, weight: .medium))
+                        .font(.system(size: Theme.TextSize.heading * balaganUIScale, weight: .medium))
                         .foregroundStyle(Theme.textSecondary)
                     Text("Archive a task to hide it from the board.\nArchived tasks are deleted after \(BoardViewModel.archivedTaskRetentionDays) days.")
-                        .font(.system(size: 12 * balaganUIScale))
+                        .font(.system(size: Theme.TextSize.body * balaganUIScale))
                         .foregroundStyle(Theme.textTertiary)
                         .multilineTextAlignment(.center)
                 }
@@ -96,7 +96,7 @@ struct ArchivedTasksScreen: View {
                 viewModel.unarchiveTask(id: task.id)
             }
             .buttonStyle(.bordered)
-            .font(.system(size: 12 * balaganUIScale))
+            .font(.system(size: Theme.TextSize.body * balaganUIScale))
             .accessibilityIdentifier("archived-restore-\(task.id)")
 
             Button {
@@ -105,7 +105,7 @@ struct ArchivedTasksScreen: View {
                 Image(systemName: "trash")
             }
             .buttonStyle(.bordered)
-            .font(.system(size: 12 * balaganUIScale))
+            .font(.system(size: Theme.TextSize.body * balaganUIScale))
             .help("Delete now")
             .accessibilityIdentifier("archived-delete-\(task.id)")
         }

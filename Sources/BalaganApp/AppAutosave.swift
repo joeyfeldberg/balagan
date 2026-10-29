@@ -32,6 +32,8 @@ extension BalaganApplication {
                 }
             },
             onError: { error in
+                // Always logged: a board that silently stops saving loses work on the next quit.
+                NSLog("Balagan: failed to save the board: \(error)")
                 guard let artifactDirectory else {
                     return
                 }

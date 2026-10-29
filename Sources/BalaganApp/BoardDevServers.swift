@@ -68,7 +68,7 @@ struct DevServerChips: View {
                 } label: {
                     HStack(spacing: 3 * scale) {
                         Circle()
-                            .fill(Color(red: 0.25, green: 0.73, blue: 0.44))
+                            .fill(Theme.positive)
                             .frame(width: 5 * scale, height: 5 * scale)
                         // String(port): Text's number interpolation would print "8,765".
                         Text(verbatim: ":\(String(port.port))")

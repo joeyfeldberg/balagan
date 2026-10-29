@@ -91,7 +91,7 @@ struct SettingsSheet: View {
                             .frame(width: 16 * scale)
                             .foregroundStyle(selected ? Theme.accent : Theme.textSecondary)
                         Text(category.rawValue)
-                            .font(.system(size: 13 * scale, weight: selected ? .semibold : .regular))
+                            .font(.system(size: Theme.TextSize.title * scale, weight: selected ? .semibold : .regular))
                             .foregroundStyle(selected ? Theme.textPrimary : Theme.textSecondary)
                         Spacer(minLength: 0)
                     }
@@ -165,7 +165,7 @@ struct SettingsSheet: View {
                 .accessibilityIdentifier("theme-terminals-toggle")
             }
             ThemePicker(selectedID: viewModel.appThemeID, scale: scale) { viewModel.selectAppTheme($0) }
-                .padding(.horizontal, 18 * scale)
+                .padding(.horizontal, SettingsLayout.inset * scale)
                 .padding(.bottom, 18 * scale)
         case .agents:
             contentHeader("Agents", scale: scale)
@@ -176,7 +176,7 @@ struct SettingsSheet: View {
         case .prompts:
             contentHeader("Prompts", scale: scale)
             GlobalPromptsPage()
-                .padding(.horizontal, 18 * scale)
+                .padding(.horizontal, SettingsLayout.inset * scale)
                 .padding(.bottom, 18 * scale)
         case .terminal:
             contentHeader("Terminal", scale: scale)
@@ -222,7 +222,7 @@ struct SettingsSheet: View {
             .font(.system(size: Theme.TextSize.micro * scale, weight: .semibold))
             .tracking(0.6)
             .foregroundStyle(Theme.textTertiary)
-            .padding(.horizontal, 18 * scale)
+            .padding(.horizontal, SettingsLayout.inset * scale)
             .padding(.top, 18 * scale)
         ForEach(AgentProfiles.all) { profile in
             agentRow(profile, scale: scale)
@@ -267,7 +267,7 @@ struct SettingsSheet: View {
         let detecting = viewModel.installedAgents == nil
         return HStack(alignment: .top, spacing: 10 * scale) {
             Circle()
-                .fill(path != nil ? Color(red: 0.25, green: 0.73, blue: 0.44) : Theme.textTertiary)
+                .fill(path != nil ? Theme.positive : Theme.textTertiary)
                 .frame(width: 7 * scale, height: 7 * scale)
                 .padding(.top, 5 * scale)
             VStack(alignment: .leading, spacing: 2 * scale) {
@@ -287,7 +287,7 @@ struct SettingsSheet: View {
             }
             Spacer(minLength: 0)
         }
-        .padding(.horizontal, 18 * scale)
+        .padding(.horizontal, SettingsLayout.inset * scale)
         .padding(.vertical, 5 * scale)
         .accessibilityIdentifier("agent-row-\(profile.id)")
     }
@@ -338,7 +338,7 @@ struct SettingsSheet: View {
             control()
                 .font(.system(size: Theme.TextSize.body * scale))
         }
-        .padding(.horizontal, 18 * scale)
+        .padding(.horizontal, SettingsLayout.inset * scale)
         .padding(.top, 10 * scale)
         .padding(.bottom, 2 * scale)
     }
@@ -348,7 +348,7 @@ struct SettingsSheet: View {
             .font(.system(size: Theme.TextSize.micro * scale))
             .foregroundStyle(Theme.textTertiary)
             .fixedSize(horizontal: false, vertical: true)
-            .padding(.horizontal, 18 * scale)
+            .padding(.horizontal, SettingsLayout.inset * scale)
     }
 
     /// "Sleep idle tasks after: 30 minutes". Sleeping frees a task's terminals; opening it resumes.
@@ -380,9 +380,9 @@ struct SettingsSheet: View {
 
     private func contentHeader(_ title: String, scale: CGFloat) -> some View {
         Text(title)
-            .font(.system(size: 16 * scale, weight: .semibold))
+            .font(.system(size: Theme.TextSize.heading * scale, weight: .semibold))
             .foregroundStyle(Theme.textPrimary)
-            .padding(.horizontal, 18 * scale)
+            .padding(.horizontal, SettingsLayout.inset * scale)
             .padding(.top, 18 * scale)
             .padding(.bottom, 8 * scale)
     }
@@ -443,7 +443,7 @@ struct SettingsSheet: View {
             .font(.system(size: Theme.TextSize.micro * scale))
             .accessibilityIdentifier("speech-open-system-settings")
         }
-        .padding(.horizontal, 18 * scale)
+        .padding(.horizontal, SettingsLayout.inset * scale)
         .padding(.top, 2 * scale)
     }
 
@@ -479,7 +479,7 @@ struct SettingsSheet: View {
                 }
             }
         }
-        .padding(.horizontal, 16 * scale)
+        .padding(.horizontal, SettingsLayout.inset * scale)
         .padding(.top, 4 * scale)
     }
 

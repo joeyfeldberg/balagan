@@ -32,10 +32,7 @@ enum TerminalRestart {
 
         // Kill the current agent process (group + pid) before relaunching — freeing the libghostty
         // surface alone doesn't reliably reap the child (same reason sleep SIGTERMs it).
-        if let pid = surface.resumeBinding?.pid, pid > 0 {
-            _ = kill(-pid, SIGTERM)
-            _ = kill(pid, SIGTERM)
-        }
+        viewModel.terminateAgent(taskID: taskID, surface: surface)
         viewModel.setSurfaceLifecycle(nil as AgentLifecycle?, taskID: taskID, surfaceID: sid)
 
         let config = TerminalSessionConfig(

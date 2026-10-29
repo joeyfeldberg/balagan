@@ -182,7 +182,3 @@ struct FontZoomActions {
     var reset: (_ evidenceName: String) -> Void = { _ in }
 }
 
-func safeArtifactComponent(_ value: String) -> String {
-    let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_."))
-    return String(value.unicodeScalars.map { allowed.contains($0) ? Character($0) : "-" })
-}

@@ -70,7 +70,7 @@ func printResult(method: String, result: Any?) {
         let dict = result as? [String: Any]
         print("Created task \(dict?["id"] as? String ?? "?")")
 
-    case "task.open", "open":
+    case "task.open":
         let dict = result as? [String: Any]
         print("Opened \(dict?["opened"] as? String ?? "?")")
 

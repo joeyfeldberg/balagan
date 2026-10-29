@@ -180,6 +180,8 @@ final class SessionReportServer {
                 flags &= ~O_NONBLOCK
                 _ = fcntl(clientFD, F_SETFL, flags)
             }
+            // This runs on the main queue: a wrapper that connects and stalls must not freeze the UI.
+            UnixSocketHelpers.setReceiveTimeout(clientFD, seconds: 2)
             handle(clientFD: clientFD)
         }
     }

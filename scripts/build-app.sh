@@ -3,9 +3,9 @@
 #
 #   scripts/build-app.sh [version]
 #
-# Produces dist/Balagan.app (ad-hoc signed). Drop it in /Applications.
-# For distribution to other machines you'd swap the ad-hoc signature for a
-# Developer ID identity + notarization (see the comment at the bottom).
+# Produces dist/Balagan.app, signed with the best identity available (see the signing step below;
+# ad-hoc only as a last resort). Install it with scripts/install-app.sh. For distribution to other
+# machines you'd use a Developer ID identity + notarization (see the comment at the bottom).
 set -euo pipefail
 
 cd "$(dirname "$0")/.."

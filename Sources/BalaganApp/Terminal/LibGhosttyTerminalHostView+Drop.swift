@@ -62,7 +62,7 @@ extension LibGhosttyTerminalHostView {
         return nil
     }
 
-    /// Writes dropped image data as a PNG under `~/.balagan/drops` and returns its path.
+    /// Writes dropped image data as a PNG under Balagan's home (`drops/`) and returns its path.
     private func savedImagePath(_ data: Data) -> String? {
         let png = NSBitmapImageRep(data: data)?.representation(using: .png, properties: [:]) ?? data
         let path = TerminalDrop.dropFile(root: AgentUsageStore.defaultRoot, extension: "png")

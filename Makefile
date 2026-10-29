@@ -4,7 +4,7 @@ FIXTURE ?= multi-project-running
 NATIVE_FLOW_FIXTURE ?= empty-board
 HARNESS := ./scripts/balagan-harness.sh
 
-.PHONY: help build test ui-test ui-controls-smoke ui-flow-smoke ui-native-flow-smoke ui-daily-driver-smoke terminal-input-smoke terminal-manual-input-smoke terminal-visible-typing-smoke terminal-control-keys-smoke terminal-keyboard-shortcuts-smoke terminal-navigation-smoke terminal-state-smoke terminal-restart-resume-smoke agent-reopen-smoke hook-smoke hook-lifecycle-smoke agent-wrapper-smoke terminal-reload-prompt-smoke terminal-close-open-prompt-smoke terminal-ended-autoclose-smoke ui-debug normal-store-smoke first-run-smoke live-backend-smoke lint validate-fixtures
+.PHONY: help build test ui-test ui-controls-smoke ui-flow-smoke ui-native-flow-smoke ui-daily-driver-smoke terminal-input-smoke terminal-manual-input-smoke terminal-visible-typing-smoke terminal-control-keys-smoke terminal-keyboard-shortcuts-smoke terminal-navigation-smoke terminal-state-smoke terminal-restart-resume-smoke agent-reopen-smoke hook-smoke hook-lifecycle-smoke agent-wrapper-smoke terminal-reload-prompt-smoke terminal-close-open-prompt-smoke terminal-ended-autoclose-smoke ui-debug normal-store-smoke first-run-smoke live-backend-smoke lint validate-fixtures app
 
 help:
 	@printf '%s\n' "Balagan development commands"
@@ -35,6 +35,8 @@ help:
 	@printf '%s\n' "  make first-run-smoke"
 	@printf '%s\n' "  make live-backend-smoke"
 	@printf '%s\n' "  make lint"
+	@printf '%s\n' "  make validate-fixtures"
+	@printf '%s\n' "  make app"
 
 build:
 	$(HARNESS) build

@@ -211,8 +211,8 @@ public enum AgentProfiles {
     }
 
     /// Where custom profiles live.
-    public static func customDirectory(home: String = NSHomeDirectory()) -> String {
-        home + "/.balagan/agents"
+    public static func customDirectory(root: String = BalaganHome.root()) -> String {
+        root + "/agents"
     }
 
     /// Built-ins plus every valid `*.json` in `directory`. A custom profile can't take a built-in's id

@@ -30,6 +30,23 @@ final class BoardSurfaceLifecycleTests: XCTestCase {
         XCTAssertEqual(viewModel.selectedSurfaceID, newSurfaceID)
     }
 
+    /// Panes and tabs are made the same way: a split pane gets the task title as its agent session name
+    /// (`BALAGAN_AGENT_NAME`), so an agent started there is discoverable like one in a tab.
+    func testSplitPaneAndNewTabCarryTheAgentName() {
+        let viewModel = makeViewModel()
+        let taskID = "board-shell"
+        let title = viewModel.task(for: taskID)!.title
+
+        viewModel.splitSurface(taskID: taskID, axis: .horizontal)
+        viewModel.createDefaultSurface(taskID: taskID)
+
+        let added = workspace(viewModel, taskID).surfaces.dropFirst()
+        XCTAssertEqual(added.count, 2)
+        for surface in added {
+            XCTAssertEqual(surface.environment["BALAGAN_AGENT_NAME"], title, surface.id)
+        }
+    }
+
     func testSplitSurfaceProducesSplitLayoutInsideTab() {
         let viewModel = makeViewModel()
         let taskID = "board-shell"

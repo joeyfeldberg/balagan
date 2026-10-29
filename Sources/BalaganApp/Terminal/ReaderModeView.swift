@@ -337,7 +337,7 @@ private struct ReaderTopBar: View {
     var body: some View {
         HStack(spacing: 10) {
             Label(title, systemImage: "text.book.closed")
-                .font(.system(size: 12, weight: .medium))
+                .font(.system(size: Theme.TextSize.body, weight: .medium))
                 .foregroundStyle(palette.textSecondary)
 
             Spacer()
@@ -348,7 +348,7 @@ private struct ReaderTopBar: View {
                 }
                 .toggleStyle(.button)
                 .buttonStyle(.borderless)
-                .font(.system(size: 12))
+                .font(.system(size: Theme.TextSize.body))
                 .foregroundStyle(followsTail.wrappedValue ? palette.accent : palette.textTertiary)
                 .help("Follow new entries")
                 .accessibilityIdentifier("reader-follow-toggle")
@@ -428,10 +428,10 @@ private struct ReaderEmptyState: View {
                 .font(.system(size: 28))
                 .foregroundStyle(palette.textTertiary)
             Text(message)
-                .font(.system(size: 14, weight: .medium))
+                .font(.system(size: Theme.TextSize.heading, weight: .medium))
                 .foregroundStyle(palette.textSecondary)
             Text(detail)
-                .font(.system(size: 11))
+                .font(.system(size: Theme.TextSize.small))
                 .foregroundStyle(palette.textTertiary)
                 .lineLimit(2)
                 .truncationMode(.middle)

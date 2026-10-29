@@ -62,10 +62,7 @@ extension BoardViewModel {
         ) else { return false }
         // Stop the agent that's running now while its pid is still the current one; the restart
         // that follows only knows the switched-to session, which has no live process.
-        if let pid = surface.resumeBinding?.pid, pid > 0 {
-            _ = kill(-pid, SIGTERM)
-            _ = kill(pid, SIGTERM)
-        }
+        terminateAgent(taskID: taskID, surface: surface)
         tasks[taskIndex].workspace.surfaces[surfaceIndex].resumeBinding = switched.current
         tasks[taskIndex].workspace.surfaces[surfaceIndex].previousSessions = switched.history.isEmpty ? nil : switched.history
         tasks[taskIndex].updatedAt = Date()

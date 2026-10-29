@@ -273,8 +273,7 @@ public enum ControlSocketClient {
             throw ControlSocketClientError.connectFailed(socketPath: socketPath, errno: errno)
         }
 
-        var receiveTimeout = timeval(tv_sec: Int(timeout), tv_usec: 0)
-        _ = setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &receiveTimeout, socklen_t(MemoryLayout<timeval>.size))
+        UnixSocketHelpers.setReceiveTimeout(fd, seconds: Int(timeout))
 
         let requestData = try ControlWire.encodeRequestLine(request)
         try requestData.withUnsafeBytes { raw in

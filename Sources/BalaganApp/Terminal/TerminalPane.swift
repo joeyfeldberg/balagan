@@ -15,11 +15,11 @@ struct EmptyTerminalWorkspace: View {
 
             VStack(spacing: 4 * balaganUIScale) {
                 Text("No terminal tabs")
-                    .font(.system(size: 14 * balaganUIScale, weight: .semibold))
+                    .font(.system(size: Theme.TextSize.heading * balaganUIScale, weight: .semibold))
                     .foregroundStyle(Theme.textPrimary)
 
                 Text("Create a terminal for \(task.title) to run commands in this task workspace.")
-                    .font(.system(size: 12 * balaganUIScale))
+                    .font(.system(size: Theme.TextSize.body * balaganUIScale))
                     .foregroundStyle(Theme.textSecondary)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: 360 * balaganUIScale)
@@ -31,7 +31,7 @@ struct EmptyTerminalWorkspace: View {
                 Label("New Terminal Tab", systemImage: "plus.square.on.square")
             }
             .buttonStyle(.borderedProminent)
-            .font(.system(size: 13 * balaganUIScale))
+            .font(.system(size: Theme.TextSize.body * balaganUIScale))
             .accessibilityIdentifier("create-terminal-tab-button")
         }
         .padding(28 * balaganUIScale)
@@ -80,7 +80,7 @@ struct TerminalPane: View {
                     }
                 }
                 .buttonStyle(.bordered)
-                .font(.system(size: 13 * balaganUIScale))
+                .font(.system(size: Theme.TextSize.body * balaganUIScale))
                 .padding(10 * balaganUIScale)
                 .accessibilityIdentifier("resume-button-\(surface.id)")
                 .help(resumePlan.displayCommand)
@@ -126,7 +126,7 @@ private struct FakeTerminalScrollback: View {
             VStack(alignment: .leading, spacing: 4 * balaganUIScale) {
                 ForEach(Array(surface.output.enumerated()), id: \.offset) { _, line in
                     Text(line)
-                        .font(.system(size: 13 * balaganUIScale, design: .monospaced))
+                        .font(.system(size: Theme.TextSize.body * balaganUIScale, design: .monospaced))
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
@@ -142,11 +142,11 @@ private struct TerminalUnavailableBanner: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6 * balaganUIScale) {
             Text("libghostty unavailable")
-                .font(.system(size: 12 * balaganUIScale, weight: .semibold))
+                .font(.system(size: Theme.TextSize.body * balaganUIScale, weight: .semibold))
                 .foregroundStyle(.secondary)
 
             Text(selection.libGhostty.diagnostic ?? selection.reason)
-                .font(.system(size: 12 * balaganUIScale, design: .monospaced))
+                .font(.system(size: Theme.TextSize.body * balaganUIScale, design: .monospaced))
                 .foregroundStyle(.secondary)
                 .lineLimit(4)
         }

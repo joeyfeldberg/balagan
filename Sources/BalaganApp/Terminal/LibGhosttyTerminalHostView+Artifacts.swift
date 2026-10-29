@@ -88,7 +88,7 @@ extension LibGhosttyTerminalHostView {
         }
 
         return artifactDirectory.appendingPathComponent(
-            "libghostty-terminal-font-zoom-\(safeArtifactComponent(surfaceID))-\(evidenceName)-\(phase).png"
+            "libghostty-terminal-font-zoom-\(surfaceID.safeArtifactComponent)-\(evidenceName)-\(phase).png"
         )
     }
 
@@ -127,7 +127,7 @@ extension LibGhosttyTerminalHostView {
         ArtifactWriter.writeJSON(
             payload,
             to: artifactDirectory,
-            as: "libghostty-terminal-font-zoom-\(safeArtifactComponent(surfaceID))-\(evidenceName).json",
+            as: "libghostty-terminal-font-zoom-\(surfaceID.safeArtifactComponent)-\(evidenceName).json",
             errorLog: "libghostty-terminal-font-zoom-error.log",
             failureMessage: "Failed to record terminal font zoom evidence"
         )
@@ -159,7 +159,7 @@ extension LibGhosttyTerminalHostView {
         }
 
         return artifactDirectory.appendingPathComponent(
-            "libghostty-terminal-rendered-view-\(safeArtifactComponent(surfaceID))-\(phase).png"
+            "libghostty-terminal-rendered-view-\(surfaceID.safeArtifactComponent)-\(phase).png"
         )
     }
 
@@ -234,7 +234,7 @@ extension LibGhosttyTerminalHostView {
 
             try FileManager.default.createDirectory(at: artifactDirectory, withIntermediateDirectories: true)
             try text.write(
-                to: artifactDirectory.appendingPathComponent("libghostty-terminal-visible-text-\(safeArtifactComponent(surfaceID)).txt"),
+                to: artifactDirectory.appendingPathComponent("libghostty-terminal-visible-text-\(surfaceID.safeArtifactComponent).txt"),
                 atomically: true,
                 encoding: .utf8
             )
@@ -250,7 +250,7 @@ extension LibGhosttyTerminalHostView {
             }
             try? FileManager.default.createDirectory(at: artifactDirectory, withIntermediateDirectories: true)
             try? message.write(
-                to: artifactDirectory.appendingPathComponent("libghostty-terminal-visible-text-\(safeArtifactComponent(surfaceID))-error.log"),
+                to: artifactDirectory.appendingPathComponent("libghostty-terminal-visible-text-\(surfaceID.safeArtifactComponent)-error.log"),
                 atomically: true,
                 encoding: .utf8
             )
@@ -294,7 +294,7 @@ extension LibGhosttyTerminalHostView {
         ArtifactWriter.writeJSON(
             payload,
             to: artifactDirectory,
-            as: "libghostty-terminal-ended-process-autoclose-\(safeArtifactComponent(sessionKey.surfaceID)).json",
+            as: "libghostty-terminal-ended-process-autoclose-\(sessionKey.surfaceID.safeArtifactComponent).json",
             errorLog: "libghostty-terminal-ended-process-autoclose-error.log",
             failureMessage: "Failed to record ended-process auto-close evidence"
         )

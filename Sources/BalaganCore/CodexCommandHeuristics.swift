@@ -3,7 +3,9 @@ import Foundation
 /// Shared heuristics for recognizing a fresh (non-resume) Balagan-launched Codex session, used by
 /// both Codex session capture and the resume-launch policy.
 enum CodexCommandHeuristics {
-    static func snapshotContainsFreshCodexLaunch(_ snapshot: String) -> Bool {
+    /// Whether the scrollback mentions Codex at all; paired with `isFreshBalaganCodexCommand`, it's
+    /// the evidence that a fresh Codex actually ran in the tab.
+    static func snapshotMentionsCodex(_ snapshot: String) -> Bool {
         snapshot.localizedCaseInsensitiveContains("codex")
     }
 

@@ -281,10 +281,9 @@ public enum AgentUsageParser {
 
 /// Where agent usage lives on disk, and how to read the newest report.
 public enum AgentUsageStore {
-    /// Balagan's data folder: `$BALAGAN_HOME`, else `~/.balagan` (the same override the wrapper's
-    /// integration files honour).
+    /// Balagan's data folder (`BalaganHome`).
     public static var defaultRoot: String {
-        ProcessInfo.processInfo.environment["BALAGAN_HOME"]?.nilIfBlank ?? (NSHomeDirectory() + "/.balagan")
+        BalaganHome.root()
     }
 
     /// `<root>/usage/claude.json`: the `rate_limits` from Claude's last status-line refresh, written by
@@ -345,7 +344,7 @@ public enum AgentUsageStore {
     /// reads the tail of each rollout until one has a `rate_limits` line (a session that hasn't had a
     /// response yet has none).
     public static func readCodex(
-        codexHome: String = ProcessInfo.processInfo.environment["CODEX_HOME"] ?? (NSHomeDirectory() + "/.codex"),
+        codexHome: String = AgentHomes.codex().path,
         maxFiles: Int = 8,
         tailBytes: Int = 256 * 1024
     ) -> AgentUsage? {
@@ -370,21 +369,11 @@ public enum AgentUsageStore {
             }
         }
         for (url, _) in rollouts.sorted(by: { $0.1 > $1.1 }).prefix(maxFiles) {
-            if let usage = AgentUsageParser.codex(rolloutText: tail(of: url, bytes: tailBytes)) {
+            if let usage = AgentUsageParser.codex(rolloutText: FileTail.read(atPath: url.path, maxBytes: tailBytes)?.text ?? "") {
                 return usage
             }
         }
         return nil
-    }
-
-    static func tail(of url: URL, bytes: Int) -> String {
-        guard let handle = try? FileHandle(forReadingFrom: url) else { return "" }
-        defer { try? handle.close() }
-        let size = (try? handle.seekToEnd()) ?? 0
-        let start = size > UInt64(bytes) ? size - UInt64(bytes) : 0
-        try? handle.seek(toOffset: start)
-        let data = (try? handle.readToEnd()) ?? Data()
-        return String(decoding: data, as: UTF8.self)
     }
 }
 

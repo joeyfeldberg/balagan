@@ -17,22 +17,16 @@ public struct TranscriptLocator: Sendable {
         self.codexSessionsDirectoryURL = codexSessionsDirectoryURL
     }
 
-    public static func `default`(
-        homeDirectory: URL = FileManager.default.homeDirectoryForCurrentUser
-    ) -> TranscriptLocator {
-        TranscriptLocator(
-            claudeProjectsDirectoryURL: homeDirectory.appendingPathComponent(".claude/projects"),
-            codexSessionsDirectoryURL: homeDirectory.appendingPathComponent(".codex/sessions")
-        )
+    /// The stores for this process's environment.
+    public static func `default`() -> TranscriptLocator {
+        fromEnvironment(ProcessInfo.processInfo.environment)
     }
 
-    /// Honors `BALAGAN_CODEX_CAPTURE_HOME` the same way `CodexSessionCapture.fromEnvironment` does.
+    /// The stores under the agents' folders (`AgentHomes`: `$CLAUDE_CONFIG_DIR`, `$CODEX_HOME`, …).
     public static func fromEnvironment(_ environment: [String: String]) -> TranscriptLocator {
-        let home = FileManager.default.homeDirectoryForCurrentUser
-        let codexHome = environment["BALAGAN_CODEX_CAPTURE_HOME"].map(URL.init(fileURLWithPath:)) ?? home
-        return TranscriptLocator(
-            claudeProjectsDirectoryURL: home.appendingPathComponent(".claude/projects"),
-            codexSessionsDirectoryURL: codexHome.appendingPathComponent(".codex/sessions")
+        TranscriptLocator(
+            claudeProjectsDirectoryURL: AgentHomes.claude(environment: environment).appendingPathComponent("projects"),
+            codexSessionsDirectoryURL: AgentHomes.codex(environment: environment).appendingPathComponent("sessions")
         )
     }
 

@@ -15,7 +15,7 @@ struct ShortcutsSettingsPage: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .firstTextBaseline) {
                 Text("Shortcuts")
-                    .font(.system(size: 16 * scale, weight: .semibold))
+                    .font(.system(size: Theme.TextSize.heading * scale, weight: .semibold))
                     .foregroundStyle(Theme.textPrimary)
                 Spacer()
                 Button("Reset All") {
@@ -28,17 +28,17 @@ struct ShortcutsSettingsPage: View {
                 .help("Restore every shortcut to its default")
                 .accessibilityIdentifier("reset-all-shortcuts-button")
             }
-            .padding(.horizontal, 18 * scale)
+            .padding(.horizontal, SettingsLayout.inset * scale)
             .padding(.top, 18 * scale)
             .padding(.bottom, 4 * scale)
 
             Text(recordingAction == nil
                 ? "Click a shortcut, then press the new key combination."
                 : (recordError ?? "Press the new shortcut — or Esc to cancel."))
-                .font(.system(size: 11 * scale))
+                .font(.system(size: Theme.TextSize.small * scale))
                 .foregroundStyle(recordError == nil ? Theme.textTertiary : .orange)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 18 * scale)
+                .padding(.horizontal, SettingsLayout.inset * scale)
                 .padding(.bottom, 6 * scale)
 
             ForEach(ShortcutAction.Group.allCases, id: \.self) { group in
@@ -47,7 +47,7 @@ struct ShortcutsSettingsPage: View {
                     .tracking(0.5)
                     .foregroundStyle(Theme.textTertiary)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 18 * scale)
+                    .padding(.horizontal, SettingsLayout.inset * scale)
                     .padding(.top, 12 * scale)
                     .padding(.bottom, 2 * scale)
 
@@ -84,7 +84,7 @@ struct ShortcutsSettingsPage: View {
                 if isRecording { stopRecording() } else { startRecording(action) }
             } label: {
                 Text(isRecording ? "Press keys…" : chord.displayString)
-                    .font(.system(size: 12 * scale, weight: .medium, design: .rounded))
+                    .font(.system(size: Theme.TextSize.body * scale, weight: .medium, design: .rounded))
                     .foregroundStyle(isRecording ? Theme.accent : Theme.textPrimary)
                     .frame(minWidth: 74 * scale)
                     .padding(.horizontal, 10 * scale)
@@ -115,7 +115,7 @@ struct ShortcutsSettingsPage: View {
             .disabled(customized == false)
             .help("Reset to default")
         }
-        .padding(.horizontal, 16 * scale)
+        .padding(.horizontal, SettingsLayout.inset * scale)
         .padding(.vertical, 4 * scale)
     }
 

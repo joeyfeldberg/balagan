@@ -145,7 +145,7 @@ struct ProjectFormSheet: View {
             draft.defaultAgentCommand = command
         }
         .buttonStyle(.plain)
-        .font(.system(size: 12, weight: .medium))
+        .font(.system(size: Theme.TextSize.body, weight: .medium))
         .foregroundStyle(Theme.textSecondary)
         .padding(.horizontal, 10)
         .padding(.vertical, 5)

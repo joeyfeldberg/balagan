@@ -125,7 +125,7 @@ extension BoardViewModel {
         let task = task(for: taskID)
         let surface = task?.workspace.surface(id: surfaceID)
         let agentName = surface?.resumeBinding?.agentName
-        let title = task.map { $0.isProjectTerminals ? "\(projectName(for: $0.projectID)) — Terminals" : $0.title }
+        let title = task.map(displayTitle(for:))
             ?? "Balagan"
         let body = kind == .waiting
             ? AgentAttentionPolicy.waitingBody(agentName: agentName)

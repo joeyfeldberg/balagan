@@ -235,8 +235,8 @@ final class BalaganApplication: NSObject, NSApplicationDelegate, @unchecked Send
         window.appearance = NSAppearance(named: Theme.isDark ? .darkAqua : .aqua)
         window.contentView = NSHostingView(rootView: rootView)
 
-        // cmux-style titlebar controls next to the traffic lights: hide-sidebar toggle + notification
-        // bell that jumps to terminals where an agent finished.
+        // cmux-style titlebar controls next to the traffic lights: the sidebar toggle, back / forward,
+        // the agent-sessions menu and the notification bell.
         let titlebarControls = NSTitlebarAccessoryViewController()
         titlebarControls.layoutAttribute = .leading
         let controlsView = NSHostingView(rootView: TitlebarControls(viewModel: viewModel))

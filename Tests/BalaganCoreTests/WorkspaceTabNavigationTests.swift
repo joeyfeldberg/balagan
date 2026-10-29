@@ -78,4 +78,30 @@ final class WorkspaceTabNavigationTests: XCTestCase {
         // The single-pane tab has no split neighbor.
         XCTAssertNil(ws.neighborSurface(of: "A", direction: .right))
     }
+
+    /// A tab moves whole (its split comes along) and `surfaces` follows the new visual order.
+    func testMoveTabKeepsSplitsAndReordersSurfaces() {
+        let surfaces = ["a", "b", "c", "d"].map { BalaganFixtures.surface(id: $0, title: $0) }
+        var workspace = BalaganFixtures.workspace(
+            layout: .tabs([
+                .surface("a"),
+                .split(axis: .horizontal, children: [.surface("b"), .surface("c")]),
+                .surface("d"),
+            ]),
+            selectedSurfaceID: "a",
+            surfaces: surfaces
+        )
+
+        XCTAssertTrue(workspace.moveTab(from: 1, to: 2))
+        XCTAssertEqual(workspace.layout, .tabs([
+            .surface("a"),
+            .surface("d"),
+            .split(axis: .horizontal, children: [.surface("b"), .surface("c")]),
+        ]))
+        XCTAssertEqual(workspace.surfaces.map(\.id), ["a", "d", "b", "c"])
+
+        XCTAssertTrue(workspace.moveTab(from: 0, to: 99), "clamps to the end")
+        XCTAssertEqual(workspace.layout.tabContents.last, .surface("a"))
+        XCTAssertFalse(workspace.moveTab(from: 7, to: 0))
+    }
 }

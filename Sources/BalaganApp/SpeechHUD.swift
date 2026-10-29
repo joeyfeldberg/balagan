@@ -11,7 +11,7 @@ struct SpeechHUD: View {
         Group {
             if let notice = speech.notice {
                 Label(notice, systemImage: "speaker.slash")
-                    .font(.system(size: 12))
+                    .font(.system(size: Theme.TextSize.body))
                     .foregroundStyle(Theme.textSecondary)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 8)
@@ -32,14 +32,14 @@ struct SpeechHUD: View {
                 .symbolEffect(.variableColor.iterative, isActive: speech.state == .speaking)
 
             Text(currentSentence)
-                .font(.system(size: 12))
+                .font(.system(size: Theme.TextSize.body))
                 .foregroundStyle(Theme.textPrimary)
                 .lineLimit(1)
                 .truncationMode(.tail)
                 .frame(maxWidth: 380, alignment: .leading)
 
             Text("\(speech.currentIndex + 1)/\(speech.sentences.count)")
-                .font(.system(size: 10, design: .monospaced))
+                .font(.system(size: Theme.TextSize.micro, design: .monospaced))
                 .foregroundStyle(Theme.textTertiary)
 
             Divider().frame(height: 14)
@@ -72,7 +72,7 @@ struct SpeechHUD: View {
                 }
             } label: {
                 Text(rateLabel(speech.rateMultiplier))
-                    .font(.system(size: 11, weight: .medium))
+                    .font(.system(size: Theme.TextSize.small, weight: .medium))
                     .foregroundStyle(Theme.textSecondary)
             }
             .menuStyle(.borderlessButton)

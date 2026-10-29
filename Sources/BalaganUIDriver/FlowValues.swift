@@ -14,10 +14,8 @@ struct FlowValues {
     static let tags = "ui-flow, persisted"
     static let branch = "harness-flow-smoke"
     static let status = "Doing"
-    static let tabTitle = "Harness Tab"
     static let renamedTabTitle = "Harness Tab Renamed"
     static let transientTabTitle = "Harness Delete Tab"
-    static let startupCommand = "printf 'harness tab ready\\n'"
     static let contextEditedTaskName = "Harness Daily Context Task Edited"
     static let navigationOtherTaskName = "Harness Navigation Other Task"
 }

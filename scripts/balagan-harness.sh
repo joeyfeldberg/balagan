@@ -28,7 +28,7 @@ Usage: scripts/balagan-harness.sh <command> [fixture]
 Commands:
   build              Build the app target when one exists.
   test               Run unit/integration tests when targets exist.
-  ui-test            Run deterministic UI smoke tests and XCUITest when available.
+  ui-test            Run the deterministic SwiftPM UI smoke.
   ui-controls-smoke  Verify create/edit/status flow controls are exposed to UI tests.
   ui-flow-smoke      Verify scripted create/edit/status/tab flow persists through SQLite restore.
   ui-native-flow-smoke Drive create/edit/status/tab through macOS Accessibility and verify restore.
@@ -68,22 +68,6 @@ first_match() {
     fi
   done
   return 1
-}
-
-xcode_workspace() {
-  if [[ -n "${BALAGAN_XCODE_WORKSPACE:-}" ]]; then
-    printf '%s\n' "$BALAGAN_XCODE_WORKSPACE"
-    return 0
-  fi
-  first_match "*.xcworkspace"
-}
-
-xcode_project() {
-  if [[ -n "${BALAGAN_XCODE_PROJECT:-}" ]]; then
-    printf '%s\n' "$BALAGAN_XCODE_PROJECT"
-    return 0
-  fi
-  first_match "*.xcodeproj"
 }
 
 prepare_swift_environment() {
@@ -263,7 +247,7 @@ $run_dir
 EOF
 
   printf '%s\n' "App logs will be captured here when the app target exists." >"$run_dir/app.log"
-  printf '%s\n' "Accessibility tree dumps will be captured here when XCUITest exists." >"$run_dir/accessibility-tree.txt"
+  printf '%s\n' "Accessibility tree dumps from the UI driver are written to this run directory." >"$run_dir/accessibility-tree.txt"
 
   cat >"$run_dir/README.txt" <<EOF
 Balagan $command artifacts
@@ -1179,25 +1163,6 @@ run_swiftpm_ui_smoke() {
 }
 
 run_build() {
-  local workspace=""
-  local project=""
-
-  workspace="$(xcode_workspace || true)"
-  project="$(xcode_project || true)"
-
-  if [[ -n "$workspace" || -n "$project" ]]; then
-    command -v xcodebuild >/dev/null 2>&1 || die "xcodebuild is required for the discovered Xcode target"
-    if [[ -n "$workspace" ]]; then
-      log "building Xcode workspace $workspace with scheme $BALAGAN_SCHEME"
-      xcodebuild -workspace "$workspace" -scheme "$BALAGAN_SCHEME" -destination "$BALAGAN_DESTINATION" -configuration "$BALAGAN_BUILD_CONFIGURATION" build
-      return $?
-    else
-      log "building Xcode project $project with scheme $BALAGAN_SCHEME"
-      xcodebuild -project "$project" -scheme "$BALAGAN_SCHEME" -destination "$BALAGAN_DESTINATION" -configuration "$BALAGAN_BUILD_CONFIGURATION" build
-      return $?
-    fi
-  fi
-
   if [[ -f "$ROOT/Package.swift" ]]; then
     command -v swift >/dev/null 2>&1 || die "swift is required for Package.swift builds"
     prepare_swift_environment
@@ -1205,32 +1170,14 @@ run_build() {
     swift build --configuration "$SWIFT_BUILD_CONFIGURATION" --scratch-path "$ROOT/.build" --cache-path "$ROOT/.build/harness-cache/swiftpm" --product BalaganApp
     swift build --configuration "$SWIFT_BUILD_CONFIGURATION" --scratch-path "$ROOT/.build" --cache-path "$ROOT/.build/harness-cache/swiftpm" --product BalaganUIDriver
     swift build --configuration "$SWIFT_BUILD_CONFIGURATION" --scratch-path "$ROOT/.build" --cache-path "$ROOT/.build/harness-cache/swiftpm" --product balagan-agent
+    swift build --configuration "$SWIFT_BUILD_CONFIGURATION" --scratch-path "$ROOT/.build" --cache-path "$ROOT/.build/harness-cache/swiftpm" --product balagan
     return $?
   fi
 
-  log "no Package.swift, .xcodeproj, or .xcworkspace found; build placeholder skipped"
+  log "no Package.swift found; build skipped"
 }
 
 run_test() {
-  local workspace=""
-  local project=""
-
-  workspace="$(xcode_workspace || true)"
-  project="$(xcode_project || true)"
-
-  if [[ -n "$workspace" || -n "$project" ]]; then
-    command -v xcodebuild >/dev/null 2>&1 || die "xcodebuild is required for the discovered Xcode test target"
-    if [[ -n "$workspace" ]]; then
-      log "testing Xcode workspace $workspace with scheme $BALAGAN_SCHEME"
-      xcodebuild test -workspace "$workspace" -scheme "$BALAGAN_SCHEME" -destination "$BALAGAN_DESTINATION" -configuration "$BALAGAN_BUILD_CONFIGURATION"
-      return $?
-    else
-      log "testing Xcode project $project with scheme $BALAGAN_SCHEME"
-      xcodebuild test -project "$project" -scheme "$BALAGAN_SCHEME" -destination "$BALAGAN_DESTINATION" -configuration "$BALAGAN_BUILD_CONFIGURATION"
-      return $?
-    fi
-  fi
-
   if [[ -f "$ROOT/Package.swift" ]]; then
     command -v swift >/dev/null 2>&1 || die "swift is required for Package.swift tests"
     prepare_swift_environment
@@ -1239,7 +1186,7 @@ run_test() {
     return $?
   fi
 
-  log "no Package.swift, .xcodeproj, or .xcworkspace found; test placeholder skipped"
+  log "no Package.swift found; tests skipped"
 }
 
 run_ui_test() {
@@ -1255,37 +1202,7 @@ run_ui_test() {
   db="$(seed_fixture_database "$fixture" "$fixture_file" "$run_dir")"
   write_run_contract ui-test "$fixture" "$fixture_file" "$db" "$run_dir"
 
-  local workspace=""
-  local project=""
-  workspace="$(xcode_workspace || true)"
-  project="$(xcode_project || true)"
-
-  if [[ -z "$workspace" && -z "$project" ]]; then
-    log "no Xcode project/workspace found; running SwiftPM UI smoke instead of XCUITest"
-    run_swiftpm_ui_smoke "$fixture" "$fixture_file" "$db" "$run_dir"
-    log "UI test artifacts: $run_dir"
-    return 0
-  fi
-
-  command -v xcodebuild >/dev/null 2>&1 || die "xcodebuild is required for UI tests"
-
-  export BALAGAN_DISABLE_REAL_PROCESSES=1
-  export BALAGAN_FAKE_TERMINAL_OUTPUT="$fixture"
-  export BALAGAN_FIXTURE_PATH="$fixture_file"
-  export BALAGAN_SQLITE_PATH="$db"
-  export BALAGAN_STATE_PATH="$run_dir/Balagan.state.json"
-  export BALAGAN_UI_TEST_ARTIFACT_DIR="$run_dir"
-  export BALAGAN_RECORD_SELECTED_RESUME=0
-  export BALAGAN_FREEZE_TIME
-
-  if [[ -n "$workspace" ]]; then
-    log "running XCUITest workspace $workspace with scheme $BALAGAN_UI_TEST_SCHEME"
-    xcodebuild test -workspace "$workspace" -scheme "$BALAGAN_UI_TEST_SCHEME" -destination "$BALAGAN_DESTINATION" -configuration "$BALAGAN_BUILD_CONFIGURATION" -resultBundlePath "$run_dir/BalaganUITests.xcresult"
-  else
-    log "running XCUITest project $project with scheme $BALAGAN_UI_TEST_SCHEME"
-    xcodebuild test -project "$project" -scheme "$BALAGAN_UI_TEST_SCHEME" -destination "$BALAGAN_DESTINATION" -configuration "$BALAGAN_BUILD_CONFIGURATION" -resultBundlePath "$run_dir/BalaganUITests.xcresult"
-  fi
-
+  run_swiftpm_ui_smoke "$fixture" "$fixture_file" "$db" "$run_dir"
   log "UI test artifacts: $run_dir"
 }
 
@@ -3844,7 +3761,14 @@ EOF
 
 run_lint() {
   validate_fixtures
-  bash -n "$ROOT"/scripts/*.sh
+  # One file per check (`bash -n a b` parses only `a`), each with the shell its shebang names.
+  local script
+  for script in "$ROOT"/scripts/*.sh "$ROOT"/docs/screenshots/*.sh; do
+    case "$(head -1 "$script")" in
+      *zsh*) zsh -n "$script" ;;
+      *) bash -n "$script" ;;
+    esac
+  done
   log "shell syntax validated"
 }
 

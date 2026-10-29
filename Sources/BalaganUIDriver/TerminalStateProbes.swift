@@ -5,10 +5,6 @@ import Foundation
 import BalaganCore
 
 extension NativeFlowDriver {
-    func shellSingleQuoted(_ value: String) -> String {
-        "'\(value.replacingOccurrences(of: "'", with: "'\\''"))'"
-    }
-
     func visibleTextURL(surfaceID: String) -> URL {
         artifactDirectory.appendingPathComponent("libghostty-terminal-visible-text-\(surfaceID.safeArtifactComponent).txt")
     }

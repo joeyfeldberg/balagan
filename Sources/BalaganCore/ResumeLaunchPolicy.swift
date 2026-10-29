@@ -104,7 +104,7 @@ public enum ResumeLaunchPolicy {
     private static func isUncapturedFreshCodexAgentRestore(surface: Surface, startupCommand: String) -> Bool {
         guard let snapshot = surface.scrollbackSnapshot?.trimmingCharacters(in: .whitespacesAndNewlines),
               snapshot.isEmpty == false,
-              CodexCommandHeuristics.snapshotContainsFreshCodexLaunch(snapshot)
+              CodexCommandHeuristics.snapshotMentionsCodex(snapshot)
         else {
             return false
         }

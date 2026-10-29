@@ -97,8 +97,8 @@ extension NativeFlowDriver {
         let readyURL = artifactDirectory.appendingPathComponent("terminal-control-ready.txt")
         let interruptURL = artifactDirectory.appendingPathComponent("terminal-control-interrupt.txt")
         let interruptCommand = [
-            "trap 'printf BALAGAN_CTRL_C_OK > \(shellSingleQuoted(interruptURL.path)); exit 130' INT",
-            "printf BALAGAN_CTRL_READY > \(shellSingleQuoted(readyURL.path))",
+            "trap 'printf BALAGAN_CTRL_C_OK > \(interruptURL.path.shellQuoted); exit 130' INT",
+            "printf BALAGAN_CTRL_READY > \(readyURL.path.shellQuoted)",
             "while :; do sleep 1; done",
         ].joined(separator: "; ")
 
@@ -114,7 +114,7 @@ extension NativeFlowDriver {
         let terminalIdentifiers = terminalIdentifiers(surfaceID: surfaceID)
         try waitForTerminalHostMounted(surfaceID: surfaceID)
         try clickAny(identifiers: terminalIdentifiers)
-        pasteOnly("/bin/sh -lc \(shellSingleQuoted(interruptCommand))\n")
+        pasteOnly("/bin/sh -lc \(interruptCommand.shellQuoted)\n")
         try waitForFile(readyURL, timeout: 10)
 
         postModifiedKey(virtualKey: 8, flags: .maskControl)

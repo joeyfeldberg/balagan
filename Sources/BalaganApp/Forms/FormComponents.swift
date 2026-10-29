@@ -63,7 +63,7 @@ struct ColoredSegmentedPicker<Value>: View where Value: Hashable & Identifiable 
                     selection = value
                 } label: {
                     Text(title(value))
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.system(size: Theme.TextSize.body, weight: .medium))
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
                         .frame(maxWidth: .infinity)

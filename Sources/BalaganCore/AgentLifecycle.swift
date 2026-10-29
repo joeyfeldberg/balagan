@@ -38,6 +38,14 @@ public enum TaskAgentState: String, Sendable, Equatable, CaseIterable {
         return .none
     }
 
+    /// The loudest of several tasks' states, for a project row: running > needs-input > idle. Asleep
+    /// and agent-less tasks say nothing, so a project of only those reads `.none`.
+    public static func loudest(_ states: [TaskAgentState]) -> TaskAgentState {
+        if states.contains(.running) { return .running }
+        if states.contains(.needsInput) { return .needsInput }
+        return states.contains(.idle) ? .idle : .none
+    }
+
     /// The states `wait` targets when the caller passes no `--until`: the "settled" set an agent lands
     /// in when it's done working (idle) or is asking for something (needs-input).
     public static let defaultSettled: [TaskAgentState] = [.idle, .needsInput]
