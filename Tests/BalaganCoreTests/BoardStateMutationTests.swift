@@ -75,6 +75,24 @@ final class BoardStateMutationTests: XCTestCase {
         XCTAssertEqual(workspace.layout, .tabs([.surface(primary.id)]))
     }
 
+    /// Deleting the selected tab selects the next one, or the previous one when it was the last.
+    func testDeleteSelectedSurfacePrefersTrailingThenLeadingTab() throws {
+        let surfaces = ["a", "b", "c"].map { BalaganFixtures.surface(id: $0, title: $0) }
+        let layout = WorkspaceLayout.tabs(surfaces.map { .surface($0.id) })
+
+        var middle = BalaganFixtures.workspace(layout: layout, selectedSurfaceID: "b", surfaces: surfaces)
+        try middle.deleteSurface(id: "b")
+        XCTAssertEqual(middle.selectedSurfaceID, "c")
+
+        var last = BalaganFixtures.workspace(layout: layout, selectedSurfaceID: "c", surfaces: surfaces)
+        try last.deleteSurface(id: "c")
+        XCTAssertEqual(last.selectedSurfaceID, "b")
+
+        var other = BalaganFixtures.workspace(layout: layout, selectedSurfaceID: "a", surfaces: surfaces)
+        try other.deleteSurface(id: "c")
+        XCTAssertEqual(other.selectedSurfaceID, "a")
+    }
+
     func testDeleteSelectedSplitSurfaceCollapsesToSiblingSurface() throws {
         let primary = BalaganFixtures.surface(id: "primary", title: "Primary")
         let secondary = BalaganFixtures.surface(id: "secondary", title: "Secondary")

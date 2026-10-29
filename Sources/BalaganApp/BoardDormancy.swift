@@ -26,7 +26,7 @@ extension BoardViewModel {
     var canWakeInBackground: Bool { backgroundTaskWaker != nil }
 
     func wakeInBackground(taskID: TaskItem.ID) {
-        guard let task = tasks.first(where: { $0.id == taskID }), taskIsDormant(task) else { return }
+        guard let task = task(for: taskID), taskIsDormant(task) else { return }
         wakeTaskIfHibernated(taskID: taskID)
         backgroundTaskWaker?(taskID)
     }

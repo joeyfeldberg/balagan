@@ -122,8 +122,8 @@ extension BoardViewModel {
         surfaceID: Surface.ID,
         kind: AgentAttentionPolicy.Banner
     ) -> AgentBanner {
-        let task = tasks.first { $0.id == taskID }
-        let surface = task?.workspace.surfaces.first { $0.id == surfaceID }
+        let task = task(for: taskID)
+        let surface = task?.workspace.surface(id: surfaceID)
         let agentName = surface?.resumeBinding?.agentName
         let title = task.map { $0.isProjectTerminals ? "\(projectName(for: $0.projectID)) — Terminals" : $0.title }
             ?? "Balagan"

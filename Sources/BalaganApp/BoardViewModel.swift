@@ -216,7 +216,7 @@ final class BoardViewModel: ObservableObject, @unchecked Sendable {
         self.dataSource = dataSource
         if let selectedTaskID,
            let selectedSurfaceID = self.selectedSurfaceID,
-           let index = self.tasks.firstIndex(where: { $0.id == selectedTaskID }),
+           let index = self.taskIndex(for: selectedTaskID),
            self.tasks[index].workspace.surfaces.contains(where: { $0.id == selectedSurfaceID }) {
             self.tasks[index].workspace.selectedSurfaceID = selectedSurfaceID
         }
@@ -230,7 +230,7 @@ final class BoardViewModel: ObservableObject, @unchecked Sendable {
             return nil
         }
 
-        return tasks.first { $0.id == selectedTaskID }
+        return task(for: selectedTaskID)
     }
 
     var selectedResumePlan: ResumeCommandPlan? {
@@ -243,7 +243,7 @@ final class BoardViewModel: ObservableObject, @unchecked Sendable {
             ?? selectedTask.workspace.surfaces.first?.id else {
             return nil
         }
-        return selectedTask.workspace.surfaces.first { $0.id == selectedSurfaceID }?.resumePlan(taskID: selectedTask.id)
+        return selectedTask.workspace.surface(id: selectedSurfaceID)?.resumePlan(taskID: selectedTask.id)
     }
 
     /// Real, board-visible tasks (excludes the per-project hidden "Terminals" workspaces and archived
@@ -288,7 +288,7 @@ final class BoardViewModel: ObservableObject, @unchecked Sendable {
     /// Whether a task's project has this lane. On All Projects a lane may come from another project
     /// only, and moving a task there would hide it from its own board.
     func laneAccepts(taskID: TaskItem.ID, status: TaskStatus) -> Bool {
-        guard let task = tasks.first(where: { $0.id == taskID }) else { return false }
+        guard let task = task(for: taskID) else { return false }
         return lanes(forProjectID: task.projectID).contains { $0.status == status }
     }
 }

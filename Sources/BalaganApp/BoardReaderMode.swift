@@ -17,15 +17,7 @@ extension BoardViewModel {
 
     /// The surface reader mode / speak-last-response target: the selected task's active surface.
     var selectedTaskActiveSurface: Surface? {
-        selectedTask.flatMap(activeSurface(of:))
-    }
-
-    func activeSurface(of task: TaskItem) -> Surface? {
-        if let selectedID = task.workspace.selectedSurfaceID,
-           let surface = task.workspace.surfaces.first(where: { $0.id == selectedID }) {
-            return surface
-        }
-        return task.workspace.surfaces.first
+        selectedTask.flatMap(activeSurface(for:))
     }
 
     /// The transcript behind a surface, if the surface belongs to an agent session. Prefers the

@@ -20,6 +20,21 @@ func prettyJSON(_ object: Any) -> String {
     return string
 }
 
+/// Sends one request and decodes the app's response, exiting with a message when the app can't be
+/// reached or answers with something that isn't JSON.
+func sendRequest(_ request: ControlRequest, socketPath: String) -> [String: Any] {
+    let data: Data
+    do {
+        data = try ControlSocketClient.send(request: request, socketPath: socketPath)
+    } catch {
+        emitError("balagan: could not reach Balagan at \(socketPath)\n  \(error)\n  Is the app running?")
+    }
+    guard let response = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else {
+        emitError("balagan: empty or malformed response from the app at \(socketPath)")
+    }
+    return response
+}
+
 /// Formats a successful `result` payload per command. Falls back to pretty JSON for anything unmapped.
 func printResult(method: String, result: Any?) {
     switch method {
@@ -151,15 +166,7 @@ func runWait(_ invocation: ControlInvocation) -> Never {
     let pollInterval: TimeInterval = 0.15
 
     while true {
-        let data: Data
-        do {
-            data = try ControlSocketClient.send(request: stateRequest, socketPath: socketPath)
-        } catch {
-            emitError("balagan: could not reach Balagan at \(socketPath)\n  \(error)\n  Is the app running?")
-        }
-        guard let response = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else {
-            emitError("balagan: empty or malformed response from the app at \(socketPath)")
-        }
+        let response = sendRequest(stateRequest, socketPath: socketPath)
         if (response["ok"] as? Bool ?? false) == false {
             emitError("balagan: \(response["error"] as? String ?? "unknown error")")
         }
@@ -197,17 +204,7 @@ case let .invocation(invocation):
     }
 
     let socketPath = invocation.socketPath ?? ControlSocket.defaultPath()
-    let responseData: Data
-    do {
-        responseData = try ControlSocketClient.send(request: invocation.request, socketPath: socketPath)
-    } catch {
-        emitError("balagan: could not reach Balagan at \(socketPath)\n  \(error)\n  Is the app running?")
-    }
-
-    guard let response = (try? JSONSerialization.jsonObject(with: responseData)) as? [String: Any] else {
-        emitError("balagan: empty or malformed response from the app at \(socketPath)")
-    }
-
+    let response = sendRequest(invocation.request, socketPath: socketPath)
     let succeeded = response["ok"] as? Bool ?? false
     if invocation.rawJSON {
         print(prettyJSON(response))

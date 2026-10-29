@@ -140,22 +140,6 @@ extension Workspace {
         layout.orderedSurfaceIDs(availableSurfaceIDs: surfaces.map(\.id))
     }
 
-    public func surfaceID(after surfaceID: Surface.ID, wrapping: Bool = true) -> Surface.ID? {
-        orderedSurfaceID(relativeTo: surfaceID, offset: 1, wrapping: wrapping)
-    }
-
-    public func surfaceID(before surfaceID: Surface.ID, wrapping: Bool = true) -> Surface.ID? {
-        orderedSurfaceID(relativeTo: surfaceID, offset: -1, wrapping: wrapping)
-    }
-
-    public func surfaceID(atTabIndex index: Int) -> Surface.ID? {
-        let orderedSurfaceIDs = orderedSurfaceIDs
-        guard orderedSurfaceIDs.indices.contains(index) else {
-            return nil
-        }
-        return orderedSurfaceIDs[index]
-    }
-
     /// Next/previous **tab** surface — cycles only the tab surfaces (a `.tabs` group or a root single
     /// surface), never split panes (those are reached via split focus). If the current surface isn't a
     /// tab (e.g. it's a split pane), switches to the first tab.
@@ -200,12 +184,6 @@ extension Workspace {
             : canonical
     }
 
-    public func deletingSurface(id surfaceID: Surface.ID) throws -> Workspace {
-        var copy = self
-        try copy.deleteSurface(id: surfaceID)
-        return copy
-    }
-
     @discardableResult
     public mutating func deleteSurface(id surfaceID: Surface.ID) throws -> Surface {
         guard let surfaceIndex = surfaces.firstIndex(where: { $0.id == surfaceID }) else {
@@ -213,35 +191,13 @@ extension Workspace {
         }
 
         let previousOrderedSurfaceIDs = orderedSurfaceIDs
-        let previousSelectedSurfaceID = selectedSurfaceID
         let removed = surfaces.remove(at: surfaceIndex)
-        normalizeAfterSurfaceChange(
-            deletedSurfaceID: surfaceID,
-            previousOrderedSurfaceIDs: previousOrderedSurfaceIDs,
-            previousSelectedSurfaceID: previousSelectedSurfaceID
-        )
+        normalizeAfterDeleting(surfaceID, previousOrderedSurfaceIDs: previousOrderedSurfaceIDs)
         return removed
     }
 
-    public func normalizedAfterSurfaceChange(deletedSurfaceID: Surface.ID? = nil) -> Workspace {
-        var copy = self
-        copy.normalizeAfterSurfaceChange(deletedSurfaceID: deletedSurfaceID)
-        return copy
-    }
-
-    public mutating func normalizeAfterSurfaceChange(deletedSurfaceID: Surface.ID? = nil) {
-        normalizeAfterSurfaceChange(
-            deletedSurfaceID: deletedSurfaceID,
-            previousOrderedSurfaceIDs: nil,
-            previousSelectedSurfaceID: nil
-        )
-    }
-
-    private mutating func normalizeAfterSurfaceChange(
-        deletedSurfaceID: Surface.ID?,
-        previousOrderedSurfaceIDs: [Surface.ID]?,
-        previousSelectedSurfaceID: Surface.ID?
-    ) {
+    /// Prunes the deleted surface from the layout and, if it was selected, selects its neighbor.
+    private mutating func normalizeAfterDeleting(_ deletedSurfaceID: Surface.ID, previousOrderedSurfaceIDs: [Surface.ID]) {
         let surfaceIDs = surfaces.map(\.id)
         layout = layout.pruningUnavailableSurfaceIDs(surfaceIDs) ?? .tabs(surfaceIDs.map { .surface($0) })
 
@@ -257,21 +213,18 @@ extension Workspace {
         }
 
         selectedSurfaceID = replacementSurfaceID(
-            afterDeleting: deletedSurfaceID ?? previousSelectedSurfaceID,
+            afterDeleting: deletedSurfaceID,
             previousOrderedSurfaceIDs: previousOrderedSurfaceIDs,
             availableSurfaceIDs: surfaceIDs
         )
     }
 
     private func replacementSurfaceID(
-        afterDeleting deletedSurfaceID: Surface.ID?,
-        previousOrderedSurfaceIDs: [Surface.ID]?,
+        afterDeleting deletedSurfaceID: Surface.ID,
+        previousOrderedSurfaceIDs: [Surface.ID],
         availableSurfaceIDs: [Surface.ID]
     ) -> Surface.ID? {
-        guard let deletedSurfaceID,
-              let previousOrderedSurfaceIDs,
-              let deletedIndex = previousOrderedSurfaceIDs.firstIndex(of: deletedSurfaceID)
-        else {
+        guard let deletedIndex = previousOrderedSurfaceIDs.firstIndex(of: deletedSurfaceID) else {
             return availableSurfaceIDs.first
         }
 
@@ -286,26 +239,6 @@ extension Workspace {
         }
 
         return availableSurfaceIDs.first
-    }
-
-    private func orderedSurfaceID(relativeTo surfaceID: Surface.ID, offset: Int, wrapping: Bool) -> Surface.ID? {
-        let orderedSurfaceIDs = orderedSurfaceIDs
-        guard orderedSurfaceIDs.isEmpty == false,
-              let currentIndex = orderedSurfaceIDs.firstIndex(of: surfaceID)
-        else {
-            return nil
-        }
-
-        let nextIndex = currentIndex + offset
-        if orderedSurfaceIDs.indices.contains(nextIndex) {
-            return orderedSurfaceIDs[nextIndex]
-        }
-
-        guard wrapping else {
-            return nil
-        }
-
-        return offset > 0 ? orderedSurfaceIDs.first : orderedSurfaceIDs.last
     }
 }
 

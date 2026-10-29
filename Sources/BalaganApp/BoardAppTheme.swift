@@ -26,13 +26,15 @@ extension BoardViewModel {
             GhosttyConfigOverrides.terminalTheme = terminalTheme
             if getenv("GHOSTTY_RESOURCES_DIR") != nil {
                 GhosttyConfigOverrides.install()
-                // Theme changes come from the UI, on the main thread.
                 MainActor.assumeIsolated { TerminalHostRegistry.shared.reloadGhosttyConfig() }
             }
         }
-        let appearance = NSAppearance(named: Theme.isDark ? .darkAqua : .aqua)
-        for window in NSApp?.windows ?? [] where window.styleMask.contains(.titled) {
-            window.appearance = appearance
+        // Theme changes come from the UI, on the main thread.
+        MainActor.assumeIsolated {
+            let appearance = NSAppearance(named: Theme.isDark ? .darkAqua : .aqua)
+            for window in NSApp?.windows ?? [] where window.styleMask.contains(.titled) {
+                window.appearance = appearance
+            }
         }
     }
 }

@@ -76,7 +76,7 @@ extension BoardViewModel {
         case let .board(projectID?):
             showProjectTasks(projectID: projectID)
         case let .task(id):
-            if let task = tasks.first(where: { $0.id == id }) { select(task: task) }
+            if let task = task(for: id) { select(task: task) }
         }
     }
 }

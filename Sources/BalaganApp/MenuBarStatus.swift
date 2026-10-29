@@ -79,8 +79,8 @@ final class MenuBarStatus: NSObject, NSMenuDelegate {
             if menu.items.isEmpty == false { menu.addItem(.separator()) }
             menu.addItem(NSMenuItem.sectionHeader(title: title))
             for row in rows {
-                guard let task = viewModel.tasks.first(where: { $0.id == row.taskID }) else { continue }
-                let tab = task.workspace.surfaces.first { $0.id == row.surfaceID }
+                guard let task = viewModel.task(for: row.taskID) else { continue }
+                let tab = task.workspace.surface(id: row.surfaceID)
                 var label = task.title
                 if task.workspace.surfaces.count > 1, let tab { label += " · \(tab.title)" }
                 if let since = row.since { label += " · \(SidebarUsageMeter.agoPhrase(since, now: now).replacingOccurrences(of: " ago", with: ""))" }

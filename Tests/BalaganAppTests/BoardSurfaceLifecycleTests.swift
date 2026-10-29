@@ -70,35 +70,4 @@ final class BoardSurfaceLifecycleTests: XCTestCase {
         XCTAssertEqual(space.selectedSurfaceID, trailing)
         XCTAssertEqual(viewModel.selectedSurfaceID, trailing)
     }
-
-    /// The pure replacement-rule helper directly: trailing neighbor first, then the leading one, then
-    /// any available surface if the deleted id wasn't in the previous order.
-    func testReplacementSurfaceIDPrefersTrailingThenLeading() {
-        let viewModel = makeViewModel()
-
-        XCTAssertEqual(
-            viewModel.replacementSurfaceID(
-                afterDeleting: "b",
-                previousOrderedSurfaceIDs: ["a", "b", "c"],
-                availableSurfaceIDs: ["a", "c"]
-            ),
-            "c"
-        )
-        XCTAssertEqual(
-            viewModel.replacementSurfaceID(
-                afterDeleting: "c",
-                previousOrderedSurfaceIDs: ["a", "b", "c"],
-                availableSurfaceIDs: ["a", "b"]
-            ),
-            "b"
-        )
-        XCTAssertEqual(
-            viewModel.replacementSurfaceID(
-                afterDeleting: "unknown",
-                previousOrderedSurfaceIDs: ["a", "b"],
-                availableSurfaceIDs: ["a", "b"]
-            ),
-            "a"
-        )
-    }
 }

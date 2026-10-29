@@ -7,7 +7,7 @@ import BalaganCore
 /// on the view model.
 extension BoardViewModel {
     func setSplitWeights(taskID: TaskItem.ID, key: String, weights: [Double]) {
-        guard let index = tasks.firstIndex(where: { $0.id == taskID }) else {
+        guard let index = taskIndex(for: taskID) else {
             return
         }
         tasks[index].workspace.setSplitWeights(weights, forKey: key)
@@ -15,7 +15,7 @@ extension BoardViewModel {
     }
 
     func equalizeSplits(taskID: TaskItem.ID) {
-        guard let index = tasks.firstIndex(where: { $0.id == taskID }) else {
+        guard let index = taskIndex(for: taskID) else {
             return
         }
         tasks[index].workspace.equalizeSplits()
@@ -23,7 +23,7 @@ extension BoardViewModel {
     }
 
     func select(surfaceID: Surface.ID, forTaskID taskID: TaskItem.ID) {
-        guard let index = tasks.firstIndex(where: { $0.id == taskID }) else {
+        guard let index = taskIndex(for: taskID) else {
             return
         }
 
@@ -32,8 +32,7 @@ extension BoardViewModel {
         }
 
         tasks[index].workspace.selectedSurfaceID = surfaceID
-        tasks[index].workspace.lastOpenedAt = Date()
-        tasks[index].updatedAt = Date()
+        tasks[index].touchWorkspace()
         if selectedTaskID == taskID {
             selectedWorkspaceID = tasks[index].workspace.id
             selectedSurfaceID = surfaceID
@@ -50,7 +49,7 @@ extension BoardViewModel {
     }
 
     func selectSurface(taskID: TaskItem.ID, tabIndex: Int) {
-        guard let task = tasks.first(where: { $0.id == taskID }),
+        guard let task = task(for: taskID),
               let surfaceID = task.workspace.surfaceID(atTabIndex: tabIndex)
         else {
             return
@@ -60,8 +59,8 @@ extension BoardViewModel {
     }
 
     func selectLastSurface(taskID: TaskItem.ID) {
-        guard let task = tasks.first(where: { $0.id == taskID }),
-              let surfaceID = task.workspace.lastSurfaceID
+        guard let task = task(for: taskID),
+              let surfaceID = task.workspace.lastTabSurfaceID
         else {
             return
         }
@@ -73,7 +72,7 @@ extension BoardViewModel {
     /// `goto_split`). Returns the surface that was focused, or nil if there's no pane that way.
     @discardableResult
     func focusAdjacentSurface(taskID: TaskItem.ID, direction: SplitFocusDirection) -> Surface.ID? {
-        guard let task = tasks.first(where: { $0.id == taskID }),
+        guard let task = task(for: taskID),
               let current = task.workspace.selectedSurfaceID ?? task.workspace.surfaces.first?.id,
               let neighbor = task.workspace.neighborSurface(of: current, direction: direction)
         else {
@@ -85,7 +84,7 @@ extension BoardViewModel {
     }
 
     func createSurface(taskID: TaskItem.ID, title: String, cwd: String, startupCommand: String?) {
-        guard let index = tasks.firstIndex(where: { $0.id == taskID }) else {
+        guard let index = taskIndex(for: taskID) else {
             return
         }
 
@@ -114,8 +113,7 @@ extension BoardViewModel {
         tasks[index].workspace.surfaces.append(surface)
         tasks[index].workspace.layout = layoutBeforeAdd.addingTab(.surface(surface.id))
         tasks[index].workspace.selectedSurfaceID = surface.id
-        tasks[index].workspace.lastOpenedAt = Date()
-        tasks[index].updatedAt = Date()
+        tasks[index].touchWorkspace()
         if selectedTaskID == taskID {
             selectedWorkspaceID = tasks[index].workspace.id
             selectedSurfaceID = surface.id
@@ -123,7 +121,7 @@ extension BoardViewModel {
     }
 
     func createDefaultSurface(taskID: TaskItem.ID) {
-        guard let index = tasks.firstIndex(where: { $0.id == taskID }) else {
+        guard let index = taskIndex(for: taskID) else {
             return
         }
 
@@ -140,7 +138,7 @@ extension BoardViewModel {
     }
 
     func createAgentSurface(taskID: TaskItem.ID) {
-        guard let index = tasks.firstIndex(where: { $0.id == taskID }),
+        guard let index = taskIndex(for: taskID),
               let project = project(for: tasks[index].projectID),
               let startupCommand = AgentStartupCommandResolver.startupCommand(
                 defaultAgentCommand: project.defaultAgentCommand,
@@ -166,7 +164,7 @@ extension BoardViewModel {
     /// A new tab running a specific agent (the `+` menu's "New <agent> Tab"), whatever the project's
     /// default is.
     func createAgentSurface(taskID: TaskItem.ID, profileID: String) {
-        guard let index = tasks.firstIndex(where: { $0.id == taskID }),
+        guard let index = taskIndex(for: taskID),
               let profile = AgentProfiles.named(profileID),
               let startupCommand = AgentStartupCommandResolver.startupCommand(
                   defaultAgentCommand: AgentCommandDefaults.command(for: profile.id),
@@ -183,7 +181,7 @@ extension BoardViewModel {
     }
 
     func splitSurface(taskID: TaskItem.ID, axis: SplitAxis) {
-        guard let index = tasks.firstIndex(where: { $0.id == taskID }) else {
+        guard let index = taskIndex(for: taskID) else {
             return
         }
 
@@ -216,8 +214,7 @@ extension BoardViewModel {
             newSurfaceID: surfaceID
         ) ?? currentLayout.addingTab(.surface(surfaceID))
         tasks[index].workspace.selectedSurfaceID = surfaceID
-        tasks[index].workspace.lastOpenedAt = Date()
-        tasks[index].updatedAt = Date()
+        tasks[index].touchWorkspace()
         if selectedTaskID == taskID {
             selectedWorkspaceID = tasks[index].workspace.id
             selectedSurfaceID = surfaceID
@@ -225,39 +222,24 @@ extension BoardViewModel {
     }
 
     func renameSurface(taskID: TaskItem.ID, surfaceID: Surface.ID, title: String) {
-        guard let taskIndex = tasks.firstIndex(where: { $0.id == taskID }),
+        guard let taskIndex = taskIndex(for: taskID),
               let surfaceIndex = tasks[taskIndex].workspace.surfaces.firstIndex(where: { $0.id == surfaceID })
         else {
             return
         }
 
         tasks[taskIndex].workspace.surfaces[surfaceIndex].title = title.trimmedForStorage
-        tasks[taskIndex].workspace.lastOpenedAt = Date()
-        tasks[taskIndex].updatedAt = Date()
+        tasks[taskIndex].touchWorkspace()
     }
 
     func deleteSurface(taskID: TaskItem.ID, surfaceID: Surface.ID) {
-        guard let taskIndex = tasks.firstIndex(where: { $0.id == taskID }) else {
+        guard let taskIndex = taskIndex(for: taskID) else {
             return
         }
 
-        let previousOrderedSurfaceIDs = tasks[taskIndex].workspace.orderedSurfaceIDs
-        tasks[taskIndex].workspace.surfaces.removeAll { $0.id == surfaceID }
-        let remainingSurfaceIDs = tasks[taskIndex].workspace.surfaces.map(\.id)
-        let currentLayout = tasks[taskIndex].workspace.layout
-        tasks[taskIndex].workspace.layout = currentLayout.pruningUnavailableSurfaceIDs(remainingSurfaceIDs)
-            ?? .tabs(remainingSurfaceIDs.map { .surface($0) })
-        if tasks[taskIndex].workspace.selectedSurfaceID == surfaceID
-            || tasks[taskIndex].workspace.selectedSurfaceID.map({ remainingSurfaceIDs.contains($0) }) != true {
-            tasks[taskIndex].workspace.selectedSurfaceID = replacementSurfaceID(
-                afterDeleting: surfaceID,
-                previousOrderedSurfaceIDs: previousOrderedSurfaceIDs,
-                availableSurfaceIDs: remainingSurfaceIDs
-            )
-        }
-
-        tasks[taskIndex].workspace.lastOpenedAt = Date()
-        tasks[taskIndex].updatedAt = Date()
+        // Prunes the layout and moves the selection to the next tab (or the previous one).
+        _ = try? tasks[taskIndex].workspace.deleteSurface(id: surfaceID)
+        tasks[taskIndex].touchWorkspace()
         if selectedTaskID == taskID {
             selectedWorkspaceID = tasks[taskIndex].workspace.id
             selectedSurfaceID = tasks[taskIndex].workspace.selectedSurfaceID
@@ -267,7 +249,7 @@ extension BoardViewModel {
     /// Reorders the workspace's tabs by moving the tab at `fromOffset` to `toOffset` (insertion index
     /// among the remaining tabs). Reorders whole tabs, so a tab that contains a split moves intact.
     func moveSurfaceTab(taskID: TaskItem.ID, fromOffset: Int, toOffset: Int) {
-        guard let taskIndex = tasks.firstIndex(where: { $0.id == taskID }) else {
+        guard let taskIndex = taskIndex(for: taskID) else {
             return
         }
 
@@ -296,7 +278,7 @@ extension BoardViewModel {
         cwd: String,
         output: [String]
     ) {
-        guard let taskIndex = tasks.firstIndex(where: { $0.id == taskID }),
+        guard let taskIndex = taskIndex(for: taskID),
               let surfaceIndex = tasks[taskIndex].workspace.surfaces.firstIndex(where: { $0.id == surfaceID })
         else {
             return
@@ -305,28 +287,7 @@ extension BoardViewModel {
         tasks[taskIndex].workspace.surfaces[surfaceIndex].title = title
         tasks[taskIndex].workspace.surfaces[surfaceIndex].cwd = cwd
         tasks[taskIndex].workspace.surfaces[surfaceIndex].output = output
-        tasks[taskIndex].workspace.lastOpenedAt = Date()
-        tasks[taskIndex].updatedAt = Date()
-    }
-
-    func updateSurfaceOutput(
-        taskID: TaskItem.ID,
-        surfaceID: Surface.ID,
-        output: [String]
-    ) {
-        guard let taskIndex = tasks.firstIndex(where: { $0.id == taskID }),
-              let surfaceIndex = tasks[taskIndex].workspace.surfaces.firstIndex(where: { $0.id == surfaceID })
-        else {
-            return
-        }
-
-        guard tasks[taskIndex].workspace.surfaces[surfaceIndex].output != output else {
-            return
-        }
-
-        tasks[taskIndex].workspace.surfaces[surfaceIndex].output = output
-        tasks[taskIndex].workspace.lastOpenedAt = Date()
-        tasks[taskIndex].updatedAt = Date()
+        tasks[taskIndex].touchWorkspace()
     }
 
     func updateSurfaceMetadata(
@@ -335,7 +296,7 @@ extension BoardViewModel {
         title: String?,
         cwd: String?
     ) {
-        guard let taskIndex = tasks.firstIndex(where: { $0.id == taskID }),
+        guard let taskIndex = taskIndex(for: taskID),
               let surfaceIndex = tasks[taskIndex].workspace.surfaces.firstIndex(where: { $0.id == surfaceID })
         else {
             return
@@ -357,7 +318,6 @@ extension BoardViewModel {
             return
         }
 
-        tasks[taskIndex].workspace.lastOpenedAt = Date()
-        tasks[taskIndex].updatedAt = Date()
+        tasks[taskIndex].touchWorkspace()
     }
 }

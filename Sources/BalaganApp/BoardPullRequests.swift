@@ -54,7 +54,7 @@ extension BoardViewModel {
     /// Refetch a single task's PR (manual refresh button / on task open).
     func refreshPullRequest(taskID: TaskItem.ID) {
         guard pullRequestTrackingEnabled else { return }
-        guard let task = tasks.first(where: { $0.id == taskID }),
+        guard let task = task(for: taskID),
               let branch = task.branchOrWorktree?.nilIfBlank,
               let repoPath = pullRequestRepoPath(for: task)
         else {

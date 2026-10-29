@@ -6,11 +6,11 @@ import BalaganCore
 /// `ReviewMessage` (Core).
 extension BoardViewModel {
     func reviewComments(taskID: TaskItem.ID) -> [DiffComment] {
-        tasks.first { $0.id == taskID }?.reviewComments ?? []
+        task(for: taskID)?.reviewComments ?? []
     }
 
     func addReviewComment(taskID: TaskItem.ID, path: String, line: DiffLine, body: String) {
-        guard let index = tasks.firstIndex(where: { $0.id == taskID }),
+        guard let index = taskIndex(for: taskID),
               let anchor = DiffComment.anchor(for: line),
               body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false else { return }
         let comment = DiffComment(path: path, side: anchor.side, line: anchor.line, lineText: line.text, body: body)
@@ -18,7 +18,7 @@ extension BoardViewModel {
     }
 
     func updateReviewComment(taskID: TaskItem.ID, commentID: DiffComment.ID, body: String) {
-        guard let index = tasks.firstIndex(where: { $0.id == taskID }),
+        guard let index = taskIndex(for: taskID),
               let commentIndex = tasks[index].reviewComments?.firstIndex(where: { $0.id == commentID }) else { return }
         if body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             tasks[index].reviewComments?.remove(at: commentIndex)
@@ -28,19 +28,20 @@ extension BoardViewModel {
     }
 
     func deleteReviewComment(taskID: TaskItem.ID, commentID: DiffComment.ID) {
-        guard let index = tasks.firstIndex(where: { $0.id == taskID }) else { return }
+        guard let index = taskIndex(for: taskID) else { return }
         tasks[index].reviewComments?.removeAll { $0.id == commentID }
     }
 
     func discardReviewComments(taskID: TaskItem.ID) {
-        guard let index = tasks.firstIndex(where: { $0.id == taskID }) else { return }
+        guard let index = taskIndex(for: taskID) else { return }
         tasks[index].reviewComments = nil
     }
 
     /// The agent tab a review goes to: the selected tab if it's an agent, otherwise the task's first
     /// agent tab that has a live terminal.
+    @MainActor
     func reviewTargetSurface(taskID: TaskItem.ID) -> Surface.ID? {
-        guard let task = tasks.first(where: { $0.id == taskID }) else { return nil }
+        guard let task = task(for: taskID) else { return nil }
         let live = task.workspace.surfaces.map(\.id).filter {
             surfaceIsAgentTerminal(taskID: taskID, surfaceID: $0)
                 && TerminalHostRegistry.shared.existingHost(taskID: taskID, surfaceID: $0)?.surfaceHandle != nil
@@ -50,6 +51,7 @@ extension BoardViewModel {
     }
 
     /// Why text can't be sent to the task's agent right now, or nil when it can.
+    @MainActor
     func agentSendBlocker(taskID: TaskItem.ID) -> String? {
         guard let surfaceID = reviewTargetSurface(taskID: taskID) else {
             return "No agent is running in this task. Start one in the Terminal view first."
@@ -61,6 +63,7 @@ extension BoardViewModel {
     }
 
     /// Why a review can't be sent right now, or nil when it can.
+    @MainActor
     func reviewSendBlocker(taskID: TaskItem.ID) -> String? {
         guard reviewComments(taskID: taskID).isEmpty == false else { return "No comments yet" }
         return agentSendBlocker(taskID: taskID)
@@ -69,7 +72,7 @@ extension BoardViewModel {
     /// Pastes text into the task's agent as one message and submits it, then shows that terminal.
     /// The paste goes through Ghostty's text input, which wraps it as a bracketed paste, so the
     /// agent's input box receives it whole instead of submitting at each newline.
-    @discardableResult
+    @MainActor @discardableResult
     func sendToAgent(taskID: TaskItem.ID, text: String) -> Bool {
         let message = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard message.isEmpty == false,
@@ -89,7 +92,7 @@ extension BoardViewModel {
     }
 
     /// Sends the task's pending diff comments as one review message, then clears them.
-    @discardableResult
+    @MainActor @discardableResult
     func sendReviewComments(taskID: TaskItem.ID) -> Bool {
         guard reviewSendBlocker(taskID: taskID) == nil else { return false }
         let fileOrder: [String] = {
@@ -110,5 +113,11 @@ extension BoardViewModel {
             project: project(for: task.projectID)?.savedPrompts ?? [],
             global: SavedPrompts.decode(UserDefaults.standard.string(forKey: AppPreferences.Keys.savedPrompts))
         )
+    }
+
+    /// Sends a saved prompt picked from a menu or the palette, beeping when it can't go.
+    @MainActor
+    func sendPrompt(_ prompt: SavedPrompt, taskID: TaskItem.ID) {
+        if sendToAgent(taskID: taskID, text: prompt.text) == false { NSSound.beep() }
     }
 }

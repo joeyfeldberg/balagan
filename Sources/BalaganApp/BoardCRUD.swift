@@ -38,7 +38,7 @@ extension BoardViewModel {
         setupCommands: String?,
         savedPrompts: [SavedPrompt]? = nil
     ) {
-        guard let index = projects.firstIndex(where: { $0.id == id }) else {
+        guard let index = projectIndex(for: id) else {
             return
         }
 
@@ -56,7 +56,7 @@ extension BoardViewModel {
     /// Reorders projects: moves `id` to `targetIndex`, where `targetIndex` is the insertion position
     /// among the *other* projects (i.e. after the dragged one is removed). Order persists via autosave.
     func moveProject(id: Project.ID, toIndex targetIndex: Int) {
-        guard let from = projects.firstIndex(where: { $0.id == id }) else {
+        guard let from = projectIndex(for: id) else {
             return
         }
         let project = projects.remove(at: from)
@@ -258,7 +258,7 @@ extension BoardViewModel {
 
     func updateTask(from draft: TaskFormDraft) {
         guard let taskID = draft.taskID,
-              let index = tasks.firstIndex(where: { $0.id == taskID }),
+              let index = taskIndex(for: taskID),
               projects.contains(where: { $0.id == draft.projectID })
         else {
             return
@@ -292,7 +292,7 @@ extension BoardViewModel {
     }
 
     func deleteTask(id taskID: TaskItem.ID) {
-        guard let index = tasks.firstIndex(where: { $0.id == taskID }) else {
+        guard let index = taskIndex(for: taskID) else {
             return
         }
 
@@ -315,7 +315,7 @@ extension BoardViewModel {
     }
 
     private func move(taskID: TaskItem.ID, to status: TaskStatus, at date: Date) {
-        guard let index = tasks.firstIndex(where: { $0.id == taskID }) else {
+        guard let index = taskIndex(for: taskID) else {
             return
         }
 

@@ -9,8 +9,8 @@ extension BoardViewModel {
 
     /// Reads a title (the first prompt) for every untitled record in a tab's history.
     func fillSessionTitles(taskID: TaskItem.ID, surfaceID: Surface.ID) {
-        guard let records = tasks.first(where: { $0.id == taskID })?
-            .workspace.surfaces.first(where: { $0.id == surfaceID })?.previousSessions?
+        guard let records = task(for: taskID)?
+            .workspace.surface(id: surfaceID)?.previousSessions?
             .filter({ $0.title == nil }), records.isEmpty == false else { return }
         Self.sessionTitleQueue.async { [weak self] in
             let locator = TranscriptLocator.default()
@@ -27,7 +27,7 @@ extension BoardViewModel {
             guard titles.isEmpty == false else { return }
             DispatchQueue.main.async {
                 guard let self,
-                      let taskIndex = self.tasks.firstIndex(where: { $0.id == taskID }),
+                      let taskIndex = self.taskIndex(for: taskID),
                       let surfaceIndex = self.tasks[taskIndex].workspace.surfaces.firstIndex(where: { $0.id == surfaceID }),
                       var history = self.tasks[taskIndex].workspace.surfaces[surfaceIndex].previousSessions else { return }
                 for index in history.indices {
@@ -51,7 +51,7 @@ extension BoardViewModel {
     /// caller then restarts the tab, which resumes the session now bound to it.
     @discardableResult
     func switchToPreviousSession(taskID: TaskItem.ID, surfaceID: Surface.ID, recordID: SessionRecord.ID) -> Bool {
-        guard let taskIndex = tasks.firstIndex(where: { $0.id == taskID }),
+        guard let taskIndex = taskIndex(for: taskID),
               let surfaceIndex = tasks[taskIndex].workspace.surfaces.firstIndex(where: { $0.id == surfaceID }) else { return false }
         let surface = tasks[taskIndex].workspace.surfaces[surfaceIndex]
         guard let switched = SessionHistory.switching(

@@ -53,15 +53,7 @@ extension BalaganApplication {
         case "status":
             return controlStatus(viewModel: viewModel)
         case "tab.fork":
-            // Unlisted: Fork Session on a tab (`--id <task> [--surface <tab>]`, default the selected tab).
-            guard let id = params["id"]?.nilIfBlank, let task = viewModel.tasks.first(where: { $0.id == id }),
-                  let surfaceID = params["surface"]?.nilIfBlank ?? task.workspace.selectedSurfaceID,
-                  let surface = task.workspace.surfaces.first(where: { $0.id == surfaceID })
-            else { return err("no such task or tab") }
-            if let blocker = viewModel.forkBlocker(surface) { return err(blocker) }
-            viewModel.forkSession(taskID: task.id, surfaceID: surfaceID)
-            let fork = viewModel.tasks.first(where: { $0.id == id })?.workspace.selectedSurfaceID ?? ""
-            return ok(["fork": fork])
+            return controlForkTab(params: params, viewModel: viewModel)
         case "theme.set":
             // Unlisted: switches the app theme (`--id <theme>`), the same as picking it in Settings.
             guard let id = params["id"]?.nilIfBlank, AppThemes.all.contains(where: { $0.id == id }) else {
@@ -87,44 +79,74 @@ extension BalaganApplication {
         case "usage":
             return controlUsage(viewModel: viewModel)
         case "terminal.drop":
-            // Unlisted: drops files (`--paths a,b`) or text (`--text`) on the focused terminal.
-            guard let host = TerminalHostRegistry.shared.activeHost() else { return err("no focused terminal") }
-            let pasteboard = NSPasteboard(name: NSPasteboard.Name("balagan-drop-\(UUID().uuidString)"))
-            pasteboard.clearContents()
-            if let paths = params["paths"]?.nilIfBlank {
-                pasteboard.writeObjects(paths.split(separator: ",").map { URL(fileURLWithPath: String($0)) as NSURL })
-            } else if let text = params["text"] {
-                pasteboard.setString(text, forType: .string)
-            }
-            defer { pasteboard.releaseGlobally() }
-            return host.acceptDrop(pasteboard) ? ok(["dropped": true]) : err("nothing to drop")
+            return controlTerminalDrop(params: params)
         case "terminal.search":
             return controlTerminalSearch(params: params)
         case "task.send", "task.prompt":
-            guard let id = params["id"]?.nilIfBlank, let task = viewModel.tasks.first(where: { $0.id == id }) else {
-                return err("task not found: \(params["id"] ?? "")")
-            }
-            let text: String
-            if method == "task.prompt" {
-                let title = params["title"] ?? ""
-                guard let prompt = viewModel.savedPrompts(for: task).first(where: { $0.title.caseInsensitiveCompare(title) == .orderedSame }) else {
-                    let titles = viewModel.savedPrompts(for: task).map(\.title).joined(separator: ", ")
-                    return err("no saved prompt titled \"\(title)\" (have: \(titles))")
-                }
-                text = prompt.text
-            } else {
-                text = params["text"] ?? ""
-            }
-            if let blocker = viewModel.agentSendBlocker(taskID: id) { return err(blocker) }
-            return viewModel.sendToAgent(taskID: id, text: text) ? ok(["sent": true]) : err("couldn't send")
+            return controlSend(method: method, params: params, viewModel: viewModel)
         case "review.send":
-            // Unlisted: sends a task's pending diff comments to its agent (the Changes view's button).
-            guard let id = params["id"]?.nilIfBlank ?? viewModel.selectedTaskID else { return err("review.send requires --id <task>") }
-            if let blocker = viewModel.reviewSendBlocker(taskID: id) { return err(blocker) }
-            return viewModel.sendReviewComments(taskID: id) ? ok(["sent": true]) : err("couldn't send")
+            return controlSendReview(params: params, viewModel: viewModel)
         default:
             return err("unknown method: \(method)")
         }
+    }
+
+    /// Unlisted: Fork Session on a tab (`--id <task> [--surface <tab>]`, default the selected tab).
+    @MainActor
+    private func controlForkTab(params: [String: String], viewModel: BoardViewModel) -> [String: Any] {
+        guard let id = params["id"]?.nilIfBlank, let task = viewModel.task(for: id),
+              let surfaceID = params["surface"]?.nilIfBlank ?? task.workspace.selectedSurfaceID,
+              let surface = task.workspace.surface(id: surfaceID)
+        else { return err("no such task or tab") }
+        if let blocker = viewModel.forkBlocker(surface) { return err(blocker) }
+        viewModel.forkSession(taskID: task.id, surfaceID: surfaceID)
+        let fork = viewModel.task(for: id)?.workspace.selectedSurfaceID ?? ""
+        return ok(["fork": fork])
+    }
+
+    /// Unlisted: drops files (`--paths a,b`) or text (`--text`) on the focused terminal.
+    @MainActor
+    private func controlTerminalDrop(params: [String: String]) -> [String: Any] {
+        guard let host = TerminalHostRegistry.shared.activeHost() else { return err("no focused terminal") }
+        let pasteboard = NSPasteboard(name: NSPasteboard.Name("balagan-drop-\(UUID().uuidString)"))
+        pasteboard.clearContents()
+        if let paths = params["paths"]?.nilIfBlank {
+            pasteboard.writeObjects(paths.split(separator: ",").map { URL(fileURLWithPath: String($0)) as NSURL })
+        } else if let text = params["text"] {
+            pasteboard.setString(text, forType: .string)
+        }
+        defer { pasteboard.releaseGlobally() }
+        return host.acceptDrop(pasteboard) ? ok(["dropped": true]) : err("nothing to drop")
+    }
+
+    /// `send <task> <text>` and `prompt <task> <title>`: types text, or a saved prompt, into the task's agent.
+    @MainActor
+    private func controlSend(method: String, params: [String: String], viewModel: BoardViewModel) -> [String: Any] {
+        guard let id = params["id"]?.nilIfBlank, let task = viewModel.task(for: id) else {
+            return err("task not found: \(params["id"] ?? "")")
+        }
+        let text: String
+        if method == "task.prompt" {
+            let title = params["title"] ?? ""
+            let prompts = viewModel.savedPrompts(for: task)
+            guard let prompt = prompts.first(where: { $0.title.caseInsensitiveCompare(title) == .orderedSame }) else {
+                let titles = prompts.map(\.title).joined(separator: ", ")
+                return err("no saved prompt titled \"\(title)\" (have: \(titles))")
+            }
+            text = prompt.text
+        } else {
+            text = params["text"] ?? ""
+        }
+        if let blocker = viewModel.agentSendBlocker(taskID: id) { return err(blocker) }
+        return viewModel.sendToAgent(taskID: id, text: text) ? ok(["sent": true]) : err("couldn't send")
+    }
+
+    /// Unlisted: sends a task's pending diff comments to its agent (the Changes view's button).
+    @MainActor
+    private func controlSendReview(params: [String: String], viewModel: BoardViewModel) -> [String: Any] {
+        guard let id = params["id"]?.nilIfBlank ?? viewModel.selectedTaskID else { return err("review.send requires --id <task>") }
+        if let blocker = viewModel.reviewSendBlocker(taskID: id) { return err(blocker) }
+        return viewModel.sendReviewComments(taskID: id) ? ok(["sent": true]) : err("couldn't send")
     }
 
     /// `usage` — each agent's subscription limits, as last reported. Read fresh (it's two small file
@@ -223,7 +245,7 @@ extension BalaganApplication {
     private func controlSpeak(params: [String: String], viewModel: BoardViewModel) -> [String: Any] {
         let task: TaskItem
         if let id = params["id"]?.nilIfBlank {
-            guard let found = viewModel.tasks.first(where: { $0.id == id }) else {
+            guard let found = viewModel.task(for: id) else {
                 return err("task not found: \(id)")
             }
             task = found
@@ -233,7 +255,7 @@ extension BalaganApplication {
             return err("no task selected (pass a task id)")
         }
 
-        guard let surface = viewModel.activeSurface(of: task) else {
+        guard let surface = viewModel.activeSurface(for: task) else {
             return err("task has no terminal surface")
         }
         guard let source = viewModel.readerTranscriptSource(for: surface) else {
@@ -362,7 +384,7 @@ extension BalaganApplication {
     func launchAgentSurfaceInBackground(taskID: TaskItem.ID) {
         guard let viewModel,
               let runtime = terminalRuntime, runtime.selection.kind == .libghostty,
-              let task = viewModel.tasks.first(where: { $0.id == taskID }),
+              let task = viewModel.task(for: taskID),
               let surface = task.workspace.surfaces.first,
               surface.startupCommand?.nilIfBlank != nil,
               TerminalHostRegistry.shared.hasHosts(taskID: taskID) == false
@@ -383,7 +405,7 @@ extension BalaganApplication {
     func launchTaskInBackground(taskID: TaskItem.ID) {
         guard let viewModel,
               let runtime = terminalRuntime, runtime.selection.kind == .libghostty,
-              let task = viewModel.tasks.first(where: { $0.id == taskID })
+              let task = viewModel.task(for: taskID)
         else { return }
         viewModel.ensureWorktreeCreated(taskID: taskID)
         viewModel.repairMissingWorkingDirectories(taskID: taskID)
@@ -400,7 +422,7 @@ extension BalaganApplication {
 
     @MainActor
     private func controlOpenTask(params: [String: String], viewModel: BoardViewModel) -> [String: Any] {
-        guard let id = params["id"]?.nilIfBlank, let task = viewModel.tasks.first(where: { $0.id == id }) else {
+        guard let id = params["id"]?.nilIfBlank, let task = viewModel.task(for: id) else {
             return err("task not found: \(params["id"] ?? "")")
         }
         viewModel.select(task: task)
@@ -415,7 +437,7 @@ extension BalaganApplication {
     @MainActor
     private func controlTaskState(params: [String: String], viewModel: BoardViewModel) -> [String: Any] {
         guard let id = params["id"]?.nilIfBlank else { return err("state requires a task id") }
-        guard let task = viewModel.tasks.first(where: { $0.id == id }) else {
+        guard let task = viewModel.task(for: id) else {
             return err("task not found: \(id)")
         }
         let state = viewModel.taskAgentState(task)
@@ -473,7 +495,7 @@ extension BalaganApplication {
     /// Brings Balagan forward and selects the task + surface behind a clicked notification.
     @MainActor
     func focusSurfaceFromNotification(taskID: TaskItem.ID, surfaceID: Surface.ID) {
-        guard let viewModel, let task = viewModel.tasks.first(where: { $0.id == taskID }) else { return }
+        guard let viewModel, let task = viewModel.task(for: taskID) else { return }
         window?.makeKeyAndOrderFront(nil)
         viewModel.select(task: task)
         viewModel.select(surfaceID: surfaceID, forTaskID: taskID)

@@ -154,7 +154,7 @@ public enum AgentUsageParser {
                   let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let payload = object["payload"] as? [String: Any],
                   let limits = payload["rate_limits"] as? [String: Any] else { continue }
-            let observedAt = (object["timestamp"] as? String).flatMap(parseTimestamp) ?? Date()
+            let observedAt = (object["timestamp"] as? String).flatMap(ISO8601Timestamp.parse) ?? Date()
             var windows: [UsageWindow] = []
             for key in ["primary", "secondary"] {
                 guard let window = limits[key] as? [String: Any],
@@ -205,7 +205,7 @@ public enum AgentUsageParser {
         var windows: [UsageWindow] = []
         for limit in utilization["limits"] as? [[String: Any]] ?? [] {
             guard let percent = number(limit["percent"]),
-                  let resets = (limit["resets_at"] as? String).flatMap(parseTimestamp) else { continue }
+                  let resets = (limit["resets_at"] as? String).flatMap(ISO8601Timestamp.parse) else { continue }
             let kind = limit["kind"] as? String ?? ""
             let model = ((limit["scope"] as? [String: Any])?["model"] as? [String: Any])?["display_name"] as? String
             switch (kind, model) {
@@ -225,7 +225,7 @@ public enum AgentUsageParser {
             for (key, label) in [("five_hour", "5h"), ("seven_day", "Week")] {
                 guard let window = utilization[key] as? [String: Any],
                       let percent = number(window["utilization"]),
-                      let resets = (window["resets_at"] as? String).flatMap(parseTimestamp) else { continue }
+                      let resets = (window["resets_at"] as? String).flatMap(ISO8601Timestamp.parse) else { continue }
                 windows.append(UsageWindow(label: label, usedPercent: percent, resetsAt: resets))
             }
         }
@@ -276,20 +276,6 @@ public enum AgentUsageParser {
         case let string as String: return Double(string)
         default: return nil
         }
-    }
-
-    /// ISO 8601, with or without fractional seconds. Claude writes microseconds
-    /// ("…59.606369+00:00"), which ISO8601DateFormatter can't read, so the fraction is cut to millis.
-    static func parseTimestamp(_ string: String) -> Date? {
-        var text = string
-        if let dot = text.firstIndex(of: "."),
-           let end = text[dot...].firstIndex(where: { $0 == "Z" || $0 == "+" || $0 == "-" }) {
-            let digits = text[text.index(after: dot)..<end]
-            text.replaceSubrange(text.index(after: dot)..<end, with: String(digits.prefix(3)).padding(toLength: 3, withPad: "0", startingAt: 0))
-        }
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return formatter.date(from: text) ?? ISO8601DateFormatter().date(from: text)
     }
 }
 

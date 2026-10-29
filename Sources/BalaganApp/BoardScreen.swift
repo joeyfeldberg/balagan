@@ -298,7 +298,7 @@ struct BoardScreen: View {
             excluding: viewModel.selectedTaskID
         )
         for id in recent {
-            guard let task = viewModel.tasks.first(where: { $0.id == id }) else { continue }
+            guard let task = viewModel.task(for: id) else { continue }
             commands.append(PaletteCommand(
                 id: "recent-task-\(task.id)",
                 title: task.title,
@@ -355,7 +355,7 @@ struct BoardScreen: View {
             })
             for prompt in viewModel.savedPrompts(for: task) {
                 commands.append(PaletteCommand(id: "prompt-\(prompt.id)", title: "Send: \(prompt.title)", subtitle: task.title, systemImage: "paperplane") {
-                    if viewModel.sendToAgent(taskID: task.id, text: prompt.text) == false { NSSound.beep() }
+                    viewModel.sendPrompt(prompt, taskID: task.id)
                 })
             }
             commands.append(PaletteCommand(id: "edit-task", title: "Edit Task", subtitle: task.title, systemImage: "pencil") {

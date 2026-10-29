@@ -145,14 +145,16 @@ struct KanbanBoard: View {
     /// squeezing them.
     static let laneWidth: CGFloat = 272
     static let maxLaneWidth: CGFloat = 380
+    /// About what the collapsed "+ Lane" button takes; it sizes to its label.
+    private static let addLaneButtonAllowance: CGFloat = 80
 
     /// The width every visible lane gets for a board this wide.
     private func laneWidth(boardWidth: CGFloat, spacing: CGFloat, pad: CGFloat) -> CGFloat {
         let visible = CGFloat(max(viewModel.boardLanes.filter { $0.collapsed == false }.count, 1))
         let hasHidden = viewModel.boardLanes.contains(where: \.collapsed)
         // Room taken by the "+ Lane" button and the Hidden stack, which keep their own size.
-        let extras = (viewModel.selectedProjectID != nil ? 80 * balaganUIScale + spacing : 0)
-            + (hasHidden ? 170 * balaganUIScale + spacing : 0)
+        let extras = (viewModel.selectedProjectID != nil ? Self.addLaneButtonAllowance * balaganUIScale + spacing : 0)
+            + (hasHidden ? HiddenLanesStack.width * balaganUIScale + spacing : 0)
         let share = (boardWidth - pad * 2 - extras - spacing * (visible - 1)) / visible
         return min(max(share, Self.laneWidth * balaganUIScale), Self.maxLaneWidth * balaganUIScale)
     }
@@ -322,7 +324,7 @@ struct KanbanBoard: View {
     }
 
     private var highlightedTask: TaskItem? {
-        keyboardCardID.flatMap { id in viewModel.tasks.first { $0.id == id } }
+        keyboardCardID.flatMap { id in viewModel.task(for: id) }
     }
 
     private func moveHighlight(_ direction: BoardKeyboardNavigation.Direction) -> KeyPress.Result {
@@ -525,9 +527,7 @@ private struct KanbanColumn: View {
                 tokens: viewModel.taskTokenUsage[task.id],
                 savedPrompts: viewModel.savedPrompts(for: task),
                 promptBlocker: viewModel.agentSendBlocker(taskID: task.id),
-                onSendPrompt: { prompt in
-                    if viewModel.sendToAgent(taskID: task.id, text: prompt.text) == false { NSSound.beep() }
-                },
+                onSendPrompt: { viewModel.sendPrompt($0, taskID: task.id) },
                 moveLanes: viewModel.lanes(forProjectID: task.projectID)
             )
 
@@ -540,6 +540,7 @@ private struct KanbanColumn: View {
 /// the lanes. A row shows the lane again on click, and is a drop target, so a card can still be moved
 /// into a hidden lane.
 private struct HiddenLanesStack: View {
+    static let width: CGFloat = 170
     let lanes: [Lane]
     let counts: [Lane.ID: Int]
     let dropTarget: TaskStatus?
@@ -588,7 +589,7 @@ private struct HiddenLanesStack: View {
         }
         .padding(.vertical, 6 * scale)
         .padding(.horizontal, 4 * scale)
-        .frame(width: 170 * scale, alignment: .topLeading)
+        .frame(width: Self.width * scale, alignment: .topLeading)
         .frame(maxHeight: .infinity, alignment: .top)
     }
 }

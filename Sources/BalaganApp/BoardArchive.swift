@@ -10,7 +10,7 @@ extension BoardViewModel {
     /// Archives a task: removes it from the board and starts the retention clock. If it's the open
     /// task, returns to the board.
     func archiveTask(id taskID: TaskItem.ID, at date: Date = Date()) {
-        guard let index = tasks.firstIndex(where: { $0.id == taskID }) else {
+        guard let index = taskIndex(for: taskID) else {
             return
         }
         tasks[index].archivedAt = date
@@ -24,7 +24,7 @@ extension BoardViewModel {
 
     /// Restores an archived task back onto the board.
     func unarchiveTask(id taskID: TaskItem.ID, at date: Date = Date()) {
-        guard let index = tasks.firstIndex(where: { $0.id == taskID }) else {
+        guard let index = taskIndex(for: taskID) else {
             return
         }
         tasks[index].archivedAt = nil

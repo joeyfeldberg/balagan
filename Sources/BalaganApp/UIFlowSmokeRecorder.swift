@@ -50,14 +50,14 @@ enum UIFlowSmokeRecorder {
             viewModel.updateTask(from: taskDraft(projectID: project.id, taskID: task.id))
         }
 
-        guard let task = viewModel.tasks.first(where: { $0.id == taskID }) else {
+        guard let task = viewModel.task(for: taskID) else {
             record(phase: "failed", viewModel: viewModel, artifactDirectory: artifactDirectory)
             return
         }
 
         viewModel.move(task: task, to: taskStatus)
 
-        if let updatedTask = viewModel.tasks.first(where: { $0.id == taskID }),
+        if let updatedTask = viewModel.task(for: taskID),
            updatedTask.workspace.surfaces.contains(where: { $0.id == surfaceID }) == false {
             viewModel.createSurface(
                 taskID: updatedTask.id,
@@ -67,11 +67,11 @@ enum UIFlowSmokeRecorder {
             )
         }
 
-        if viewModel.tasks.first(where: { $0.id == taskID })?.workspace.surfaces.contains(where: { $0.id == surfaceID }) == true {
+        if viewModel.task(for: taskID)?.workspace.surfaces.contains(where: { $0.id == surfaceID }) == true {
             viewModel.renameSurface(taskID: taskID, surfaceID: surfaceID, title: surfaceTitle)
         }
 
-        if let taskWithRenamedSurface = viewModel.tasks.first(where: { $0.id == taskID }),
+        if let taskWithRenamedSurface = viewModel.task(for: taskID),
            taskWithRenamedSurface.workspace.surfaces.contains(where: { $0.id == transientSurfaceID }) == false {
             viewModel.createSurface(
                 taskID: taskWithRenamedSurface.id,
@@ -81,7 +81,7 @@ enum UIFlowSmokeRecorder {
             )
         }
 
-        if viewModel.tasks.first(where: { $0.id == taskID })?.workspace.surfaces.contains(where: { $0.id == transientSurfaceID }) == true {
+        if viewModel.task(for: taskID)?.workspace.surfaces.contains(where: { $0.id == transientSurfaceID }) == true {
             viewModel.select(surfaceID: surfaceID, forTaskID: taskID)
             viewModel.deleteSurface(taskID: taskID, surfaceID: transientSurfaceID)
         }
@@ -135,8 +135,8 @@ enum UIFlowSmokeRecorder {
         }
 
         let project = viewModel.projects.first { $0.name == projectName }
-        let task = viewModel.tasks.first { $0.id == taskID }
-        let surface = task?.workspace.surfaces.first { $0.id == surfaceID }
+        let task = viewModel.task(for: taskID)
+        let surface = task?.workspace.surface(id: surfaceID)
         let payload: [String: Any] = [
             "schemaVersion": schemaVersion,
             "flow": flowName,

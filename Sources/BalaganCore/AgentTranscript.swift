@@ -120,7 +120,7 @@ public enum AgentTranscriptParser {
             return []
         }
         guard let message = record["message"] as? [String: Any] else { return [] }
-        let timestamp = (record["timestamp"] as? String).flatMap(parseTimestamp)
+        let timestamp = (record["timestamp"] as? String).flatMap(ISO8601Timestamp.parse)
 
         if type == "user" {
             return claudeUserEntries(message: message, lineIndex: lineIndex, timestamp: timestamp)
@@ -202,7 +202,7 @@ public enum AgentTranscriptParser {
         else {
             return []
         }
-        let timestamp = (record["timestamp"] as? String).flatMap(parseTimestamp)
+        let timestamp = (record["timestamp"] as? String).flatMap(ISO8601Timestamp.parse)
 
         switch payload["type"] as? String {
         case "message":
@@ -264,16 +264,5 @@ public enum AgentTranscriptParser {
             .trimmingCharacters(in: .whitespacesAndNewlines)
         guard singleLine.count > limit else { return singleLine }
         return String(singleLine.prefix(limit)) + "…"
-    }
-
-    /// Transcript timestamps are ISO8601, with fractional seconds in Claude's case.
-    private static func parseTimestamp(_ string: String) -> Date? {
-        let fractional = ISO8601DateFormatter()
-        fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let date = fractional.date(from: string) {
-            return date
-        }
-        let plain = ISO8601DateFormatter()
-        return plain.date(from: string)
     }
 }

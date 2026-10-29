@@ -6,7 +6,7 @@ import BalaganCore
 /// Extracted from `BoardViewModel`.
 extension BoardViewModel {
     func applyReportedSessionCapture(_ event: SessionReportEvent) -> SessionReportApplyResult {
-        guard let taskIndex = tasks.firstIndex(where: { $0.id == event.taskID }) else {
+        guard let taskIndex = taskIndex(for: event.taskID) else {
             return SessionReportApplyResult(status: "ignored", message: "task mismatch", resumeCommand: nil)
         }
 
@@ -26,15 +26,13 @@ extension BoardViewModel {
             if let cwd = event.cwd?.nilIfBlank {
                 tasks[taskIndex].workspace.surfaces[surfaceIndex].cwd = cwd
             }
-            tasks[taskIndex].workspace.lastOpenedAt = Date()
-            tasks[taskIndex].updatedAt = Date()
+            tasks[taskIndex].touchWorkspace()
             return SessionReportApplyResult(status: "applied", message: "cwd updated", resumeCommand: nil)
         case .status:
             if let status = event.status?.nilIfBlank {
                 appendSessionStatus(taskIndex: taskIndex, surfaceIndex: surfaceIndex, status: status)
             }
-            tasks[taskIndex].workspace.lastOpenedAt = Date()
-            tasks[taskIndex].updatedAt = Date()
+            tasks[taskIndex].touchWorkspace()
             return SessionReportApplyResult(status: "applied", message: "status updated", resumeCommand: nil)
         case .lifecycle:
             // Runtime-only working-state (drives the card spinner); not persisted, so don't touch updatedAt.
@@ -53,8 +51,7 @@ extension BoardViewModel {
                 binding.updatedAt = now
                 tasks[taskIndex].workspace.surfaces[surfaceIndex].resumeBinding = binding
             }
-            tasks[taskIndex].workspace.lastOpenedAt = Date()
-            tasks[taskIndex].updatedAt = Date()
+            tasks[taskIndex].touchWorkspace()
             return SessionReportApplyResult(status: "applied", message: "session ended", resumeCommand: nil)
         }
     }

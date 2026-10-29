@@ -111,9 +111,7 @@ struct TaskTerminalWorkspaceScreen: View {
                 devServerPorts: viewModel.devServerPorts[task.id] ?? [],
                 savedPrompts: viewModel.savedPrompts(for: task),
                 promptBlocker: viewModel.agentSendBlocker(taskID: task.id),
-                onSendPrompt: { prompt in
-                    if viewModel.sendToAgent(taskID: task.id, text: prompt.text) == false { NSSound.beep() }
-                },
+                onSendPrompt: { viewModel.sendPrompt($0, taskID: task.id) },
                 onOpenInZed: EditorLauncher.isZedInstalled ? { openTaskInZed() } : nil,
                 onOpenInFork: EditorLauncher.isForkInstalled ? { openTaskInFork() } : nil,
                 tracksPullRequest: viewModel.tracksPullRequest(task),
@@ -657,7 +655,7 @@ private struct TerminalWorkspace: View {
 
     private var activeSurface: Surface? {
         if let selectedSurfaceID = workspace.selectedSurfaceID,
-           let selectedSurface = workspace.surfaces.first(where: { $0.id == selectedSurfaceID }) {
+           let selectedSurface = workspace.surface(id: selectedSurfaceID) {
             return selectedSurface
         }
 

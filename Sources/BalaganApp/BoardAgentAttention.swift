@@ -59,8 +59,8 @@ extension BoardViewModel {
     func surfaceIsAgentTerminal(taskID: TaskItem.ID, surfaceID: Surface.ID) -> Bool {
         if surfaceLifecycle[hostKey(taskID, surfaceID)] != nil { return true }
         if runningAgents[hostKey(taskID, surfaceID)] != nil { return true }
-        guard let task = tasks.first(where: { $0.id == taskID }),
-              let surface = task.workspace.surfaces.first(where: { $0.id == surfaceID })
+        guard let task = task(for: taskID),
+              let surface = task.workspace.surface(id: surfaceID)
         else {
             return false
         }
@@ -202,7 +202,7 @@ extension BoardViewModel {
 
     /// Jumps to a flagged surface (selecting its task + surface, which clears its attention highlight).
     func jumpToAttention(_ target: AttentionTarget) {
-        guard let task = tasks.first(where: { $0.id == target.taskID }) else { return }
+        guard let task = task(for: target.taskID) else { return }
         select(task: task)
         select(surfaceID: target.surfaceID, forTaskID: target.taskID)
     }
@@ -321,7 +321,7 @@ extension BoardViewModel {
 
     /// Jumps to an agent session's task + surface.
     func jumpToSession(_ item: AgentSessionItem) {
-        guard let task = tasks.first(where: { $0.id == item.taskID }) else { return }
+        guard let task = task(for: item.taskID) else { return }
         select(task: task)
         select(surfaceID: item.surfaceID, forTaskID: item.taskID)
     }

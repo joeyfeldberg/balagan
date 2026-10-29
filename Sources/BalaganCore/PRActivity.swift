@@ -21,7 +21,7 @@ public enum PRAuthor {
 /// A short relative time ("2d ago", "just now") from an ISO-8601 timestamp. `relativeTo` is injectable
 /// so it's deterministically testable. Returns "" for an empty/unparseable timestamp.
 public func relativePRTime(fromISO iso: String, relativeTo now: Date) -> String {
-    guard iso.isEmpty == false, let date = parseISO8601(iso) else {
+    guard iso.isEmpty == false, let date = ISO8601Timestamp.parse(iso) else {
         return ""
     }
     let seconds = now.timeIntervalSince(date)
@@ -37,15 +37,6 @@ public func relativePRTime(fromISO iso: String, relativeTo now: Date) -> String 
     let months = days / 30
     if months < 12 { return "\(months)mo ago" }
     return "\(days / 365)y ago"
-}
-
-/// Parses GitHub's ISO-8601 timestamps (with or without fractional seconds). Formatters are built
-/// locally — `ISO8601DateFormatter` isn't `Sendable`, so it can't be a shared global under Swift 6.
-private func parseISO8601(_ iso: String) -> Date? {
-    let withFraction = ISO8601DateFormatter()
-    withFraction.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-    if let date = withFraction.date(from: iso) { return date }
-    return ISO8601DateFormatter().date(from: iso)
 }
 
 /// One item in a PR's merged activity timeline (a comment or a review), with the bot flag resolved.

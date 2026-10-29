@@ -210,7 +210,7 @@ struct Sidebar: View {
                 needsAttention: viewModel.projectNeedsAttention(project.id)
             )
         }
-        guard let terminals = viewModel.tasks.first(where: { $0.id == "project-terminals-\(project.id)" }) else {
+        guard let terminals = viewModel.task(for: "project-terminals-\(project.id)") else {
             return nil
         }
         return AgentStatusGlyph.resolve(

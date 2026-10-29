@@ -71,7 +71,7 @@ struct TerminalLayoutView: View {
     }
 
     private func surface(for surfaceID: Surface.ID) -> Surface? {
-        workspace.surfaces.first { $0.id == surfaceID }
+        workspace.surface(id: surfaceID)
     }
 
     private func surfacePane(surface: Surface) -> some View {

@@ -19,13 +19,13 @@ enum TerminalRestart {
         artifactDirectory: URL?
     ) -> Bool {
         guard runtime.selection.kind == .libghostty,
-              let task = viewModel.tasks.first(where: { $0.id == taskID })
+              let task = viewModel.task(for: taskID)
         else {
             return false
         }
         let targetID = surfaceID ?? task.workspace.selectedSurfaceID ?? task.workspace.surfaces.first?.id
         guard let sid = targetID,
-              let surface = task.workspace.surfaces.first(where: { $0.id == sid })
+              let surface = task.workspace.surface(id: sid)
         else {
             return false
         }

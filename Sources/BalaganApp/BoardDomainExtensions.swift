@@ -105,21 +105,8 @@ extension Surface {
 }
 
 extension Workspace {
-    /// The former app workspace treated a missing layout as tabbed; core defaults to `.single`,
-    /// so normalize `.single` to a tab layout over the current surfaces to preserve behavior.
-    private var effectiveLayout: WorkspaceLayout {
-        if case .single = layout {
-            return .tabs(surfaces.map { .surface($0.id) })
-        }
-        return layout
-    }
-
-    var orderedSurfaceIDs: [Surface.ID] {
-        effectiveLayout.orderedSurfaceIDs(availableSurfaceIDs: surfaces.map(\.id))
-    }
-
     var tabSurfaceIDs: [Surface.ID] {
-        effectiveLayout.tabSurfaceIDs(availableSurfaceIDs: surfaces.map(\.id))
+        layout.tabSurfaceIDs(availableSurfaceIDs: surfaces.map(\.id))
     }
 
     var tabSurfaces: [Surface] {
@@ -133,17 +120,8 @@ extension Workspace {
         guard let active = selectedSurfaceID ?? surfaces.first?.id else {
             return nil
         }
-        let tab = effectiveLayout.tabContents.first { $0.containsSurface(active) }
+        let tab = layout.tabContents.first { $0.containsSurface(active) }
         return tab?.firstSurfaceID ?? active
-    }
-
-    func surfaceID(after surfaceID: Surface.ID) -> Surface.ID? {
-        // Tab navigation (⌘⇧]) cycles tabs only — never split panes (those use split focus).
-        tabSurfaceID(after: surfaceID)
-    }
-
-    func surfaceID(before surfaceID: Surface.ID) -> Surface.ID? {
-        tabSurfaceID(before: surfaceID)
     }
 
     func surfaceID(atTabIndex index: Int) -> Surface.ID? {
@@ -154,7 +132,15 @@ extension Workspace {
         return tabSurfaceIDs[index]
     }
 
-    var lastSurfaceID: Surface.ID? {
+    var lastTabSurfaceID: Surface.ID? {
         tabSurfaceIDs.last
+    }
+}
+
+extension TaskItem {
+    /// Stamps the task and its workspace as just used, after a change to its terminals.
+    mutating func touchWorkspace(at now: Date = Date()) {
+        workspace.lastOpenedAt = now
+        updatedAt = now
     }
 }

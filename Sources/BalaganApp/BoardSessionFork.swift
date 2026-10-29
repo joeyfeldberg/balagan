@@ -29,8 +29,8 @@ extension BoardViewModel {
     /// can't fork.
     @discardableResult
     func forkSession(taskID: TaskItem.ID, surfaceID: Surface.ID) -> Bool {
-        guard let taskIndex = tasks.firstIndex(where: { $0.id == taskID }),
-              let source = tasks[taskIndex].workspace.surfaces.first(where: { $0.id == surfaceID }),
+        guard let taskIndex = taskIndex(for: taskID),
+              let source = tasks[taskIndex].workspace.surface(id: surfaceID),
               let profile = forkableProfile(source),
               let sessionID = source.resumeBinding?.sessionID,
               let forkArgv = profile.forkArgv(sessionID: sessionID)

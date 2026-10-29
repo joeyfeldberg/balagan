@@ -42,8 +42,8 @@ extension BoardViewModel {
     /// delay lets the agent finish flushing the turn it just ended before we read it.
     func refreshLastResponse(taskID: TaskItem.ID, surfaceID: Surface.ID, delay: TimeInterval = 0.4) {
         guard transcriptPreviewsEnabled,
-              let binding = tasks.first(where: { $0.id == taskID })?
-                  .workspace.surfaces.first(where: { $0.id == surfaceID })?.resumeBinding,
+              let binding = task(for: taskID)?
+                  .workspace.surface(id: surfaceID)?.resumeBinding,
               binding.kind == .agent
         else {
             return

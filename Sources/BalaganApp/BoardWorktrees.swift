@@ -74,7 +74,7 @@ extension BoardViewModel {
     /// deferred to when the task is actually opened.
     func ensureWorktreeCreated(taskID: TaskItem.ID) {
         guard worktreeResolver != nil,
-              let index = tasks.firstIndex(where: { $0.id == taskID }),
+              let index = taskIndex(for: taskID),
               let branch = tasks[index].branchOrWorktree?.nilIfBlank,
               let project = project(for: tasks[index].projectID)
         else {
@@ -134,7 +134,7 @@ extension BoardViewModel {
     /// it at the task's real directory instead (its worktree, else the main checkout) and drops setup
     /// unless that directory is the task's own worktree. Run after `ensureWorktreeCreated`.
     func repairMissingWorkingDirectories(taskID: TaskItem.ID) {
-        guard let index = tasks.firstIndex(where: { $0.id == taskID }),
+        guard let index = taskIndex(for: taskID),
               let project = project(for: tasks[index].projectID) else { return }
         let fileManager = FileManager.default
         func exists(_ path: String) -> Bool { fileManager.fileExists(atPath: (path as NSString).expandingTildeInPath) }
@@ -193,7 +193,7 @@ extension BoardViewModel {
     /// Points a task's terminals back at the project's main repo after its worktree was removed,
     /// so reopening them doesn't land in a now-deleted directory.
     func resetWorktreeWorkingDirectory(taskID: TaskItem.ID) {
-        guard let index = tasks.firstIndex(where: { $0.id == taskID }),
+        guard let index = taskIndex(for: taskID),
               let project = project(for: tasks[index].projectID) else {
             return
         }
@@ -250,7 +250,7 @@ extension BoardViewModel {
     /// Clears a surface's one-time setup command once it has run (on first launch), so it never
     /// re-runs on a later relaunch.
     func consumeSetupCommand(taskID: TaskItem.ID, surfaceID: Surface.ID) {
-        guard let taskIndex = tasks.firstIndex(where: { $0.id == taskID }),
+        guard let taskIndex = taskIndex(for: taskID),
               let surfaceIndex = tasks[taskIndex].workspace.surfaces.firstIndex(where: { $0.id == surfaceID }),
               tasks[taskIndex].workspace.surfaces[surfaceIndex].setupCommand != nil
         else {

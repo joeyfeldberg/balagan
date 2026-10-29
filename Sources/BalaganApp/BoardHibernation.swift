@@ -21,7 +21,7 @@ extension BoardViewModel {
     /// Puts every tab of a task to sleep. No-op if the task has no live hosts.
     @MainActor
     func sleepTask(taskID: TaskItem.ID) {
-        guard let taskIndex = tasks.firstIndex(where: { $0.id == taskID }),
+        guard let taskIndex = taskIndex(for: taskID),
               TerminalHostRegistry.shared.hasHosts(taskID: taskID)
         else {
             return

@@ -38,7 +38,7 @@ extension BoardViewModel {
     /// flight; the previous result stays on screen until the new one lands.
     func refreshTaskChanges(taskID: TaskItem.ID) {
         guard taskChangesRefreshing.contains(taskID) == false,
-              let task = tasks.first(where: { $0.id == taskID }),
+              let task = task(for: taskID),
               let directory = taskWorkingDirectory(task)
         else {
             return
@@ -46,14 +46,14 @@ extension BoardViewModel {
         let baseBranch = project(for: task.projectID)?.effectiveDefaultBranch ?? "main"
         taskChangesRefreshing.insert(taskID)
 
-        let work = { () -> TaskChangesState in
+        let work: @Sendable () -> TaskChangesState = {
             switch TaskChangesLoader.load(worktree: directory, baseBranch: baseBranch) {
             case .success(let changes): return .loaded(changes)
             case .failure(.notARepository): return .failed("\(directory) isn't a git repository.")
             case .failure(.gitFailed(let message)): return .failed(message)
             }
         }
-        let apply = { [weak self] (state: TaskChangesState) in
+        let apply: @Sendable (TaskChangesState) -> Void = { [weak self] state in
             guard let self else { return }
             self.taskChangesRefreshing.remove(taskID)
             if self.taskChanges[taskID] != state { self.taskChanges[taskID] = state }

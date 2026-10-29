@@ -46,7 +46,7 @@ extension BoardViewModel {
             surfaceID: selectedSurfaceID,
             in: attentionQueueEntries()
         ),
-            let task = tasks.first(where: { $0.id == next.taskID })
+            let task = task(for: next.taskID)
         else {
             return false
         }
@@ -66,7 +66,7 @@ extension BoardViewModel {
     }
 
     func toggleSidebarCollapsed(projectID: Project.ID) {
-        guard let index = projects.firstIndex(where: { $0.id == projectID }) else { return }
+        guard let index = projectIndex(for: projectID) else { return }
         projects[index].sidebarCollapsed.toggle()
     }
 }

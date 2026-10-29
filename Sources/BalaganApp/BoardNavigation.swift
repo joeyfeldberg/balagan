@@ -12,7 +12,7 @@ extension BoardViewModel {
         }
         let taskID = "project-terminals-\(projectID)"
         let workspaceID = "workspace-\(taskID)"
-        if let index = tasks.firstIndex(where: { $0.id == taskID }) {
+        if let index = taskIndex(for: taskID) {
             // The Terminals workspace exists; if every terminal was closed, open a fresh shell so
             // there's always something to land in.
             if tasks[index].workspace.surfaces.isEmpty {
@@ -20,8 +20,7 @@ extension BoardViewModel {
                 tasks[index].workspace.surfaces = [surface]
                 tasks[index].workspace.layout = .tabs([.surface(surface.id)])
                 tasks[index].workspace.selectedSurfaceID = surface.id
-                tasks[index].workspace.lastOpenedAt = Date()
-                tasks[index].updatedAt = Date()
+                tasks[index].touchWorkspace()
             }
         } else {
             let surface = makeProjectTerminalShell(workspaceID: workspaceID, taskID: taskID, project: project)
@@ -44,7 +43,7 @@ extension BoardViewModel {
             )
             tasks.append(task)
         }
-        if let task = tasks.first(where: { $0.id == taskID }) {
+        if let task = task(for: taskID) {
             select(task: task)
         }
     }
@@ -65,7 +64,7 @@ extension BoardViewModel {
     /// Whether a project's Terminals workspace currently has any open terminals (drives the sidebar
     /// chip highlight).
     func projectHasOpenTerminals(_ projectID: Project.ID) -> Bool {
-        tasks.first { $0.id == "project-terminals-\(projectID)" }?.workspace.surfaces.isEmpty == false
+        task(for: "project-terminals-\(projectID)")?.workspace.surfaces.isEmpty == false
     }
 
     func projectName(for id: Project.ID) -> String {
@@ -74,6 +73,18 @@ extension BoardViewModel {
 
     func project(for id: Project.ID) -> Project? {
         projects.first { $0.id == id }
+    }
+
+    func projectIndex(for id: Project.ID) -> Int? {
+        projects.firstIndex { $0.id == id }
+    }
+
+    func task(for id: TaskItem.ID) -> TaskItem? {
+        tasks.first { $0.id == id }
+    }
+
+    func taskIndex(for id: TaskItem.ID) -> Int? {
+        tasks.firstIndex { $0.id == id }
     }
 
     func showAllProjectTasks() {
@@ -134,47 +145,21 @@ extension BoardViewModel {
         }
     }
 
-    func replacementSurfaceID(
-        afterDeleting deletedSurfaceID: Surface.ID,
-        previousOrderedSurfaceIDs: [Surface.ID],
-        availableSurfaceIDs: [Surface.ID]
-    ) -> Surface.ID? {
-        guard let deletedIndex = previousOrderedSurfaceIDs.firstIndex(of: deletedSurfaceID) else {
-            return availableSurfaceIDs.first
-        }
-
-        let trailingSurfaceIDs = previousOrderedSurfaceIDs.dropFirst(deletedIndex + 1)
-        if let next = trailingSurfaceIDs.first(where: { availableSurfaceIDs.contains($0) }) {
-            return next
-        }
-
-        let leadingSurfaceIDs = previousOrderedSurfaceIDs.prefix(deletedIndex).reversed()
-        if let previous = leadingSurfaceIDs.first(where: { availableSurfaceIDs.contains($0) }) {
-            return previous
-        }
-
-        return availableSurfaceIDs.first
-    }
-
+    /// The task's selected surface, or its first when none is selected.
     func activeSurface(for task: TaskItem) -> Surface? {
-        if let selectedSurfaceID = task.workspace.selectedSurfaceID,
-           let selectedSurface = task.workspace.surfaces.first(where: { $0.id == selectedSurfaceID }) {
-            return selectedSurface
-        }
-
-        return task.workspace.surfaces.first
+        task.workspace.selectedSurface ?? task.workspace.surfaces.first
     }
 
     func selectRelativeSurface(taskID: TaskItem.ID, offset: Int) {
-        guard let task = tasks.first(where: { $0.id == taskID }),
+        guard let task = task(for: taskID),
               let selectedSurfaceID = task.workspace.selectedSurfaceID ?? task.workspace.surfaces.first?.id
         else {
             return
         }
 
         let nextSurfaceID = offset > 0
-            ? task.workspace.surfaceID(after: selectedSurfaceID)
-            : task.workspace.surfaceID(before: selectedSurfaceID)
+            ? task.workspace.tabSurfaceID(after: selectedSurfaceID)
+            : task.workspace.tabSurfaceID(before: selectedSurfaceID)
         guard let nextSurfaceID else {
             return
         }

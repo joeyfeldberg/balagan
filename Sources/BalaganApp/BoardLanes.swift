@@ -7,7 +7,7 @@ extension BoardViewModel {
     /// Adds a lane to a project's board with a unique id (slugged from the name) and a palette color.
     @discardableResult
     func addLane(toProjectID projectID: Project.ID, name: String) -> Lane? {
-        guard let projectIndex = projects.firstIndex(where: { $0.id == projectID }) else { return nil }
+        guard let projectIndex = projectIndex(for: projectID) else { return nil }
         let trimmed = name.trimmedForStorage
         guard trimmed.isEmpty == false else { return nil }
 
@@ -27,7 +27,7 @@ extension BoardViewModel {
 
     /// Collapses a lane to a thin strip, or expands it back.
     func toggleLaneCollapsed(projectID: Project.ID, laneID: Lane.ID) {
-        guard let projectIndex = projects.firstIndex(where: { $0.id == projectID }),
+        guard let projectIndex = projectIndex(for: projectID),
               let laneIndex = projects[projectIndex].lanes.firstIndex(where: { $0.id == laneID })
         else {
             return
@@ -37,7 +37,7 @@ extension BoardViewModel {
 
     /// Recolors a lane (`RRGGBB`, from `Lane.palette`).
     func setLaneColor(projectID: Project.ID, laneID: Lane.ID, colorHex: String) {
-        guard let projectIndex = projects.firstIndex(where: { $0.id == projectID }),
+        guard let projectIndex = projectIndex(for: projectID),
               let laneIndex = projects[projectIndex].lanes.firstIndex(where: { $0.id == laneID })
         else {
             return
@@ -48,7 +48,7 @@ extension BoardViewModel {
     func renameLane(projectID: Project.ID, laneID: Lane.ID, to name: String) {
         let trimmed = name.trimmedForStorage
         guard trimmed.isEmpty == false,
-              let projectIndex = projects.firstIndex(where: { $0.id == projectID }),
+              let projectIndex = projectIndex(for: projectID),
               let laneIndex = projects[projectIndex].lanes.firstIndex(where: { $0.id == laneID })
         else {
             return
@@ -58,7 +58,7 @@ extension BoardViewModel {
 
     /// Moves a lane left (offset -1) or right (offset +1); no-op at the ends.
     func moveLane(projectID: Project.ID, laneID: Lane.ID, by offset: Int) {
-        guard let projectIndex = projects.firstIndex(where: { $0.id == projectID }),
+        guard let projectIndex = projectIndex(for: projectID),
               let laneIndex = projects[projectIndex].lanes.firstIndex(where: { $0.id == laneID })
         else {
             return
@@ -70,7 +70,7 @@ extension BoardViewModel {
 
     /// Moves a lane to `insertion`, an index among the project's other lanes (a drag and drop).
     func moveLane(projectID: Project.ID, laneID: Lane.ID, toIndex insertion: Int) {
-        guard let projectIndex = projects.firstIndex(where: { $0.id == projectID }),
+        guard let projectIndex = projectIndex(for: projectID),
               let laneIndex = projects[projectIndex].lanes.firstIndex(where: { $0.id == laneID })
         else {
             return
@@ -98,7 +98,7 @@ extension BoardViewModel {
     @discardableResult
     func deleteLane(projectID: Project.ID, laneID: Lane.ID) -> Bool {
         guard canDeleteLane(projectID: projectID, laneID: laneID),
-              let projectIndex = projects.firstIndex(where: { $0.id == projectID }),
+              let projectIndex = projectIndex(for: projectID),
               let laneIndex = projects[projectIndex].lanes.firstIndex(where: { $0.id == laneID })
         else {
             return false

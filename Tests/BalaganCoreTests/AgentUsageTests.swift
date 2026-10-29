@@ -145,7 +145,7 @@ final class AgentUsageTests: XCTestCase {
         XCTAssertEqual(usage.plan, "Max 5x · Team")
         XCTAssertEqual(usage.notes, ["Extra usage off: out of credits"])
         // Microsecond timestamps parse (ISO8601DateFormatter alone rejects them).
-        XCTAssertNotNil(AgentUsageParser.parseTimestamp("2026-09-25T20:00:00.606556+00:00"))
+        XCTAssertNotNil(ISO8601Timestamp.parse("2026-09-25T20:00:00.606556+00:00"))
     }
 
     func testTheNewerReadingWinsPerWindowWhenMerging() throws {

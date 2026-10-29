@@ -197,11 +197,6 @@ struct FixtureResumeBinding: Decodable {
             sanitizedEnvironment: [:]
         )
     }
-
-    func makePlan(surfaceID: Surface.ID, taskID: TaskItem.ID, cwd: String) -> ResumeCommandPlan {
-        let binding = makeBinding(surfaceID: surfaceID)
-        return ResumeCommandPlanner.plan(for: binding, taskID: taskID, cwd: cwd)
-    }
 }
 
 struct FixtureUIState: Decodable {

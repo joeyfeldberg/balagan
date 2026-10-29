@@ -33,8 +33,8 @@ extension BoardViewModel {
     @discardableResult
     func handleEndedProcess(taskID: TaskItem.ID, surfaceID: Surface.ID, now: Date = Date()) -> AgentExitPolicy.Outcome {
         let key = hostKey(taskID, surfaceID)
-        guard let surface = tasks.first(where: { $0.id == taskID })?
-            .workspace.surfaces.first(where: { $0.id == surfaceID })
+        guard let surface = task(for: taskID)?
+            .workspace.surface(id: surfaceID)
         else {
             return .closeTab
         }

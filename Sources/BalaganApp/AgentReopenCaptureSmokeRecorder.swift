@@ -49,7 +49,7 @@ enum AgentReopenCaptureSmokeRecorder {
         socketPath: String,
         artifactDirectory: URL?
     ) -> PreparedAgentSurface? {
-        guard let task = viewModel.tasks.first(where: { $0.id == taskID }) ?? viewModel.tasks.first else {
+        guard let task = viewModel.task(for: taskID) ?? viewModel.tasks.first else {
             write(status: "failed", message: "no task available", payload: [:], artifactDirectory: artifactDirectory)
             return nil
         }
@@ -59,7 +59,7 @@ enum AgentReopenCaptureSmokeRecorder {
         viewModel.select(task: task)
         viewModel.createAgentSurface(taskID: task.id)
 
-        guard let createdTask = viewModel.tasks.first(where: { $0.id == task.id }),
+        guard let createdTask = viewModel.task(for: task.id),
               let surface = createdTask.workspace.surfaces.last,
               createdTask.workspace.surfaces.count == surfaceCount + 1
         else {
@@ -173,7 +173,7 @@ enum AgentReopenCaptureSmokeRecorder {
 
     @MainActor
     static func recordObservedState(viewModel: BoardViewModel, artifactDirectory: URL?) {
-        guard let task = viewModel.tasks.first(where: { $0.id == taskID }) ?? viewModel.tasks.first,
+        guard let task = viewModel.task(for: taskID) ?? viewModel.tasks.first,
               let surface = task.workspace.surfaces.first(where: { $0.resumeBinding?.source == .agentHook })
         else {
             return
@@ -203,8 +203,8 @@ enum AgentReopenCaptureSmokeRecorder {
     ) -> Surface? {
         let deadline = Date().addingTimeInterval(timeout)
         repeat {
-            if let task = viewModel.tasks.first(where: { $0.id == taskID }),
-               let surface = task.workspace.surfaces.first(where: { $0.id == surfaceID }),
+            if let task = viewModel.task(for: taskID),
+               let surface = task.workspace.surface(id: surfaceID),
                surface.resumeBinding?.source == .agentHook,
                surface.resumeBinding?.sessionID?.nilIfBlank != nil {
                 return surface
