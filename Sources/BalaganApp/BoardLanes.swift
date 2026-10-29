@@ -75,7 +75,7 @@ extension BoardViewModel {
         else {
             return
         }
-        let reordered = LaneReorder.moving(projects[projectIndex].lanes, from: laneIndex, to: insertion)
+        let reordered = DragReorder.moving(projects[projectIndex].lanes, from: laneIndex, to: insertion)
         if reordered != projects[projectIndex].lanes { projects[projectIndex].lanes = reordered }
     }
 

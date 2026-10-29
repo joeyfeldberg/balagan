@@ -1,11 +1,11 @@
 import Foundation
 
-/// Dragging a lane to a new place on the board.
-public enum LaneReorder {
-    /// Where a dragged lane lands, as an index among the *other* lanes: how many of them have their
-    /// middle left of the point being dragged.
-    public static func insertionIndex(dropX: Double, otherMidXs: [Double]) -> Int {
-        otherMidXs.filter { $0 < dropX }.count
+/// Dragging a lane on the board, or a project in the sidebar, to a new place.
+public enum DragReorder {
+    /// Where a dragged lane or sidebar row lands, as an index among the *other* items: how many of
+    /// them have their middle before the point being dragged (along the drag's axis).
+    public static func insertionIndex(dropAt position: Double, otherMidpoints: [Double]) -> Int {
+        otherMidpoints.filter { $0 < position }.count
     }
 
     /// `items` with the one at `from` moved to `insertion` (an index among the remaining items).

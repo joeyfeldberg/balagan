@@ -59,9 +59,7 @@ extension BoardViewModel {
         guard let from = projectIndex(for: id) else {
             return
         }
-        let project = projects.remove(at: from)
-        let insertAt = max(0, min(targetIndex, projects.count))
-        projects.insert(project, at: insertAt)
+        projects = DragReorder.moving(projects, from: from, to: targetIndex)
     }
 
     /// Env vars every task terminal gets, so setup commands and scripts can reference the project's

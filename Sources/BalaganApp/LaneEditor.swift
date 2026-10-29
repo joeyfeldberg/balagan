@@ -92,7 +92,7 @@ struct LaneHeader: View {
                 .help("Lane actions")
                 .accessibilityIdentifier("lane-menu-\(lane.status.accessibilitySlug)")
             }
-            .font(.system(size: 11.5 * scale, weight: .semibold))
+            .font(.system(size: Theme.TextSize.small * scale, weight: .semibold))
             .foregroundStyle(Theme.textSecondary)
             .opacity(hovering || renaming ? 1 : 0)
         }

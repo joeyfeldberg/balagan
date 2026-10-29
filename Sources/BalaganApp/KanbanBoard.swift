@@ -234,7 +234,7 @@ struct KanbanBoard: View {
             let count = viewModel.laneTaskCount(projectID: projectID, laneID: lane.id)
             actions.deleteBlocker = viewModel.canDeleteLane(projectID: projectID, laneID: lane.id)
                 ? nil
-                : (count > 0 ? "move its \(count) task\(count == 1 ? "" : "s") out first" : "a board needs one lane")
+                : (count > 0 ? "move its \(count.counted("task")) out first" : "a board needs one lane")
             actions.onRename = { viewModel.renameLane(projectID: projectID, laneID: lane.id, to: $0) }
             actions.onRecolor = { viewModel.setLaneColor(projectID: projectID, laneID: lane.id, colorHex: $0) }
             actions.onMove = { offset in
@@ -292,9 +292,9 @@ struct KanbanBoard: View {
 
     private func laneInsertionIndex(_ laneID: Lane.ID, dx: CGFloat) -> Int? {
         guard let laneDrag, laneDrag.id == laneID else { return nil }
-        return LaneReorder.insertionIndex(
-            dropX: Double(laneDrag.startMidX + dx),
-            otherMidXs: otherLaneFrames(excluding: laneID).map { Double($0.midX) }
+        return DragReorder.insertionIndex(
+            dropAt: Double(laneDrag.startMidX + dx),
+            otherMidpoints: otherLaneFrames(excluding: laneID).map { Double($0.midX) }
         )
     }
 

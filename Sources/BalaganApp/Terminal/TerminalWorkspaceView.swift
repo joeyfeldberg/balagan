@@ -32,6 +32,17 @@ struct TaskTerminalWorkspaceScreen: View {
         EditorLauncher.openInFork(path: directory)
     }
 
+    /// A font-size shortcut: changes the app's terminal font size, then applies it to every terminal.
+    private func fontZoom(_ action: String, _ adjust: @escaping () -> Float) -> (String) -> Void {
+        { evidenceName in
+            TerminalHostRegistry.shared.performSharedFontZoomShortcut(
+                action: action,
+                evidenceName: evidenceName,
+                appFontSize: adjust()
+            )
+        }
+    }
+
     private var activeSurfaceID: Surface.ID {
         task.workspace.selectedSurfaceID ?? task.workspace.surfaces.first?.id ?? ""
     }
@@ -69,35 +80,13 @@ struct TaskTerminalWorkspaceScreen: View {
                     // Only a plain shell's tab closes when its process exits. An agent tab keeps its
                     // session: it's resumed right away (quit-after-update) or offers Resume.
                     if viewModel.handleEndedProcess(taskID: taskID, surfaceID: surfaceID) == .closeTab {
-                        TerminalHostRegistry.shared.close(taskID: taskID, surfaceID: surfaceID)
-                        viewModel.deleteSurface(taskID: taskID, surfaceID: surfaceID)
+                        viewModel.closeSurface(taskID: taskID, surfaceID: surfaceID)
                     }
                 },
                 fontZoom: FontZoomActions(
-                    increase: { evidenceName in
-                        let fontSize = viewModel.increaseTerminalFontSize()
-                        TerminalHostRegistry.shared.performSharedFontZoomShortcut(
-                            action: "increase_font_size:1",
-                            evidenceName: evidenceName,
-                            appFontSize: fontSize
-                        )
-                    },
-                    decrease: { evidenceName in
-                        let fontSize = viewModel.decreaseTerminalFontSize()
-                        TerminalHostRegistry.shared.performSharedFontZoomShortcut(
-                            action: "decrease_font_size:1",
-                            evidenceName: evidenceName,
-                            appFontSize: fontSize
-                        )
-                    },
-                    reset: { evidenceName in
-                        let fontSize = viewModel.resetTerminalFontSize()
-                        TerminalHostRegistry.shared.performSharedFontZoomShortcut(
-                            action: "reset_font_size",
-                            evidenceName: evidenceName,
-                            appFontSize: fontSize
-                        )
-                    }
+                    increase: fontZoom("increase_font_size:1", viewModel.increaseTerminalFontSize),
+                    decrease: fontZoom("decrease_font_size:1", viewModel.decreaseTerminalFontSize),
+                    reset: fontZoom("reset_font_size", viewModel.resetTerminalFontSize)
                 ),
                 onSelectSurface: { surfaceID in
                     viewModel.select(surfaceID: surfaceID, forTaskID: task.id)
@@ -148,8 +137,7 @@ struct TaskTerminalWorkspaceScreen: View {
                 onResumeEndedAgent: { surfaceID in viewModel.resumeEndedAgent(taskID: task.id, surfaceID: surfaceID) },
                 onCloseEndedAgent: { surfaceID in
                     viewModel.dismissEndedAgent(taskID: task.id, surfaceID: surfaceID)
-                    TerminalHostRegistry.shared.close(taskID: task.id, surfaceID: surfaceID)
-                    viewModel.deleteSurface(taskID: task.id, surfaceID: surfaceID)
+                    viewModel.closeSurface(taskID: task.id, surfaceID: surfaceID)
                 },
                 agentChoices: task.isProjectTerminals ? [] : viewModel.offeredAgentProfiles.map { profile in
                     AgentChoice(
@@ -521,8 +509,7 @@ private struct TerminalWorkspace: View {
                 .accessibilityIdentifier("open-in-finder-button")
                 Divider()
                 Button {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(workingDirectory, forType: .string)
+                    NSPasteboard.copy(workingDirectory)
                 } label: {
                     Label("Copy Path", systemImage: "doc.on.doc")
                 }
@@ -561,7 +548,7 @@ private struct TerminalWorkspace: View {
             }
             .accessibilityIdentifier("split-terminal-down-button")
             Button {
-                zoomedSurfaceID = zoomedSurfaceID == activeSurface.id ? nil : activeSurface.id
+                toggleZoom(activeSurface)
             } label: {
                 Label(zoomedSurfaceID == activeSurface.id ? "Unzoom Pane" : "Zoom Pane",
                       systemImage: "arrow.up.left.and.arrow.down.right")
@@ -644,213 +631,19 @@ private struct TerminalWorkspace: View {
                 }
                 onSelectSurface(neighbor)
             },
-            toggleZoom: {
-                zoomedSurfaceID = zoomedSurfaceID == activeSurface.id ? nil : activeSurface.id
-            },
+            toggleZoom: { toggleZoom(activeSurface) },
             increaseFontSize: fontZoom.increase,
             decreaseFontSize: fontZoom.decrease,
             resetFontSize: fontZoom.reset
         )
     }
 
+    private func toggleZoom(_ surface: Surface) {
+        zoomedSurfaceID = zoomedSurfaceID == surface.id ? nil : surface.id
+    }
+
     private var activeSurface: Surface? {
-        if let selectedSurfaceID = workspace.selectedSurfaceID,
-           let selectedSurface = workspace.surface(id: selectedSurfaceID) {
-            return selectedSurface
-        }
-
-        return workspace.surfaces.first
-    }
-}
-
-/// The task's three views of the same work.
-enum WorkspaceView: CaseIterable {
-    case terminal, reader, changes
-
-    var title: String {
-        switch self {
-        case .terminal: return "Terminal"
-        case .reader: return "Reader"
-        case .changes: return "Changes"
-        }
-    }
-
-    var symbol: String {
-        switch self {
-        case .terminal: return "terminal"
-        case .reader: return "text.book.closed"
-        case .changes: return "plus.forwardslash.minus"
-        }
-    }
-
-    var shortcutHint: String {
-        switch self {
-        case .terminal: return "Esc from Reader or Changes"
-        case .reader: return "⇧⌘R"
-        case .changes: return "⇧⌘G"
-        }
-    }
-}
-
-/// "Terminal | Reader | Changes" — a compact segmented switch in the header's own style (the stock
-/// segmented Picker doesn't follow the UI scale and reads heavier than the rest of the bar).
-private struct WorkspaceViewSwitcher: View {
-    let selection: WorkspaceView
-    let showsReader: Bool
-    let showsChanges: Bool
-    let scale: CGFloat
-    let onSelect: (WorkspaceView) -> Void
-
-    private var views: [WorkspaceView] {
-        WorkspaceView.allCases.filter { view in
-            switch view {
-            case .terminal: return true
-            case .reader: return showsReader
-            case .changes: return showsChanges
-            }
-        }
-    }
-
-    var body: some View {
-        // Labels when they fit; icon-only segments (names in the tooltips) when the header is tight,
-        // e.g. on a narrow window. Never wrap a label.
-        ViewThatFits(in: .horizontal) {
-            segments(showsLabels: true)
-            segments(showsLabels: false)
-        }
-        .layoutPriority(1)
-    }
-
-    private func segments(showsLabels: Bool) -> some View {
-        HStack(spacing: 2 * scale) {
-            ForEach(views, id: \.self) { view in
-                segment(view, showsLabel: showsLabels)
-            }
-        }
-        .fixedSize()
-        .padding(2 * scale)
-        .background(
-            RoundedRectangle(cornerRadius: Theme.radiusButton, style: .continuous)
-                .fill(Theme.bgWindow)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: Theme.radiusButton, style: .continuous)
-                .stroke(Theme.hairline, lineWidth: 1)
-        )
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("workspace-view-switcher")
-    }
-
-    private func segment(_ view: WorkspaceView, showsLabel: Bool) -> some View {
-        let isSelected = view == selection
-        return Button {
-            onSelect(view)
-        } label: {
-            HStack(spacing: 5 * scale) {
-                Image(systemName: view.symbol)
-                    .font(.system(size: Theme.TextSize.small * scale, weight: .medium))
-                if showsLabel {
-                    Text(view.title)
-                        .font(.system(size: Theme.TextSize.body * scale, weight: isSelected ? .semibold : .medium))
-                        .lineLimit(1)
-                }
-            }
-            .foregroundStyle(isSelected ? Theme.textPrimary : Theme.textSecondary)
-            .padding(.horizontal, 9 * scale)
-            .padding(.vertical, 4 * scale)
-            .background(
-                RoundedRectangle(cornerRadius: Theme.radiusButton - 1, style: .continuous)
-                    .fill(isSelected ? Theme.surfaceHover : Color.clear)
-            )
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .help("\(view.title) (\(view.shortcutHint))")
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
-        .accessibilityIdentifier("workspace-view-\(view.title.lowercased())")
-    }
-}
-
-/// Along the bottom of an agent tab whose process exited: what happened and the one obvious next
-/// step, with the terminal's last output still readable above it. ⏎ also resumes — the terminal host
-/// forwards it (see `exitedSurfaceReturnReporter`).
-private struct AgentExitedCard: View {
-    let ended: EndedAgent
-    let scale: CGFloat
-    let onResume: () -> Void
-    let onClose: () -> Void
-
-    var body: some View {
-        HStack(alignment: .center, spacing: 12 * scale) {
-            Image(systemName: ended.offer == .resume ? "arrow.clockwise.circle.fill" : "play.circle.fill")
-                .font(.system(size: 22 * scale))
-                .foregroundStyle(Theme.accent)
-            VStack(alignment: .leading, spacing: 2 * scale) {
-                Text("\(ended.agentName) exited")
-                    .font(.system(size: Theme.TextSize.body * scale, weight: .semibold))
-                    .foregroundStyle(Theme.textPrimary)
-                Text(detail)
-                    .font(.system(size: Theme.TextSize.small * scale))
-                    .foregroundStyle(Theme.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            Spacer(minLength: 12 * scale)
-            Button("Close Tab", action: onClose)
-                .buttonStyle(.bordered)
-                .accessibilityIdentifier("ended-agent-close-button")
-            Button(ended.offer == .resume ? "Resume  ⏎" : "Start Agent  ⏎", action: onResume)
-                .buttonStyle(.borderedProminent)
-                .accessibilityIdentifier("ended-agent-resume-button")
-        }
-        .font(.system(size: Theme.TextSize.body * scale))
-        .padding(.horizontal, 16 * scale)
-        .padding(.vertical, 12 * scale)
-        .background(
-            RoundedRectangle(cornerRadius: Theme.radiusColumn, style: .continuous)
-                .fill(Theme.surfaceRaised)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: Theme.radiusColumn, style: .continuous)
-                .stroke(Theme.hairlineStrong, lineWidth: 1)
-        )
-        .shadow(color: .black.opacity(0.35), radius: 14, y: 4)
-        .padding(12 * scale)
-        .accessibilityIdentifier("ended-agent-card")
-    }
-
-    private var detail: String {
-        switch ended.offer {
-        case .resume where ended.gaveUpAutoResume:
-            return "It exited again right after resuming, so Balagan stopped retrying. The session is saved; resume when it's ready."
-        case .resume:
-            return "Its session is saved. Resume picks the conversation up where it left off."
-        case .restart:
-            return "No session was captured for this tab, so it starts fresh."
-        }
-    }
-}
-
-/// "Codex exited right after starting — probably updating itself — so its session was resumed."
-private struct AutoResumeNotice: View {
-    let text: String
-    let scale: CGFloat
-
-    var body: some View {
-        HStack(spacing: 7 * scale) {
-            Image(systemName: "arrow.clockwise")
-                .foregroundStyle(Theme.accent)
-            Text(text)
-                .foregroundStyle(Theme.textPrimary)
-                .lineLimit(2)
-        }
-        .font(.system(size: Theme.TextSize.small * scale, weight: .medium))
-        .padding(.horizontal, 12 * scale)
-        .padding(.vertical, 7 * scale)
-        .background(Capsule().fill(Theme.surfaceRaised))
-        .overlay(Capsule().stroke(Theme.hairlineStrong, lineWidth: 1))
-        .shadow(color: .black.opacity(0.3), radius: 10, y: 4)
-        .frame(maxWidth: 520 * scale)
-        .accessibilityIdentifier("auto-resume-notice")
+        workspace.selectedSurface ?? workspace.surfaces.first
     }
 }
 

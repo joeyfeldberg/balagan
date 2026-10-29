@@ -23,6 +23,31 @@ public struct TaskChanges: Equatable, Sendable {
     public var additions: Int { files.reduce(0) { $0 + $1.additions } }
     public var deletions: Int { files.reduce(0) { $0 + $1.deletions } }
     public var uncommittedCount: Int { files.filter(\.isUncommitted).count }
+
+    /// "vs main · 3 commits · 5 files · 2 uncommitted", or "uncommitted only · 2 files" on the base
+    /// branch itself.
+    public var summary: String {
+        var parts: [String] = []
+        if let baseName {
+            parts.append("vs \(baseName)")
+            parts.append(commitsAhead.counted("commit"))
+        } else {
+            parts.append("uncommitted only")
+        }
+        parts.append(files.count.counted("file"))
+        if uncommittedCount > 0, baseName != nil {
+            parts.append("\(uncommittedCount) uncommitted")
+        }
+        return parts.joined(separator: " · ")
+    }
+
+    /// The file to show: the one picked, while it's still in the diff (a refresh can drop it), else
+    /// the first with content to read, since a deletion or binary is a poor first view.
+    public func fileToShow(picked path: String?) -> DiffFile? {
+        files.first { $0.path == path }
+            ?? files.first { $0.status != .deleted && $0.isBinary == false }
+            ?? files.first
+    }
 }
 
 /// Loads `TaskChanges` by running git in a worktree. Synchronous and blocking — call it off the main

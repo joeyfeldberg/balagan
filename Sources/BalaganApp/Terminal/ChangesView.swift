@@ -64,11 +64,7 @@ struct ChangesView: View {
 
     /// The file on the right: the one picked, or the first when the pick is gone (e.g. after a refresh).
     private var selectedFile: DiffFile? {
-        guard let files = changes?.files, files.isEmpty == false else { return nil }
-        // Default to something with content to read — a deletion or binary is a poor first view.
-        return files.first { $0.path == selectedPath }
-            ?? files.first { $0.status != .deleted && $0.isBinary == false }
-            ?? files[0]
+        changes?.fileToShow(picked: selectedPath)
     }
 
     var body: some View {
@@ -143,7 +139,7 @@ struct ChangesView: View {
     /// "3 comments · Discard · Send to agent ⌘⏎"
     private var reviewControls: some View {
         HStack(spacing: 8 * scale) {
-            Text(review.comments.count == 1 ? "1 comment" : "\(review.comments.count) comments")
+            Text(review.comments.count.counted("comment"))
                 .foregroundStyle(Theme.textSecondary)
             Button("Discard", role: .destructive, action: review.discard)
                 .buttonStyle(.borderless)
@@ -173,19 +169,8 @@ struct ChangesView: View {
 
     /// "vs main · 3 commits · 5 files · 2 uncommitted  +120 −30"
     private func summary(_ changes: TaskChanges) -> some View {
-        var parts: [String] = []
-        if let base = changes.baseName {
-            parts.append("vs \(base)")
-            parts.append(changes.commitsAhead == 1 ? "1 commit" : "\(changes.commitsAhead) commits")
-        } else {
-            parts.append("uncommitted only")
-        }
-        parts.append(changes.files.count == 1 ? "1 file" : "\(changes.files.count) files")
-        if changes.uncommittedCount > 0, changes.baseName != nil {
-            parts.append("\(changes.uncommittedCount) uncommitted")
-        }
-        return HStack(spacing: 8 * scale) {
-            Text(parts.joined(separator: " · "))
+        HStack(spacing: 8 * scale) {
+            Text(changes.summary)
                 .foregroundStyle(Theme.textTertiary)
             ChangeCounts(additions: changes.additions, deletions: changes.deletions, scale: scale)
             if changes.isTruncated {
@@ -311,7 +296,7 @@ private struct ChangedFileRow: View {
                     .labelStyle(.titleAndIcon)
                     .font(.system(size: Theme.TextSize.micro * scale, weight: .semibold))
                     .foregroundStyle(Theme.accent)
-                    .help(commentCount == 1 ? "1 comment" : "\(commentCount) comments")
+                    .help(commentCount.counted("comment"))
             }
             if file.isUncommitted {
                 Circle()
@@ -363,8 +348,7 @@ private struct FileActions {
     }
 
     func copyPath() {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(file.path, forType: .string)
+        NSPasteboard.copy(file.path)
     }
 
     @ViewBuilder
@@ -379,18 +363,6 @@ private struct FileActions {
 }
 
 // MARK: - Diff
-
-/// One flattened row of a file's diff, so a long diff renders through a single lazy list.
-private enum DiffRow: Identifiable {
-    case hunk(Int, String)
-    case line(Int, DiffLine)
-
-    var id: Int {
-        switch self {
-        case .hunk(let id, _), .line(let id, _): return id
-        }
-    }
-}
 
 private struct DiffFileView: View {
     let file: DiffFile
@@ -409,21 +381,6 @@ private struct DiffFileView: View {
     /// Past this many lines the view stops rendering and points at the editor instead.
     private static let lineCap = 5000
 
-    private var rows: (rows: [DiffRow], truncated: Bool) {
-        var rows: [DiffRow] = []
-        var id = 0
-        var lineCount = 0
-        for hunk in file.hunks {
-            rows.append(.hunk(id, hunk.header)); id += 1
-            for line in hunk.lines {
-                if lineCount >= Self.lineCap { return (rows, true) }
-                rows.append(.line(id, line)); id += 1
-                lineCount += 1
-            }
-        }
-        return (rows, false)
-    }
-
     var body: some View {
         let actions = FileActions(file: file, workingDirectory: workingDirectory)
         VStack(spacing: 0) {
@@ -435,7 +392,7 @@ private struct DiffFileView: View {
                      ? "Renamed from \(file.oldPath ?? "?") with no content changes."
                      : "Empty file.")
             } else {
-                let (rows, truncated) = rows
+                let (rows, truncated) = file.rows(lineCap: Self.lineCap)
                 ScrollView([.vertical]) {
                     LazyVStack(alignment: .leading, spacing: 0) {
                         ForEach(rows) { row in

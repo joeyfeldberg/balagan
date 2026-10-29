@@ -40,9 +40,6 @@ struct SettingsSheet: View {
     @AppStorage(AppPreferences.Keys.waitingBanners) private var waitingBanners = true
     @AppStorage(AppPreferences.Keys.finishedBanners) private var finishedBanners = true
     @AppStorage(AppPreferences.Keys.menuBarItem) private var showMenuBarItem = true
-    @State private var recordingAction: ShortcutAction?
-    @State private var recordMonitor: Any?
-    @State private var recordError: String?
 
     var body: some View {
         let fixedScale = presentationScale ?? balaganUIScale
@@ -69,15 +66,11 @@ struct SettingsSheet: View {
         .background(Theme.bgWindow)
         .onChange(of: selectedCategory) { _, category in
             SettingsSheet.lastCategory = category
-            stopRecording()
         }
         .onAppear {
             if presentationScale == nil {
                 presentationScale = balaganUIScale
             }
-        }
-        .onDisappear {
-            stopRecording()
         }
     }
 
@@ -205,7 +198,7 @@ struct SettingsSheet: View {
             contentHeader("Speech", scale: scale)
             speechSection(scale: scale)
         case .shortcuts:
-            shortcutsSection(scale: scale)
+            ShortcutsSettingsPage(viewModel: viewModel, scale: scale)
         }
     }
 
@@ -361,11 +354,7 @@ struct SettingsSheet: View {
     /// "Sleep idle tasks after: 30 minutes". Sleeping frees a task's terminals; opening it resumes.
     @ViewBuilder
     private func autoSleepRow(scale: CGFloat) -> some View {
-        HStack {
-            Text("Sleep idle tasks after")
-                .font(.system(size: 12 * scale))
-                .foregroundStyle(Theme.textSecondary)
-            Spacer()
+        settingsRow("Sleep idle tasks after", scale: scale) {
             Picker("", selection: Binding(
                 get: { viewModel.autoSleepIdleMinutes },
                 set: { viewModel.autoSleepIdleMinutes = $0 }
@@ -378,15 +367,7 @@ struct SettingsSheet: View {
             .fixedSize()
             .accessibilityIdentifier("auto-sleep-picker")
         }
-        .padding(.horizontal, 18 * scale)
-        .padding(.top, 10 * scale)
-        .padding(.bottom, 2 * scale)
-
-        Text("Frees the memory of tasks whose agents are idle and whose shells aren't running anything. Opening a task wakes it and resumes its agent. Tasks also sleep sooner when macOS runs low on memory.")
-            .font(.system(size: 10.5 * scale))
-            .foregroundStyle(Theme.textTertiary)
-            .fixedSize(horizontal: false, vertical: true)
-            .padding(.horizontal, 18 * scale)
+        settingsNote("Frees the memory of tasks whose agents are idle and whose shells aren't running anything. Opening a task wakes it and resumes its agent. Tasks also sleep sooner when macOS runs low on memory.", scale: scale)
     }
 
     static func autoSleepLabel(_ minutes: Int) -> String {
@@ -415,11 +396,7 @@ struct SettingsSheet: View {
     private func speechSection(scale: CGFloat) -> some View {
         let voices = SpeechController.availableVoices()
 
-        HStack {
-            Text("Voice")
-                .font(.system(size: 12 * scale))
-                .foregroundStyle(Theme.textSecondary)
-            Spacer()
+        settingsRow("Voice", scale: scale) {
             Picker("", selection: Binding(
                 get: { SpeechController.shared.voiceIdentifier ?? "" },
                 set: { SpeechController.shared.voiceIdentifier = $0.isEmpty ? nil : $0 }
@@ -435,14 +412,7 @@ struct SettingsSheet: View {
             .fixedSize()
             .accessibilityIdentifier("speech-voice-picker")
         }
-        .padding(.horizontal, 18 * scale)
-        .padding(.vertical, 4 * scale)
-
-        HStack {
-            Text("Rate")
-                .font(.system(size: 12 * scale))
-                .foregroundStyle(Theme.textSecondary)
-            Spacer()
+        settingsRow("Rate", scale: scale) {
             Picker("", selection: Binding(
                 get: { SpeechController.shared.rateMultiplier },
                 set: { SpeechController.shared.setRateMultiplier($0) }
@@ -457,12 +427,10 @@ struct SettingsSheet: View {
             .fixedSize()
             .accessibilityIdentifier("speech-rate-picker")
         }
-        .padding(.horizontal, 18 * scale)
-        .padding(.vertical, 4 * scale)
 
         HStack(spacing: 6 * scale) {
             Text("Voices sound natural only after downloading a Premium/Enhanced one (Manage Voices → e.g. Ava Premium).")
-                .font(.system(size: 10.5 * scale))
+                .font(.system(size: Theme.TextSize.micro * scale))
                 .foregroundStyle(Theme.textTertiary)
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
@@ -472,151 +440,11 @@ struct SettingsSheet: View {
                 NSWorkspace.shared.open(url)
             }
             .buttonStyle(.link)
-            .font(.system(size: 10.5 * scale))
+            .font(.system(size: Theme.TextSize.micro * scale))
             .accessibilityIdentifier("speech-open-system-settings")
         }
         .padding(.horizontal, 18 * scale)
         .padding(.top, 2 * scale)
-    }
-
-    // MARK: Keyboard shortcuts section
-
-    @ViewBuilder
-    private func shortcutsSection(scale: CGFloat) -> some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text("Shortcuts")
-                .font(.system(size: 16 * scale, weight: .semibold))
-                .foregroundStyle(Theme.textPrimary)
-            Spacer()
-            Button("Reset All") {
-                stopRecording()
-                viewModel.resetAllShortcuts()
-            }
-            .buttonStyle(.plain)
-            .font(.system(size: 11.5 * scale, weight: .medium))
-            .foregroundStyle(Theme.accent)
-            .help("Restore every shortcut to its default")
-            .accessibilityIdentifier("reset-all-shortcuts-button")
-        }
-        .padding(.horizontal, 18 * scale)
-        .padding(.top, 18 * scale)
-        .padding(.bottom, 4 * scale)
-
-        Text(recordingAction == nil
-            ? "Click a shortcut, then press the new key combination."
-            : (recordError ?? "Press the new shortcut — or Esc to cancel."))
-            .font(.system(size: 11 * scale))
-            .foregroundStyle(recordError == nil ? Theme.textTertiary : .orange)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 18 * scale)
-            .padding(.bottom, 6 * scale)
-
-        ForEach(ShortcutAction.Group.allCases, id: \.self) { group in
-            Text(group.rawValue.uppercased())
-                .font(.system(size: 10.5 * scale, weight: .semibold))
-                .tracking(0.5)
-                .foregroundStyle(Theme.textTertiary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 18 * scale)
-                .padding(.top, 12 * scale)
-                .padding(.bottom, 2 * scale)
-
-            ForEach(ShortcutAction.allCases.filter { $0.group == group }) { action in
-                shortcutRow(action, scale: scale)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func shortcutRow(_ action: ShortcutAction, scale: CGFloat) -> some View {
-        let chord = viewModel.keyboardShortcuts.chord(for: action)
-        let isRecording = recordingAction == action
-        let customized = viewModel.keyboardShortcuts.isCustomized(action)
-        let conflict = viewModel.keyboardShortcuts.action(boundTo: chord, excluding: action)
-
-        HStack(spacing: 8 * scale) {
-            Text(action.displayName)
-                .font(.system(size: 12.5 * scale))
-                .foregroundStyle(Theme.textPrimary)
-
-            Spacer(minLength: 8 * scale)
-
-            if let conflict {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.system(size: 10 * scale))
-                    .foregroundStyle(.orange)
-                    .help("Also bound to \(conflict.displayName)")
-            }
-
-            Button {
-                if isRecording { stopRecording() } else { startRecording(action) }
-            } label: {
-                Text(isRecording ? "Press keys…" : chord.displayString)
-                    .font(.system(size: 12 * scale, weight: .medium, design: .rounded))
-                    .foregroundStyle(isRecording ? Theme.accent : Theme.textPrimary)
-                    .frame(minWidth: 74 * scale)
-                    .padding(.horizontal, 10 * scale)
-                    .padding(.vertical, 4 * scale)
-                    .background(
-                        RoundedRectangle(cornerRadius: 6 * scale)
-                            .fill(isRecording ? Theme.accent.opacity(0.12) : Theme.surface)
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 6 * scale)
-                            .strokeBorder(isRecording ? Theme.accent : Theme.hairline, lineWidth: 1)
-                    )
-            }
-            .buttonStyle(.plain)
-            .help("Click, then press a new key combination")
-            .accessibilityIdentifier("shortcut-\(action.rawValue)-button")
-
-            Button {
-                stopRecording()
-                viewModel.resetShortcut(action)
-            } label: {
-                Image(systemName: "arrow.uturn.backward")
-                    .font(.system(size: 10 * scale))
-                    .foregroundStyle(Theme.textTertiary)
-            }
-            .buttonStyle(.plain)
-            .opacity(customized ? 1 : 0)
-            .disabled(customized == false)
-            .help("Reset to default")
-        }
-        .padding(.horizontal, 16 * scale)
-        .padding(.vertical, 4 * scale)
-    }
-
-    /// Begin capturing the next key combination for `action` via a local key-down monitor. The monitor
-    /// swallows every key while recording so nothing leaks into the UI; Esc cancels.
-    private func startRecording(_ action: ShortcutAction) {
-        stopRecording()
-        recordingAction = action
-        recordError = nil
-        recordMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-            if event.keyCode == 53 { // Escape
-                stopRecording()
-                return nil
-            }
-            guard let chord = KeyChord.from(event: event) else {
-                return nil // ignore keys we can't represent
-            }
-            guard chord.isValid else {
-                recordError = "Shortcuts must include ⌘, ⌃, or ⌥."
-                return nil
-            }
-            viewModel.updateShortcut(action, to: chord)
-            stopRecording()
-            return nil
-        }
-    }
-
-    private func stopRecording() {
-        if let monitor = recordMonitor {
-            NSEvent.removeMonitor(monitor)
-            recordMonitor = nil
-        }
-        recordingAction = nil
     }
 
     private func applyTerminalFontZoom(_ action: String, _ appFontSize: Float) {
@@ -636,7 +464,7 @@ struct SettingsSheet: View {
 
             VStack(alignment: .leading, spacing: 6 * scale) {
                 Text("Theme, colors, and font family are inherited from your Ghostty config.")
-                    .font(.system(size: 11.5 * scale))
+                    .font(.system(size: Theme.TextSize.small * scale))
                     .foregroundStyle(Theme.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
 
@@ -645,7 +473,7 @@ struct SettingsSheet: View {
                         NSWorkspace.shared.activateFileViewerSelecting([url])
                     }
                     .buttonStyle(.plain)
-                    .font(.system(size: 11.5 * scale, weight: .medium))
+                    .font(.system(size: Theme.TextSize.small * scale, weight: .medium))
                     .foregroundStyle(Theme.accent)
                     .help("Reveal your Ghostty config in Finder")
                 }
@@ -663,153 +491,5 @@ struct SettingsSheet: View {
             home.appendingPathComponent("Library/Application Support/com.mitchellh.ghostty/config"),
         ]
         return candidates.first { fileManager.fileExists(atPath: $0.path) }
-    }
-}
-
-/// A label + segmented −/value/+ pill + quiet inline Reset. Shared by the UI-scale and terminal-font rows.
-private struct SettingsStepperRow: View {
-    let label: String
-    let value: String
-    let isAtDefault: Bool
-    let scale: CGFloat
-    let decreaseID: String
-    let valueID: String
-    let increaseID: String
-    let resetID: String
-    let onDecrease: () -> Void
-    let onIncrease: () -> Void
-    let onReset: () -> Void
-
-    var body: some View {
-        HStack(spacing: 12 * scale) {
-            Text(label)
-                .font(.system(size: 13 * scale))
-                .foregroundStyle(Theme.textPrimary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            HStack(spacing: 0) {
-                SettingsStepperButton(systemName: "minus", scale: scale, action: onDecrease)
-                    .accessibilityIdentifier(decreaseID)
-                Rectangle().fill(Theme.hairline).frame(width: 1, height: 24 * scale)
-                Text(value)
-                    .font(.system(size: 12 * scale, design: .monospaced))
-                    .foregroundStyle(Theme.textPrimary)
-                    .frame(minWidth: 48 * scale)
-                    .accessibilityIdentifier(valueID)
-                Rectangle().fill(Theme.hairline).frame(width: 1, height: 24 * scale)
-                SettingsStepperButton(systemName: "plus", scale: scale, action: onIncrease)
-                    .accessibilityIdentifier(increaseID)
-            }
-            .background(
-                RoundedRectangle(cornerRadius: Theme.radiusButton, style: .continuous)
-                    .fill(Theme.surfaceRaised)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: Theme.radiusButton, style: .continuous)
-                    .strokeBorder(Theme.hairlineStrong, lineWidth: 1)
-            )
-            .clipShape(RoundedRectangle(cornerRadius: Theme.radiusButton, style: .continuous))
-
-            Button("Reset", action: onReset)
-                .buttonStyle(.plain)
-                .font(.system(size: 12 * scale))
-                .help("Reset to default")
-                .foregroundStyle(isAtDefault ? Theme.textTertiary : Theme.textSecondary)
-                .disabled(isAtDefault)
-                .accessibilityIdentifier(resetID)
-        }
-        .padding(.horizontal, 16 * scale)
-        .padding(.vertical, 8 * scale)
-        .frame(minHeight: 32 * scale)
-    }
-}
-
-private struct SettingsStepperButton: View {
-    let systemName: String
-    let scale: CGFloat
-    let action: () -> Void
-    @State private var isHovered = false
-
-    var body: some View {
-        Button(action: action) {
-            Image(systemName: systemName)
-                .font(.system(size: 11 * scale, weight: .semibold))
-                .foregroundStyle(Theme.textSecondary)
-                .frame(width: 28 * scale, height: 24 * scale)
-                .background(isHovered ? Theme.surfaceHover : Color.clear)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .onHover { isHovered = $0 }
-        .animation(.easeOut(duration: 0.1), value: isHovered)
-    }
-}
-
-/// A monospace chip that copies its value to the clipboard on click, briefly flashing "Copied".
-struct CopyableVarChip: View {
-    let value: String
-    @State private var copied = false
-    @State private var isHovered = false
-
-    var body: some View {
-        Button {
-            NSPasteboard.general.clearContents()
-            NSPasteboard.general.setString(value, forType: .string)
-            copied = true
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-                copied = false
-            }
-        } label: {
-            HStack(spacing: 4) {
-                Image(systemName: copied ? "checkmark" : "doc.on.doc")
-                    .font(.system(size: 9))
-                Text(copied ? "Copied" : value)
-                    .font(.system(.caption2, design: .monospaced))
-            }
-            .foregroundStyle(copied ? Theme.accent : Theme.textSecondary)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(
-                RoundedRectangle(cornerRadius: Theme.radiusChip, style: .continuous)
-                    .fill(isHovered ? Theme.surfaceHover : Theme.surfaceRaised)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: Theme.radiusChip, style: .continuous)
-                    .stroke(copied ? Theme.accent.opacity(0.5) : Theme.hairline, lineWidth: 1)
-            )
-        }
-        .buttonStyle(.plain)
-        .onHover { isHovered = $0 }
-        .help("Copy \(value)")
-    }
-}
-
-/// Settings → Prompts: the global saved prompts every task offers (a project can add its own).
-private struct GlobalPromptsPage: View {
-    @AppStorage(AppPreferences.Keys.savedPrompts) private var stored: String?
-    @State private var prompts: [SavedPrompt] = []
-    @State private var loaded = false
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("One click sends a prompt to a task's agent: from the task's ⋯ menu, a card's right-click menu, or the command palette. Projects can add their own in their settings.")
-                .font(.caption)
-                .foregroundStyle(Theme.textTertiary)
-                .fixedSize(horizontal: false, vertical: true)
-            SavedPromptsEditor(prompts: $prompts)
-            Button("Restore Defaults") {
-                prompts = SavedPrompts.defaults
-            }
-            .buttonStyle(.borderless)
-            .font(.caption)
-        }
-        .onAppear {
-            prompts = SavedPrompts.decode(stored)
-            loaded = true
-        }
-        .onChange(of: prompts) { _, newValue in
-            guard loaded else { return }
-            stored = SavedPrompts.encode(newValue)
-        }
     }
 }

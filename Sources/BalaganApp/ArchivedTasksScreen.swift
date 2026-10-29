@@ -26,7 +26,7 @@ struct ArchivedTasksScreen: View {
                 Image(systemName: "archivebox")
                     .foregroundStyle(Theme.textSecondary)
                 Text("Archived")
-                    .font(.system(size: 15 * balaganUIScale, weight: .semibold))
+                    .font(.system(size: Theme.TextSize.heading * balaganUIScale, weight: .semibold))
                     .foregroundStyle(Theme.textPrimary)
                 if archived.isEmpty == false {
                     Text("\(archived.count)")
@@ -35,7 +35,7 @@ struct ArchivedTasksScreen: View {
                 }
                 Spacer()
                 Text("Auto-deleted after \(BoardViewModel.archivedTaskRetentionDays) days")
-                    .font(.system(size: 11.5 * balaganUIScale))
+                    .font(.system(size: Theme.TextSize.small * balaganUIScale))
                     .foregroundStyle(Theme.textTertiary)
             }
             .padding(.horizontal, 14 * balaganUIScale)
@@ -78,7 +78,7 @@ struct ArchivedTasksScreen: View {
         HStack(spacing: 12 * balaganUIScale) {
             VStack(alignment: .leading, spacing: 3 * balaganUIScale) {
                 Text(task.title)
-                    .font(.system(size: 13.5 * balaganUIScale, weight: .semibold))
+                    .font(.system(size: Theme.TextSize.title * balaganUIScale, weight: .semibold))
                     .foregroundStyle(Theme.textPrimary)
                     .lineLimit(1)
                 HStack(spacing: 6 * balaganUIScale) {
@@ -88,7 +88,7 @@ struct ArchivedTasksScreen: View {
                     Text(autoDeleteLabel(days: days))
                         .foregroundStyle(days <= 3 ? TaskStatus.parked.color : Theme.textTertiary)
                 }
-                .font(.system(size: 11.5 * balaganUIScale))
+                .font(.system(size: Theme.TextSize.small * balaganUIScale))
                 .lineLimit(1)
             }
             Spacer(minLength: 8)

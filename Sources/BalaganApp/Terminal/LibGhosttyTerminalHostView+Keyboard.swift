@@ -283,8 +283,7 @@ extension LibGhosttyTerminalHostView {
             return
         }
 
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(selection, forType: .string)
+        NSPasteboard.copy(selection)
     }
 
     @objc func paste(_ sender: Any?) {

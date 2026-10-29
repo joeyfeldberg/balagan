@@ -453,8 +453,9 @@ sideways instead of squeezing them. Everything about a lane is done on the lane 
 edit mode:
 
 - **Drag the header** to move it: the lane follows the pointer, an accent line marks the gap, and the
-  pure `LaneReorder` (Core) picks the index from the lane centers (measured from the lane's center when
-  the drag began, since its live frame moves with the offset).
+  pure `DragReorder` (Core, also used for the sidebar's projects) picks the index from the lane
+  centers (measured from the lane's center when the drag began, since its live frame moves with the
+  offset).
 - **Double-click the name** to rename it in place.
 - **Hover** shows **+** (new task in this lane) and **⋯**, the lane menu (also on right-click): New
   Task Here, Rename…, Color (palette swatches drawn as non-template images so menus keep the color),

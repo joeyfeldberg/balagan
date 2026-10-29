@@ -211,3 +211,49 @@ struct CappedWidthModifier: ViewModifier {
         CappedWidth(maxWidth: maxWidth) { content }
     }
 }
+
+/// A monospace chip that copies its value to the clipboard on click, briefly flashing "Copied".
+struct CopyableVarChip: View {
+    let value: String
+    @State private var copied = false
+    @State private var isHovered = false
+
+    var body: some View {
+        Button {
+            NSPasteboard.copy(value)
+            copied = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                copied = false
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: copied ? "checkmark" : "doc.on.doc")
+                    .font(.system(size: 9))
+                Text(copied ? "Copied" : value)
+                    .font(.system(.caption2, design: .monospaced))
+            }
+            .foregroundStyle(copied ? Theme.accent : Theme.textSecondary)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(
+                RoundedRectangle(cornerRadius: Theme.radiusChip, style: .continuous)
+                    .fill(isHovered ? Theme.surfaceHover : Theme.surfaceRaised)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: Theme.radiusChip, style: .continuous)
+                    .stroke(copied ? Theme.accent.opacity(0.5) : Theme.hairline, lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
+        .help("Copy \(value)")
+    }
+}
+
+extension NSPasteboard {
+    /// Replaces the general pasteboard's contents with a string (Copy Path, Copy Response, …).
+    static func copy(_ string: String) {
+        general.clearContents()
+        general.setString(string, forType: .string)
+    }
+}

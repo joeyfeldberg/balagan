@@ -15,6 +15,17 @@ struct BoardScreen: View {
         }
     }
 
+    /// Opens the New Task form for the project on screen (or the first one), optionally in a lane.
+    private func openNewTaskForm(status: TaskStatus? = nil) {
+        var draft = TaskFormDraft.create(projectID: viewModel.selectedProjectID ?? viewModel.projects.first?.id)
+        if let status { draft.status = status }
+        pendingSheet = .taskForm(draft)
+    }
+
+    private func openSettings() {
+        SettingsWindowController.shared.show(viewModel: viewModel)
+    }
+
     /// Live worktree state for a task (path + dirty), or nil if it has no on-disk worktree. Runs git
     /// in the view layer only, so unit tests/headless never touch real repos.
     private func worktreeInfo(for task: TaskItem) -> (repoPath: String, path: String, isDirty: Bool)? {
@@ -94,9 +105,7 @@ struct BoardScreen: View {
                     onOpenProjectTerminals: { project in
                         viewModel.openProjectTerminals(projectID: project.id)
                     },
-                    onOpenSettings: {
-                        SettingsWindowController.shared.show(viewModel: viewModel)
-                    }
+                    onOpenSettings: openSettings
                 )
                     .frame(width: 240 * sidebarScale)
                     // The sidebar scales independently of the main area (overrides the outer scale below).
@@ -114,12 +123,10 @@ struct BoardScreen: View {
         .onChange(of: viewModel.pendingNewTaskRequest) { _, requested in
             guard requested else { return }
             viewModel.pendingNewTaskRequest = false
-            pendingSheet = .taskForm(.create(projectID: viewModel.selectedProjectID ?? viewModel.projects.first?.id))
+            openNewTaskForm()
         }
         // The four draft-backed forms share ONE `.sheet(item:)` driven by the `BoardSheet` enum (one
-        // sheet per view is the robust pattern). Settings stays on its own `.sheet(isPresented:)` above
-        // — it's a bool with a launch-time env hook, not a draft, and it's also rendered offscreen by
-        // AppArtifacts via its own initializer.
+        // sheet per view is the robust pattern). Settings is a window of its own (`SettingsWindowController`).
         .sheet(item: $pendingSheet) { sheet in
             switch sheet {
             case .projectForm(let draft):
@@ -174,23 +181,23 @@ struct BoardScreen: View {
                 }
             }
         }
-            // All four board confirmations share ONE alert. SwiftUI honors only one `.alert(item:)` per
-            // view — stacking multiple silently suppressed all but one — so a single `PendingConfirmation`
-            // enum drives the `isPresented:presenting:` form. `title`/`message` and the per-case action
-            // buttons switch on the case to reproduce each alert exactly (labels, destructive/cancel
-            // roles, and the project/task-delete buttons' accessibility identifiers).
-            .alert(
-                pendingConfirmation?.title ?? "",
-                isPresented: Binding(
-                    get: { pendingConfirmation != nil },
-                    set: { if !$0 { pendingConfirmation = nil } }
-                ),
-                presenting: pendingConfirmation
-            ) { confirmation in
-                confirmationActions(for: confirmation)
-            } message: { confirmation in
-                Text(confirmation.message)
-            }
+        // All four board confirmations share ONE alert. SwiftUI honors only one `.alert(item:)` per
+        // view — stacking multiple silently suppressed all but one — so a single `PendingConfirmation`
+        // enum drives the `isPresented:presenting:` form. `title`/`message` and the per-case action
+        // buttons switch on the case to reproduce each alert exactly (labels, destructive/cancel
+        // roles, and the project/task-delete buttons' accessibility identifiers).
+        .alert(
+            pendingConfirmation?.title ?? "",
+            isPresented: Binding(
+                get: { pendingConfirmation != nil },
+                set: { if !$0 { pendingConfirmation = nil } }
+            ),
+            presenting: pendingConfirmation
+        ) { confirmation in
+            confirmationActions(for: confirmation)
+        } message: { confirmation in
+            Text(confirmation.message)
+        }
         .overlay {
             if viewModel.showingCommandPalette {
                 CommandPalette(commands: paletteCommands) {
@@ -309,7 +316,7 @@ struct BoardScreen: View {
 
         // Actions.
         commands.append(PaletteCommand(id: "new-task", title: "New Task", systemImage: "plus", shortcut: chord(.newTask)) {
-            pendingSheet = .taskForm(.create(projectID: viewModel.selectedProjectID ?? viewModel.projects.first?.id))
+            openNewTaskForm()
         })
         commands.append(PaletteCommand(id: "new-project", title: "New Project", systemImage: "folder.badge.plus") {
             pendingSheet = .projectForm(.create())
@@ -318,7 +325,7 @@ struct BoardScreen: View {
             commands.append(PaletteCommand(
                 id: "next-agent",
                 title: "Next Agent Needing You",
-                subtitle: viewModel.agentsNeedingYouCount == 1 ? "1 agent" : "\(viewModel.agentsNeedingYouCount) agents",
+                subtitle: viewModel.agentsNeedingYouCount.counted("agent"),
                 systemImage: "questionmark.circle",
                 shortcut: chord(.nextAgentNeedingYou)
             ) { viewModel.jumpToNextAgentNeedingYou() })
@@ -384,10 +391,10 @@ struct BoardScreen: View {
         })
         commands.append(PaletteCommand(id: "change-theme", title: "Change Theme…", subtitle: Theme.current.name, systemImage: "paintpalette") {
             SettingsSheet.lastCategory = .appearance
-            SettingsWindowController.shared.show(viewModel: viewModel)
+            openSettings()
         })
         commands.append(PaletteCommand(id: "settings", title: "Open Settings", systemImage: "gearshape", shortcut: "⌘,") {
-            SettingsWindowController.shared.show(viewModel: viewModel)
+            openSettings()
         })
 
         // Navigation (recent tasks already listed above aren't repeated).
@@ -457,8 +464,7 @@ struct BoardScreen: View {
                     pendingSheet = .surfaceRename(.edit(task: task, surface: surface))
                 },
                 onDeleteSurface: { surfaceID in
-                    TerminalHostRegistry.shared.close(taskID: task.id, surfaceID: surfaceID)
-                    viewModel.deleteSurface(taskID: task.id, surfaceID: surfaceID)
+                    viewModel.closeSurface(taskID: task.id, surfaceID: surfaceID)
                 },
                 onNewDefaultSurface: {
                     viewModel.createDefaultSurface(taskID: task.id)
@@ -493,12 +499,8 @@ struct BoardScreen: View {
                 viewModel: viewModel,
                 isSidebarHidden: !viewModel.isSidebarVisible,
                 onToggleSidebar: toggleSidebar,
-                onOpenSettings: {
-                    SettingsWindowController.shared.show(viewModel: viewModel)
-                },
-                onCreateTask: {
-                    pendingSheet = .taskForm(.create(projectID: viewModel.selectedProjectID ?? viewModel.projects.first?.id))
-                },
+                onOpenSettings: openSettings,
+                onCreateTask: { openNewTaskForm() },
                 onCreateProject: {
                     pendingSheet = .projectForm(.create())
                 },
@@ -517,11 +519,7 @@ struct BoardScreen: View {
                 onSleepTask: { task in
                     viewModel.sleepTask(taskID: task.id)
                 },
-                onCreateTaskInLane: { status in
-                    var draft = TaskFormDraft.create(projectID: viewModel.selectedProjectID ?? viewModel.projects.first?.id)
-                    draft.status = status
-                    pendingSheet = .taskForm(draft)
-                }
+                onCreateTaskInLane: { openNewTaskForm(status: $0) }
             )
         }
     }
@@ -531,150 +529,5 @@ struct BoardScreen: View {
         // It must NOT be multiplied by the app UI scale: libghostty's runtime zoom is scale-unaware,
         // so folding uiScale in here made surfaces created at different times/scales drift in size.
         viewModel.terminalAppearance
-    }
-}
-
-/// The single pending board form sheet. One enum + one `.sheet(item:)` replaces four separate
-/// `.sheet(item:)` modifiers on the individual drafts. Settings is intentionally NOT here — it
-/// presents via `.sheet(isPresented:)` on a launch-env-initialized bool. Each case's `id` delegates to
-/// its draft so switching between forms re-presents exactly as before.
-private enum BoardSheet: Identifiable {
-    case projectForm(ProjectFormDraft)
-    case taskForm(TaskFormDraft)
-    case surfaceForm(SurfaceFormDraft)
-    case surfaceRename(SurfaceRenameDraft)
-
-    var id: String {
-        switch self {
-        case .projectForm(let draft): return draft.id
-        case .taskForm(let draft): return draft.id
-        case .surfaceForm(let draft): return draft.id
-        case .surfaceRename(let draft): return draft.id
-        }
-    }
-}
-
-/// The single pending board confirmation. One enum + one `.alert` replaces four separate alert
-/// modifiers (SwiftUI honors only one item-alert per view). Each case carries the payload struct that
-/// supplies its `message`/`confirmLabel`; the enum adds the per-case `title` used by the shared alert.
-private enum PendingConfirmation: Identifiable {
-    case projectDelete(ProjectDeleteConfirmation)
-    case taskDelete(TaskDeleteConfirmation)
-    case worktreeRemove(WorktreeRemoveConfirmation)
-    case archive(ArchiveConfirmation)
-
-    var id: String {
-        switch self {
-        case .projectDelete(let payload): return "project-delete-\(payload.projectID)"
-        case .taskDelete(let payload): return "task-delete-\(payload.taskID)"
-        case .worktreeRemove(let payload): return "worktree-remove-\(payload.taskID)"
-        case .archive(let payload): return "archive-\(payload.taskID)"
-        }
-    }
-
-    var title: String {
-        switch self {
-        case .projectDelete: return "Delete Project?"
-        case .taskDelete: return "Delete Task?"
-        case .worktreeRemove: return "Remove Worktree?"
-        case .archive: return "Archive Task?"
-        }
-    }
-
-    var message: String {
-        switch self {
-        case .projectDelete(let payload): return payload.message
-        case .taskDelete(let payload): return payload.message
-        case .worktreeRemove(let payload): return payload.message
-        case .archive(let payload): return payload.message
-        }
-    }
-}
-
-private struct ProjectDeleteConfirmation {
-    let projectID: Project.ID
-    let projectName: String
-    let taskCount: Int
-
-    init(project: Project, taskCount: Int) {
-        self.projectID = project.id
-        self.projectName = project.name
-        self.taskCount = taskCount
-    }
-
-    var message: String {
-        let taskLabel = taskCount == 1 ? "1 task" : "\(taskCount) tasks"
-        return "This removes \"\(projectName)\", \(taskLabel), and all terminal workspaces."
-    }
-}
-
-private struct TaskDeleteConfirmation {
-    let taskID: TaskItem.ID
-    let taskTitle: String
-    let repoPath: String?
-    let worktreePath: String?
-    let worktreeDirty: Bool
-    let branch: String?
-
-    init(task: TaskItem, repoPath: String? = nil, worktreePath: String? = nil, worktreeDirty: Bool = false) {
-        self.taskID = task.id
-        self.taskTitle = task.title
-        self.repoPath = repoPath
-        self.worktreePath = worktreePath
-        self.worktreeDirty = worktreeDirty
-        self.branch = task.branchOrWorktree?.nilIfBlank
-    }
-
-    var hasWorktree: Bool { worktreePath != nil }
-    var confirmLabel: String { worktreeDirty ? "Delete & Discard" : "Delete" }
-
-    var message: String {
-        if worktreeDirty {
-            return "This removes \"\(taskTitle)\", its terminal workspace, and its git worktree — which has uncommitted changes that will be discarded. Its branch is deleted too if fully merged."
-        }
-        if hasWorktree {
-            return "This removes \"\(taskTitle)\", its terminal workspace, and its git worktree. Its branch is deleted too if fully merged."
-        }
-        return "This removes \"\(taskTitle)\" and its terminal workspace."
-    }
-}
-
-private struct WorktreeRemoveConfirmation {
-    let taskID: TaskItem.ID
-    let taskTitle: String
-    let repoPath: String
-    let worktreePath: String
-    let isDirty: Bool
-    let branch: String
-
-    var confirmLabel: String { isDirty ? "Remove & Discard" : "Remove Worktree" }
-
-    var message: String {
-        let base = "Removes the git worktree for \"\(taskTitle)\" to free space and closes its terminals. Its branch is deleted too if fully merged (kept if it has unmerged commits)."
-        return isDirty ? base + " The worktree has uncommitted changes that will be discarded." : base
-    }
-}
-
-private struct ArchiveConfirmation {
-    let taskID: TaskItem.ID
-    let taskTitle: String
-    let repoPath: String?
-    let worktreePath: String?
-    let isDirty: Bool
-    let branch: String?
-
-    var hasWorktree: Bool { worktreePath != nil }
-    var confirmLabel: String { isDirty ? "Archive & Discard" : "Archive" }
-
-    var message: String {
-        var lines = [
-            "\u{201C}\(taskTitle)\u{201D} will be hidden from the board and permanently deleted after \(BoardViewModel.archivedTaskRetentionDays) days. Its terminal sessions will be closed."
-        ]
-        if isDirty {
-            lines.append("Its git worktree has uncommitted changes that will be discarded. Its branch is deleted too if fully merged (kept if it has unmerged commits).")
-        } else if hasWorktree {
-            lines.append("Its git worktree will be removed and its branch deleted if fully merged (kept if it has unmerged commits).")
-        }
-        return lines.joined(separator: "\n\n")
     }
 }

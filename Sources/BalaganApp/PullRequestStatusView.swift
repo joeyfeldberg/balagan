@@ -483,7 +483,7 @@ struct MarkdownBlockView: View {
             }
             .background(Theme.surface, in: RoundedRectangle(cornerRadius: 5, style: .continuous))
         case .table(let rows):
-            Label("Table (\(rows) row\(rows == 1 ? "" : "s")) — open on GitHub", systemImage: "tablecells")
+            Label("Table (\(rows.counted("row"))) — open on GitHub", systemImage: "tablecells")
                 .font(.system(size: 11)).foregroundStyle(Theme.textTertiary)
         case .rule:
             Divider()

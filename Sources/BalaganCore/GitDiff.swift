@@ -58,6 +58,37 @@ public struct DiffFile: Equatable, Sendable, Identifiable {
     }
 }
 
+/// One flattened row of a file's diff, so a long diff renders through a single lazy list.
+public enum DiffRow: Identifiable, Equatable, Sendable {
+    case hunk(Int, String)
+    case line(Int, DiffLine)
+
+    public var id: Int {
+        switch self {
+        case .hunk(let id, _), .line(let id, _): return id
+        }
+    }
+}
+
+extension DiffFile {
+    /// The file's hunk headers and lines as one list, stopping after `lineCap` lines (`truncated`
+    /// says it stopped early).
+    public func rows(lineCap: Int) -> (rows: [DiffRow], truncated: Bool) {
+        var rows: [DiffRow] = []
+        var id = 0
+        var lineCount = 0
+        for hunk in hunks {
+            rows.append(.hunk(id, hunk.header)); id += 1
+            for line in hunk.lines {
+                if lineCount >= lineCap { return (rows, true) }
+                rows.append(.line(id, line)); id += 1
+                lineCount += 1
+            }
+        }
+        return (rows, false)
+    }
+}
+
 public struct DiffHunk: Equatable, Sendable {
     /// The `@@ -a,b +c,d @@ context` line, as git wrote it.
     public var header: String

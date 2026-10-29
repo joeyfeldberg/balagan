@@ -10,7 +10,7 @@ extension BoardViewModel {
         guard let project = project(for: projectID) else {
             return
         }
-        let taskID = "project-terminals-\(projectID)"
+        let taskID = TaskItem.projectTerminalsID(for: projectID)
         let workspaceID = "workspace-\(taskID)"
         if let index = taskIndex(for: taskID) {
             // The Terminals workspace exists; if every terminal was closed, open a fresh shell so
@@ -64,7 +64,7 @@ extension BoardViewModel {
     /// Whether a project's Terminals workspace currently has any open terminals (drives the sidebar
     /// chip highlight).
     func projectHasOpenTerminals(_ projectID: Project.ID) -> Bool {
-        task(for: "project-terminals-\(projectID)")?.workspace.surfaces.isEmpty == false
+        task(for: TaskItem.projectTerminalsID(for: projectID))?.workspace.surfaces.isEmpty == false
     }
 
     func projectName(for id: Project.ID) -> String {

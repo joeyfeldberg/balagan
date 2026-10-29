@@ -9,9 +9,14 @@ extension BoardViewModel {
         zoomedSurfaceID = (zoomedSurfaceID == surfaceID) ? nil : surfaceID
     }
 
-    /// Close the currently-focused tab/pane (⌘W): frees its terminal host, then removes the surface.
+    /// Close the currently-focused tab/pane (⌘W).
     func closeSelectedSurface() {
         guard let taskID = selectedTaskID, let surfaceID = selectedSurfaceID else { return }
+        closeSurface(taskID: taskID, surfaceID: surfaceID)
+    }
+
+    /// Closes a tab or pane: frees its terminal host, then removes the surface.
+    func closeSurface(taskID: TaskItem.ID, surfaceID: Surface.ID) {
         if zoomedSurfaceID == surfaceID { zoomedSurfaceID = nil }
         TerminalHostRegistry.shared.close(taskID: taskID, surfaceID: surfaceID)
         deleteSurface(taskID: taskID, surfaceID: surfaceID)

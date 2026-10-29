@@ -26,6 +26,11 @@ public struct TaskItem: Codable, Equatable, Hashable, Identifiable, Sendable {
     public var reviewComments: [DiffComment]?
 
     public var isProjectTerminals: Bool { projectTerminals == true }
+
+    /// The id of a project's Terminals workspace task (the sidebar's >_).
+    public static func projectTerminalsID(for projectID: Project.ID) -> TaskItem.ID {
+        "project-terminals-\(projectID)"
+    }
     public var isArchived: Bool { archivedAt != nil }
 
     public init(

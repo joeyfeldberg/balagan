@@ -46,7 +46,7 @@ struct CommandPalette: View {
                         .foregroundStyle(Theme.textTertiary)
                     TextField("Search commands, tasks, agents…", text: $query)
                         .textFieldStyle(.plain)
-                        .font(.system(size: 15 * scale))
+                        .font(.system(size: Theme.TextSize.heading * scale))
                         .focused($searchFocused)
                         .onSubmit { runSelected() }
                 }
@@ -120,7 +120,7 @@ struct CommandPalette: View {
                 .foregroundStyle(isSelected ? Theme.textPrimary : Theme.textSecondary)
             VStack(alignment: .leading, spacing: 1) {
                 Text(command.title)
-                    .font(.system(size: 13.5 * scale))
+                    .font(.system(size: Theme.TextSize.title * scale))
                     .foregroundStyle(Theme.textPrimary)
                 if let subtitle = command.subtitle {
                     Text(subtitle)

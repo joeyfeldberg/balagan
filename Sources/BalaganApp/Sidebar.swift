@@ -210,7 +210,7 @@ struct Sidebar: View {
                 needsAttention: viewModel.projectNeedsAttention(project.id)
             )
         }
-        guard let terminals = viewModel.task(for: "project-terminals-\(project.id)") else {
+        guard let terminals = viewModel.task(for: TaskItem.projectTerminalsID(for: project.id)) else {
             return nil
         }
         return AgentStatusGlyph.resolve(
@@ -286,7 +286,7 @@ struct Sidebar: View {
             isSelected: (viewModel.selectedProjectID == project.id && isOnBoard)
                 || (isInside(project) && isExpanded == false),
             containsCurrent: isInside(project),
-            terminalsActive: viewModel.selectedTaskID == "project-terminals-\(project.id)",
+            terminalsActive: viewModel.selectedTaskID == TaskItem.projectTerminalsID(for: project.id),
             terminalsOpen: viewModel.projectHasOpenTerminals(project.id),
             agentStatus: projectGlyph(project, agentState: agentState, isExpanded: isExpanded),
             onOpenTerminals: { onOpenProjectTerminals(project) },
@@ -377,14 +377,12 @@ struct Sidebar: View {
 
     /// Insertion index among the *other* projects, from the dragged row's current center.
     private func computeDropIndex(draggedID: Project.ID, translationHeight: CGFloat) -> Int {
-        let center = dragStartFrame.midY + translationHeight
-        var index = 0
-        for project in viewModel.projects where project.id != draggedID {
-            if let frame = projectFrames[project.id], frame.midY < center {
-                index += 1
-            }
-        }
-        return index
+        DragReorder.insertionIndex(
+            dropAt: Double(dragStartFrame.midY + translationHeight),
+            otherMidpoints: viewModel.projects
+                .filter { $0.id != draggedID }
+                .compactMap { projectFrames[$0.id].map { Double($0.midY) } }
+        )
     }
 
     /// The y (in projects space) of the accent insertion line for a given drop index.
