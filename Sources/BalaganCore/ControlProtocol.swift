@@ -249,41 +249,26 @@ public enum ControlCLI {
 // MARK: - Client
 
 /// Connects to the control socket, sends one request line, and reads the response line. Used by the
-/// `balagan` CLI. Mirrors `SessionReportEventSocketSender`'s socket setup, plus a bounded read of the
-/// response.
+/// `balagan` CLI. Shares the connection setup with `SessionReportEventSocketSender`, plus a bounded
+/// read of the response.
 public enum ControlSocketClient {
     public static func send(
         request: ControlRequest,
         socketPath: String,
         timeout: TimeInterval = 5
     ) throws -> Data {
-        let fd = socket(AF_UNIX, SOCK_STREAM, 0)
-        guard fd >= 0 else { throw ControlSocketClientError.socketFailed(errno) }
+        let fd: Int32
+        switch UnixSocketHelpers.connectedClient(path: socketPath) {
+        case .success(let connected): fd = connected
+        case .failure(.pathTooLong): throw ControlSocketClientError.pathTooLong(socketPath)
+        case .failure(.socket(let code)): throw ControlSocketClientError.socketFailed(code)
+        case .failure(.connect(let code)): throw ControlSocketClientError.connectFailed(socketPath: socketPath, errno: code)
+        }
         defer { Darwin.close(fd) }
-
-        var noSigpipe: Int32 = 1
-        _ = setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &noSigpipe, socklen_t(MemoryLayout<Int32>.size))
-
-        guard socketPath.utf8.count < UnixSocketHelpers.maxPathLength else {
-            throw ControlSocketClientError.pathTooLong(socketPath)
-        }
-        let address = UnixSocketHelpers.makeAddress(path: socketPath)
-
-        guard UnixSocketHelpers.connect(fd, to: address) == 0 else {
-            throw ControlSocketClientError.connectFailed(socketPath: socketPath, errno: errno)
-        }
-
         UnixSocketHelpers.setReceiveTimeout(fd, seconds: Int(timeout))
 
-        let requestData = try ControlWire.encodeRequestLine(request)
-        try requestData.withUnsafeBytes { raw in
-            guard let base = raw.baseAddress else { return }
-            var written = 0
-            while written < requestData.count {
-                let count = Darwin.write(fd, base.advanced(by: written), requestData.count - written)
-                guard count > 0 else { throw ControlSocketClientError.writeFailed(errno) }
-                written += count
-            }
+        if let code = UnixSocketHelpers.writeAll(try ControlWire.encodeRequestLine(request), to: fd) {
+            throw ControlSocketClientError.writeFailed(code)
         }
 
         var data = Data()

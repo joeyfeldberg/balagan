@@ -18,98 +18,28 @@ final class ControlSocketServer: @unchecked Sendable {
     /// (rather than a dictionary) so the result is `Sendable`.
     typealias Handler = @MainActor @Sendable (_ method: String, _ params: [String: String]) -> Data
 
-    private let socketPath: String
     private let handler: Handler
     private let queue = DispatchQueue(label: "com.joeyfeldberg.balagan.control")
-    private var listenFD: Int32 = -1
-    private var source: DispatchSourceRead?
+    private var listener: UnixSocketListener!
 
     init(socketPath: String, handler: @escaping Handler) throws {
-        guard socketPath.utf8.count < UnixSocketHelpers.maxPathLength else {
-            throw ControlSocketServerError.socketPathTooLong(socketPath)
-        }
-        self.socketPath = socketPath
         self.handler = handler
+        listener = try UnixSocketListener(
+            path: socketPath,
+            queue: queue,
+            onAcceptError: { NSLog("Balagan control accept failed: errno \($0)") },
+            onConnection: { [weak self] fd in self?.handle(clientFD: fd) }
+        )
     }
 
+    /// Binds and listens on the server's own queue. There is no stop (see `UnixSocketListener`).
     func start() {
-        queue.async { [weak self] in self?.startOnQueue() }
-    }
-
-    func stop() {
-        queue.async { [weak self] in
-            guard let self else { return }
-            if let source = self.source {
-                // The read source owns listenFD; its cancel handler closes it. Closing it here too
-                // double-closes a dispatch-guarded fd, which raises EXC_GUARD (a hard crash on quit).
-                source.cancel()
-                self.source = nil
-            } else if self.listenFD >= 0 {
-                // No source was ever created (start failed) — nothing guards the fd, so close it here.
-                Darwin.close(self.listenFD)
+        queue.async { [listener] in
+            do {
+                try listener?.start()
+            } catch {
+                NSLog("Balagan control socket start failed: \(error)")
             }
-            self.listenFD = -1
-            unlink(self.socketPath)
-        }
-    }
-
-    private func startOnQueue() {
-        do {
-            try FileManager.default.createDirectory(
-                at: URL(fileURLWithPath: socketPath).deletingLastPathComponent(),
-                withIntermediateDirectories: true
-            )
-            unlink(socketPath)
-
-            let fd = socket(AF_UNIX, SOCK_STREAM, 0)
-            guard fd >= 0 else { throw ControlSocketServerError.socketFailed(errno) }
-            listenFD = fd
-
-            var flags = fcntl(fd, F_GETFL, 0)
-            if flags >= 0 {
-                flags |= O_NONBLOCK
-                _ = fcntl(fd, F_SETFL, flags)
-            }
-
-            let address = UnixSocketHelpers.makeAddress(path: socketPath)
-            guard UnixSocketHelpers.bind(fd, to: address) == 0 else {
-                throw ControlSocketServerError.bindFailed(errno)
-            }
-            guard listen(fd, 8) == 0 else { throw ControlSocketServerError.listenFailed(errno) }
-
-            let source = DispatchSource.makeReadSource(fileDescriptor: fd, queue: queue)
-            source.setEventHandler { [weak self] in self?.acceptAvailableConnections() }
-            source.setCancelHandler { [fd] in Darwin.close(fd) }
-            self.source = source
-            source.resume()
-        } catch {
-            if listenFD >= 0 {
-                Darwin.close(listenFD)
-                listenFD = -1
-            }
-            NSLog("Balagan control socket start failed: \(error)")
-        }
-    }
-
-    private func acceptAvailableConnections() {
-        while true {
-            let clientFD = accept(listenFD, nil, nil)
-            if clientFD < 0 {
-                if errno != EAGAIN && errno != EWOULDBLOCK {
-                    NSLog("Balagan control accept failed: errno \(errno)")
-                }
-                return
-            }
-            var flags = fcntl(clientFD, F_GETFL, 0)
-            if flags >= 0 {
-                flags &= ~O_NONBLOCK
-                _ = fcntl(clientFD, F_SETFL, flags)
-            }
-            // One stalled client would otherwise block every later command on this serial queue.
-            UnixSocketHelpers.setReceiveTimeout(clientFD, seconds: 2)
-            var noSigpipe: Int32 = 1
-            _ = setsockopt(clientFD, SOL_SOCKET, SO_NOSIGPIPE, &noSigpipe, socklen_t(MemoryLayout<Int32>.size))
-            handle(clientFD: clientFD)
         }
     }
 
@@ -159,26 +89,6 @@ final class ControlSocketServer: @unchecked Sendable {
                 if count <= 0 { break }
                 written += count
             }
-        }
-    }
-}
-
-enum ControlSocketServerError: Error, CustomStringConvertible {
-    case socketPathTooLong(String)
-    case socketFailed(Int32)
-    case bindFailed(Int32)
-    case listenFailed(Int32)
-
-    var description: String {
-        switch self {
-        case let .socketPathTooLong(path):
-            return "control socket path is too long for sockaddr_un: \(path)"
-        case let .socketFailed(value):
-            return "socket(AF_UNIX) failed with errno \(value)"
-        case let .bindFailed(value):
-            return "bind(AF_UNIX) failed with errno \(value)"
-        case let .listenFailed(value):
-            return "listen(AF_UNIX) failed with errno \(value)"
         }
     }
 }

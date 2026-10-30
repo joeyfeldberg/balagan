@@ -120,13 +120,7 @@ final class TerminalHostRegistry: @unchecked Sendable {
 
     @MainActor
     func focus(taskID: TaskItem.ID, surfaceID: Surface.ID) {
-        let key = TerminalHostKey(taskID: taskID, surfaceID: surfaceID)
-
-        lock.lock()
-        let host = hosts[key]
-        lock.unlock()
-
-        host?.requestUserFocus()
+        existingHost(taskID: taskID, surfaceID: surfaceID)?.requestUserFocus()
     }
 
     @MainActor
@@ -194,10 +188,7 @@ final class TerminalHostRegistry: @unchecked Sendable {
     /// thread (it touches the host's surface).
     @MainActor
     func terminalIsBusy(taskID: TaskItem.ID, surfaceID: Surface.ID) -> Bool {
-        lock.lock()
-        let host = hosts[TerminalHostKey(taskID: taskID, surfaceID: surfaceID)]
-        lock.unlock()
-        guard let handle = host?.surfaceHandle else { return false }
+        guard let handle = existingHost(taskID: taskID, surfaceID: surfaceID)?.surfaceHandle else { return false }
         if handle.processHasExited() { return false }
         return handle.needsConfirmQuit()
     }

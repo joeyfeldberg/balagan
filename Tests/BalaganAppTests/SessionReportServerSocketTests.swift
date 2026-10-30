@@ -42,7 +42,6 @@ final class SessionReportServerSocketTests: XCTestCase {
             delivered.fulfill()
         }
         server.start()
-        defer { server.stop() }
 
         try SessionReportEventSocketSender.send(
             event: lifecycleEvent(.needsInput, toolName: "Bash"),
@@ -68,7 +67,6 @@ final class SessionReportServerSocketTests: XCTestCase {
         let delivered = expectation(description: "report delivered after rebinding")
         let server = try SessionReportServer(socketPath: socketPath) { _ in delivered.fulfill() }
         server.start()
-        defer { server.stop() }
 
         try SessionReportEventSocketSender.send(event: lifecycleEvent(.running), socketPath: socketPath)
 

@@ -99,43 +99,18 @@ public enum SessionReportEventParser {
 
 public enum SessionReportEventSocketSender {
     public static func send(event: SessionReportEvent, socketPath: String) throws {
-        let fd = socket(AF_UNIX, SOCK_STREAM, 0)
-        guard fd >= 0 else {
-            throw SessionReportEventSocketError.socketFailed(errno)
+        let fd: Int32
+        switch UnixSocketHelpers.connectedClient(path: socketPath) {
+        case .success(let connected): fd = connected
+        case .failure(.pathTooLong): throw SessionReportEventSocketError.pathTooLong(socketPath)
+        case .failure(.socket(let code)): throw SessionReportEventSocketError.socketFailed(code)
+        case .failure(.connect(let code)):
+            throw SessionReportEventSocketError.connectFailed(socketPath: socketPath, errno: code)
         }
         defer { Darwin.close(fd) }
 
-        var noSigpipe: Int32 = 1
-        _ = setsockopt(
-            fd,
-            SOL_SOCKET,
-            SO_NOSIGPIPE,
-            &noSigpipe,
-            socklen_t(MemoryLayout<Int32>.size)
-        )
-
-        guard socketPath.utf8.count < UnixSocketHelpers.maxPathLength else {
-            throw SessionReportEventSocketError.pathTooLong(socketPath)
-        }
-        let address = UnixSocketHelpers.makeAddress(path: socketPath)
-
-        guard UnixSocketHelpers.connect(fd, to: address) == 0 else {
-            throw SessionReportEventSocketError.connectFailed(socketPath: socketPath, errno: errno)
-        }
-
-        let data = try SessionReportEventParser.encodeLine(event)
-        try data.withUnsafeBytes { buffer in
-            guard let baseAddress = buffer.baseAddress else {
-                return
-            }
-            var written = 0
-            while written < data.count {
-                let count = Darwin.write(fd, baseAddress.advanced(by: written), data.count - written)
-                guard count > 0 else {
-                    throw SessionReportEventSocketError.writeFailed(socketPath: socketPath, errno: errno)
-                }
-                written += count
-            }
+        if let code = UnixSocketHelpers.writeAll(try SessionReportEventParser.encodeLine(event), to: fd) {
+            throw SessionReportEventSocketError.writeFailed(socketPath: socketPath, errno: code)
         }
     }
 }

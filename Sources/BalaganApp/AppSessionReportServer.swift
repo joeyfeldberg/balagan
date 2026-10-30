@@ -91,98 +91,27 @@ struct SessionReportApplyResult {
 final class SessionReportServer {
     private let socketPath: String
     private let onEvent: (SessionReportEvent) -> Void
-    private let queue = DispatchQueue.main
-    private var listenFD: Int32 = -1
-    private var source: DispatchSourceRead?
+    private var listener: UnixSocketListener!
 
     init(socketPath: String, onEvent: @escaping (SessionReportEvent) -> Void) throws {
-        guard socketPath.utf8.count < UnixSocketHelpers.maxPathLength else {
-            throw SessionReportServerError.socketPathTooLong(socketPath)
-        }
         self.socketPath = socketPath
         self.onEvent = onEvent
+        // Reports are applied on the main queue, where the view model lives; the listener's receive
+        // timeout keeps a wrapper that connects and stalls from freezing the UI.
+        listener = try UnixSocketListener(
+            path: socketPath,
+            queue: .main,
+            onAcceptError: { [weak self] in self?.writeError("session report accept failed: errno \($0)") },
+            onConnection: { [weak self] fd in self?.handle(clientFD: fd) }
+        )
     }
 
+    /// Binds and listens. There is no stop (see `UnixSocketListener`).
     func start() {
-        startOnQueue()
-    }
-
-    func stop() {
-        if let source {
-            source.cancel()
-            self.source = nil
-            listenFD = -1
-        } else if listenFD >= 0 {
-            Darwin.close(listenFD)
-            listenFD = -1
-        }
-        unlink(socketPath)
-    }
-
-    private func startOnQueue() {
         do {
-            try FileManager.default.createDirectory(
-                at: URL(fileURLWithPath: socketPath).deletingLastPathComponent(),
-                withIntermediateDirectories: true
-            )
-            unlink(socketPath)
-
-            let fd = socket(AF_UNIX, SOCK_STREAM, 0)
-            guard fd >= 0 else {
-                throw SessionReportServerError.socketFailed(errno)
-            }
-            listenFD = fd
-
-            var flags = fcntl(fd, F_GETFL, 0)
-            if flags >= 0 {
-                flags |= O_NONBLOCK
-                _ = fcntl(fd, F_SETFL, flags)
-            }
-
-            let address = UnixSocketHelpers.makeAddress(path: socketPath)
-            guard UnixSocketHelpers.bind(fd, to: address) == 0 else {
-                throw SessionReportServerError.bindFailed(errno)
-            }
-
-            guard listen(fd, 8) == 0 else {
-                throw SessionReportServerError.listenFailed(errno)
-            }
-
-            let source = DispatchSource.makeReadSource(fileDescriptor: fd, queue: queue)
-            source.setEventHandler { [weak self] in
-                self?.acceptAvailableConnections()
-            }
-            source.setCancelHandler { [fd] in
-                Darwin.close(fd)
-            }
-            self.source = source
-            source.resume()
+            try listener.start()
         } catch {
-            if listenFD >= 0 {
-                Darwin.close(listenFD)
-                listenFD = -1
-            }
             writeError("session report socket start failed: \(error)")
-        }
-    }
-
-    private func acceptAvailableConnections() {
-        while true {
-            let clientFD = accept(listenFD, nil, nil)
-            if clientFD < 0 {
-                if errno != EAGAIN && errno != EWOULDBLOCK {
-                    writeError("session report accept failed: errno \(errno)")
-                }
-                return
-            }
-            var flags = fcntl(clientFD, F_GETFL, 0)
-            if flags >= 0 {
-                flags &= ~O_NONBLOCK
-                _ = fcntl(clientFD, F_SETFL, flags)
-            }
-            // This runs on the main queue: a wrapper that connects and stalls must not freeze the UI.
-            UnixSocketHelpers.setReceiveTimeout(clientFD, seconds: 2)
-            handle(clientFD: clientFD)
         }
     }
 
@@ -228,22 +157,3 @@ final class SessionReportServer {
     }
 }
 
-private enum SessionReportServerError: Error, CustomStringConvertible {
-    case socketPathTooLong(String)
-    case socketFailed(Int32)
-    case bindFailed(Int32)
-    case listenFailed(Int32)
-
-    var description: String {
-        switch self {
-        case .socketPathTooLong(let path):
-            return "socket path is too long for sockaddr_un: \(path)"
-        case .socketFailed(let value):
-            return "socket(AF_UNIX) failed with errno \(value)"
-        case .bindFailed(let value):
-            return "bind(AF_UNIX) failed with errno \(value)"
-        case .listenFailed(let value):
-            return "listen(AF_UNIX) failed with errno \(value)"
-        }
-    }
-}

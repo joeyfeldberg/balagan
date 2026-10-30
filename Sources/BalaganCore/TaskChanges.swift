@@ -65,18 +65,18 @@ public enum TaskChangesLoader {
     static let maxUntrackedBytes = 512 * 1024
 
     public static func load(worktree: String, baseBranch: String) -> Result<TaskChanges, Failure> {
-        guard run(["rev-parse", "--is-inside-work-tree"], in: worktree)?.trimmed == "true" else {
+        guard run(["rev-parse", "--is-inside-work-tree"], in: worktree)?.trimmedForStorage == "true" else {
             return .failure(.notARepository)
         }
 
         // Compare against where the branch left its base. On the base branch itself (a task that
         // works "on main"), there is no branch to compare — show what's uncommitted.
-        let currentBranch = run(["rev-parse", "--abbrev-ref", "HEAD"], in: worktree)?.trimmed
+        let currentBranch = run(["rev-parse", "--abbrev-ref", "HEAD"], in: worktree)?.trimmedForStorage
         var baseName: String?
         var mergeBase = "HEAD"
         if currentBranch != baseBranch {
             for candidate in [baseBranch, "origin/\(baseBranch)"] {
-                if let sha = run(["merge-base", "HEAD", candidate], in: worktree)?.trimmed, sha.isEmpty == false {
+                if let sha = run(["merge-base", "HEAD", candidate], in: worktree)?.trimmedForStorage, sha.isEmpty == false {
                     baseName = candidate
                     mergeBase = sha
                     break
@@ -88,7 +88,7 @@ public enum TaskChangesLoader {
 
         let commitsAhead = baseName == nil
             ? 0
-            : Int(run(["rev-list", "--count", "\(mergeBase)..HEAD"], in: worktree)?.trimmed ?? "") ?? 0
+            : Int(run(["rev-list", "--count", "\(mergeBase)..HEAD"], in: worktree)?.trimmedForStorage ?? "") ?? 0
 
         var files: [DiffFile] = []
         var truncated = false
@@ -157,6 +157,5 @@ public enum TaskChangesLoader {
 }
 
 private extension String {
-    var trimmed: String { trimmingCharacters(in: .whitespacesAndNewlines) }
     var nulSeparated: [String] { split(separator: "\0").map(String.init) }
 }

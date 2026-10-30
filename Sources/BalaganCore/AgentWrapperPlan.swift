@@ -201,7 +201,7 @@ public enum AgentWrapperPlanner {
         }
         if profile.id == "pi",
            AgentLaunchClassifier.userChoseSession(profile, arguments: arguments) == false,
-           let name = environment["BALAGAN_AGENT_NAME"].flatMap(nilIfBlank),
+           let name = environment["BALAGAN_AGENT_NAME"].flatMap(nonBlankUntrimmed),
            arguments.contains(where: { $0 == "--name" || $0 == "-n" || $0.hasPrefix("--name=") }) == false {
             launchArguments = ["--name", name] + launchArguments
         }
@@ -278,7 +278,7 @@ public enum AgentWrapperPlanner {
         // across `--resume`, so this fresh-launch injection is enough; never override a name the caller
         // already passed.
         let hasName = arguments.contains { $0 == "--name" || $0 == "-n" || $0.hasPrefix("--name=") }
-        if hasName == false, let name = environment["BALAGAN_AGENT_NAME"].flatMap(nilIfBlank) {
+        if hasName == false, let name = environment["BALAGAN_AGENT_NAME"].flatMap(nonBlankUntrimmed) {
             injected += ["--name", name]
         }
         return AgentWrapperPlan(
@@ -334,11 +334,11 @@ public enum AgentWrapperPlanner {
         for (index, argument) in arguments.enumerated() {
             for option in options {
                 if argument == option, arguments.indices.contains(index + 1) {
-                    return nilIfBlank(arguments[index + 1])
+                    return nonBlankUntrimmed(arguments[index + 1])
                 }
                 let prefix = option + "="
                 if argument.hasPrefix(prefix) {
-                    return nilIfBlank(String(argument.dropFirst(prefix.count)))
+                    return nonBlankUntrimmed(String(argument.dropFirst(prefix.count)))
                 }
             }
         }
@@ -353,12 +353,14 @@ public enum AgentWrapperPlanner {
             if argument.hasPrefix("-") {
                 continue
             }
-            return nilIfBlank(argument)
+            return nonBlankUntrimmed(argument)
         }
         return nil
     }
 
-    private static func nilIfBlank(_ value: String) -> String? {
+    /// The value as given, or nil when it's blank. Unlike `String.nilIfBlank` it doesn't trim: these
+    /// are argv values and session names, passed through exactly.
+    private static func nonBlankUntrimmed(_ value: String) -> String? {
         value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : value
     }
 }

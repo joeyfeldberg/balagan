@@ -33,6 +33,26 @@ extension BoardSnapshot {
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         return encoder
     }
+
+    /// Decodes a saved board, either store's. A board saved before the rename still names TaskBoard's
+    /// wrapper, paths and env vars, so those are rewritten first; only the current schema loads.
+    static func decodePersisted(_ data: Data) throws -> BoardSnapshot {
+        let snapshot = try jsonDecoder().decode(BoardSnapshot.self, from: LegacyTaskBoardMigration.rewriteBoardJSON(data))
+        try snapshot.requireCurrentSchema()
+        return snapshot
+    }
+
+    func requireCurrentSchema() throws {
+        guard schemaVersion == BoardSnapshot.currentSchemaVersion else {
+            throw BoardStateStoreError.unsupportedSchemaVersion(schemaVersion)
+        }
+    }
+
+    /// Checks the snapshot can be saved (current schema) and creates the folder `url` goes in.
+    func prepareToSave(at url: URL) throws {
+        try requireCurrentSchema()
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+    }
 }
 
 public struct BoardStateFileStore: Sendable {
@@ -43,29 +63,12 @@ public struct BoardStateFileStore: Sendable {
     }
 
     public func load() throws -> BoardSnapshot {
-        // A board saved before the rename still names TaskBoard's wrapper, paths and env vars.
-        let data = LegacyTaskBoardMigration.rewriteBoardJSON(try Data(contentsOf: url))
-        let decoder = BoardSnapshot.jsonDecoder()
-        let snapshot = try decoder.decode(BoardSnapshot.self, from: data)
-
-        guard snapshot.schemaVersion == BoardSnapshot.currentSchemaVersion else {
-            throw BoardStateStoreError.unsupportedSchemaVersion(snapshot.schemaVersion)
-        }
-
-        return snapshot
+        try BoardSnapshot.decodePersisted(Data(contentsOf: url))
     }
 
     public func save(_ snapshot: BoardSnapshot) throws {
-        guard snapshot.schemaVersion == BoardSnapshot.currentSchemaVersion else {
-            throw BoardStateStoreError.unsupportedSchemaVersion(snapshot.schemaVersion)
-        }
-
-        let directory = url.deletingLastPathComponent()
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-
-        let encoder = BoardSnapshot.jsonEncoder()
-        let data = try encoder.encode(snapshot)
-        try data.write(to: url, options: .atomic)
+        try snapshot.prepareToSave(at: url)
+        try BoardSnapshot.jsonEncoder().encode(snapshot).write(to: url, options: .atomic)
     }
 }
 
@@ -120,15 +123,7 @@ public struct SQLiteBoardStateStore: Sendable {
                 guard let raw = json.data(using: .utf8) else {
                     throw BoardStateStoreError.sqlite("Snapshot payload was not valid UTF-8.")
                 }
-                // A board saved before the rename still names TaskBoard's wrapper, paths and env vars.
-                let data = LegacyTaskBoardMigration.rewriteBoardJSON(raw)
-
-                let snapshot = try BoardSnapshot.jsonDecoder().decode(BoardSnapshot.self, from: data)
-                guard snapshot.schemaVersion == BoardSnapshot.currentSchemaVersion else {
-                    throw BoardStateStoreError.unsupportedSchemaVersion(snapshot.schemaVersion)
-                }
-
-                return snapshot
+                return try BoardSnapshot.decodePersisted(raw)
             case SQLITE_DONE:
                 return nil
             default:
@@ -138,12 +133,7 @@ public struct SQLiteBoardStateStore: Sendable {
     }
 
     public func save(_ snapshot: BoardSnapshot) throws {
-        guard snapshot.schemaVersion == BoardSnapshot.currentSchemaVersion else {
-            throw BoardStateStoreError.unsupportedSchemaVersion(snapshot.schemaVersion)
-        }
-
-        let directory = url.deletingLastPathComponent()
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try snapshot.prepareToSave(at: url)
 
         try withDatabase(flags: SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX) { database in
             try execute(database: database, sql: "PRAGMA journal_mode = WAL")

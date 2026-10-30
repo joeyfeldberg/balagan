@@ -304,11 +304,9 @@ extension WorkspaceLayout {
         let representatives = tabContents.compactMap { tab in
             tab.surfaceIDs().first { available.contains($0) }
         }
-        guard representatives.isEmpty else {
-            return representatives
-        }
-        let placedSurfaceIDs = surfaceIDs().filter { available.contains($0) }
-        return placedSurfaceIDs.isEmpty ? availableSurfaceIDs : []
+        // No tab holds an available surface only when nothing placed is available (any placed surface's
+        // tab would represent it), so every surface stands as its own tab.
+        return representatives.isEmpty ? availableSurfaceIDs : representatives
     }
 
     /// Splits the pane holding `surfaceID` **within its tab** — tabs stay at the root, the split lives

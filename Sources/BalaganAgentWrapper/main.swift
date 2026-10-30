@@ -298,49 +298,22 @@ enum BalaganAgentWrapper {
             )
         }
 
-        // A subagent's hook (payload carries `agent_id`) is dropped by `report(payload:)` too; checked
-        // here as well so the log can say *why* it was dropped.
-        if hookEvent != .sessionStart, payload.agentID != nil {
-            log(.droppedSubagent, toolName: payload.toolName)
-            return
-        }
-        guard let report = hookEvent.report(payload: payload) else {
-            log(.droppedNoMapping, toolName: payload.toolName)
-            return
-        }
-        guard let balaganEnvironment else {
-            log(.droppedMissingEnv, lifecycle: report.lifecycle, toolName: report.toolName)
-            return
-        }
-        let cwd = payload.cwd ?? FileManager.default.currentDirectoryPath
-
-        // session-start creates/refreshes the resume binding and needs a session id; the working-state
-        // events are matched by surface (from env) and don't require one.
-        if report.kind == .sessionStart, payload.sessionID == nil {
-            log(.droppedNoSessionID, lifecycle: report.lifecycle, toolName: report.toolName)
-            return
-        }
-
-        let event = SessionReportEvent(
-            event: report.kind,
-            taskID: balaganEnvironment.taskID,
-            workspaceID: balaganEnvironment.workspaceID,
-            surfaceID: balaganEnvironment.surfaceID,
-            agentName: "claude",
-            sessionID: payload.sessionID,
-            cwd: cwd,
-            transcriptPath: payload.transcriptPath,
-            status: "running",
-            command: payload.sessionID.map { "claude --resume \($0)" },
-            lifecycle: report.lifecycle?.rawValue,
-            toolName: report.toolName,
-            environment: environment
-        )
-        do {
-            try SessionReportEventSocketSender.send(event: event, socketPath: balaganEnvironment.socketPath)
-            log(.sent, lifecycle: report.lifecycle, toolName: report.toolName)
-        } catch {
-            log(.sendFailure(error), lifecycle: report.lifecycle, toolName: report.toolName)
+        switch hookEvent.decision(
+            payload: payload,
+            balaganEnvironment: balaganEnvironment,
+            processEnvironment: environment,
+            currentDirectory: FileManager.default.currentDirectoryPath
+        ) {
+        case let .drop(outcome, lifecycle, toolName):
+            log(outcome, lifecycle: lifecycle, toolName: toolName)
+        case let .send(event, lifecycle, toolName):
+            guard let socketPath = balaganEnvironment?.socketPath else { return }
+            do {
+                try SessionReportEventSocketSender.send(event: event, socketPath: socketPath)
+                log(.sent, lifecycle: lifecycle, toolName: toolName)
+            } catch {
+                log(.sendFailure(error), lifecycle: lifecycle, toolName: toolName)
+            }
         }
     }
 

@@ -43,7 +43,7 @@ make app            # or: scripts/build-app.sh [version]
 
 Builds a real, double-clickable `dist/Balagan.app` (release binary + `balagan-agent`, the
 SwiftPM resource bundle, `AppIcon.icns` generated from `Sources/BalaganApp/Resources/AppIcon.png`,
-an `Info.plist`, ad-hoc code-signed). Version comes from the `VERSION` file; build number from the
+an `Info.plist`, signed with the best identity available — see the notifications gotcha). Version comes from the `VERSION` file; build number from the
 git commit count. Install with `scripts/install-app.sh` (not `cp -R` — see the notifications gotcha). No auto-updater yet —
 distribution to other Macs needs Developer ID signing + notarization (see the note at the bottom of
 `build-app.sh`), and Sparkle/GitHub-Releases would slot in on top of this bundle.
@@ -555,7 +555,7 @@ ellipsis at 520pt via `CappedWidth`, which unlike `.frame(maxWidth:)` doesn't st
 its tooltip gives project / full title; a click opens Edit Task; a project's Terminals workspace reads
 just "Terminals", its project marked in the sidebar like any task's), the lane chip, the
 terminal tabs and `+`, then a
-**Terminal | Reader | Changes** switch (`WorkspaceViewSwitcher`, in `TerminalWorkspaceView.swift`).
+**Terminal | Reader | Changes** switch (`WorkspaceViewSwitcher`, in `Terminal/WorkspaceViewSwitcher.swift`).
 The three are views of the same task, backed by the existing exclusive `showingReaderMode` /
 `showingChangesView` toggles. After that comes the PR chip (when the task tracks a PR), one **Open in**
 menu (Zed, Fork, Finder, Copy Path), and ⋯. The ⋯ menu holds layout (Split Right/Down, Zoom Pane) and

@@ -776,6 +776,27 @@ int balagan_ghostty_initialize(balagan_ghostty_library_t *library, uintptr_t arg
     return library->ghostty_init(argc, argv);
 }
 
+// A finalized config that inherits the user's Ghostty configuration (~/.config/ghostty/config and
+// friends), so embedded terminals match their theme/font/colors like cmux, then (with_overrides)
+// layers Balagan's own overrides file on top (see GhosttyConfigOverrides.swift). Loading the user's
+// files is an optional symbol: builds that don't export it keep Ghostty's built-in defaults.
+// NULL when ghostty_config_new fails.
+static ghostty_config_t balagan_load_config(balagan_ghostty_library_t *library, bool with_overrides) {
+    ghostty_config_t config = library->ghostty_config_new();
+    if (config == NULL) {
+        return NULL;
+    }
+    if (library->ghostty_config_load_default_files != NULL) {
+        library->ghostty_config_load_default_files(config);
+    }
+    const char *overrides = with_overrides ? getenv("BALAGAN_GHOSTTY_CONFIG_OVERRIDES") : NULL;
+    if (overrides != NULL && overrides[0] != '\0' && library->ghostty_config_load_file != NULL) {
+        library->ghostty_config_load_file(config, overrides);
+    }
+    library->ghostty_config_finalize(config);
+    return config;
+}
+
 int balagan_ghostty_create_app(
     balagan_ghostty_library_t *library,
     balagan_ghostty_app_t **out_app,
@@ -788,25 +809,11 @@ int balagan_ghostty_create_app(
     }
     *out_app = NULL;
 
-    ghostty_config_t config = library->ghostty_config_new();
+    ghostty_config_t config = balagan_load_config(library, true);
     if (config == NULL) {
         write_error(error_buffer, error_buffer_len, "ghostty_config_new returned null");
         return -1;
     }
-
-    // Inherit the user's Ghostty configuration (~/.config/ghostty/config and friends) so embedded
-    // terminals match their personal theme/font/colors, just like cmux. Optional symbol: skipped on
-    // builds that don't export it, leaving Ghostty's built-in defaults.
-    if (library->ghostty_config_load_default_files != NULL) {
-        library->ghostty_config_load_default_files(config);
-    }
-    // Balagan's own overrides, layered on top of the user's config (see GhosttyConfigOverrides.swift).
-    const char *overrides = getenv("BALAGAN_GHOSTTY_CONFIG_OVERRIDES");
-    if (overrides != NULL && overrides[0] != '\0' && library->ghostty_config_load_file != NULL) {
-        library->ghostty_config_load_file(config, overrides);
-    }
-
-    library->ghostty_config_finalize(config);
 
     ghostty_runtime_config_s runtime_config;
     memset(&runtime_config, 0, sizeof(runtime_config));
@@ -867,14 +874,11 @@ double balagan_ghostty_library_config_font_size(balagan_ghostty_library_t *libra
         return 0.0;
     }
 
-    ghostty_config_t config = library->ghostty_config_new();
+    // The user's own font size, so Balagan's overrides are left out.
+    ghostty_config_t config = balagan_load_config(library, false);
     if (config == NULL) {
         return 0.0;
     }
-    if (library->ghostty_config_load_default_files != NULL) {
-        library->ghostty_config_load_default_files(config);
-    }
-    library->ghostty_config_finalize(config);
 
     // Ghostty stores `font-size` as a 32-bit float; read into a float, not a double, or the bit
     // layout is misread (yields a denormal ~0).
@@ -893,19 +897,11 @@ int balagan_ghostty_app_reload_config(balagan_ghostty_app_t *app) {
         return -1;
     }
     balagan_ghostty_library_t *library = app->library;
-    ghostty_config_t config = library->ghostty_config_new();
+    // The same layering as at launch: the user's files, then Balagan's overrides.
+    ghostty_config_t config = balagan_load_config(library, true);
     if (config == NULL) {
         return -1;
     }
-    // The same layering as at launch: the user's files, then Balagan's overrides.
-    if (library->ghostty_config_load_default_files != NULL) {
-        library->ghostty_config_load_default_files(config);
-    }
-    const char *overrides = getenv("BALAGAN_GHOSTTY_CONFIG_OVERRIDES");
-    if (overrides != NULL && overrides[0] != '\0' && library->ghostty_config_load_file != NULL) {
-        library->ghostty_config_load_file(config, overrides);
-    }
-    library->ghostty_config_finalize(config);
 
     // Ghostty applies it to every surface; the previous config is ours to free, as Ghostty.app does.
     library->ghostty_app_update_config(app->app, config);
@@ -1362,6 +1358,39 @@ bool balagan_ghostty_surface_needs_confirm_quit(balagan_ghostty_surface_t *surfa
     return surface->app->library->ghostty_surface_needs_confirm_quit(surface->surface);
 }
 
+// Copies text Ghostty returned into a NUL-terminated buffer the caller frees with
+// balagan_ghostty_string_free, and always hands Ghostty's own buffer back. `what` names the call
+// for the error message. 0 on success, -3 for null text, -4 if the copy can't be allocated.
+static int balagan_copy_out_text(
+    balagan_ghostty_surface_t *surface,
+    ghostty_text_s *text,
+    const char *what,
+    char **out_text,
+    size_t *out_text_len,
+    char *error_buffer,
+    size_t error_buffer_len
+) {
+    int result = 0;
+    if (text->text == NULL) {
+        char message[128];
+        snprintf(message, sizeof(message), "%s returned null text", what);
+        write_error(error_buffer, error_buffer_len, message);
+        result = -3;
+    } else {
+        char *copy = calloc(text->text_len + 1, sizeof(char));
+        if (copy == NULL) {
+            write_error(error_buffer, error_buffer_len, "allocation failed");
+            result = -4;
+        } else {
+            memcpy(copy, text->text, text->text_len);
+            *out_text = copy;
+            *out_text_len = text->text_len;
+        }
+    }
+    surface->app->library->ghostty_surface_free_text(surface->surface, text);
+    return result;
+}
+
 int balagan_ghostty_surface_read_selection(
     balagan_ghostty_surface_t *surface,
     char **out_text,
@@ -1394,26 +1423,9 @@ int balagan_ghostty_surface_read_selection(
         write_error(error_buffer, error_buffer_len, "ghostty_surface_read_selection returned false");
         return -3;
     }
-    if (text.text == NULL) {
-        surface->app->library->ghostty_surface_free_text(surface->surface, &text);
-        write_error(error_buffer, error_buffer_len, "ghostty_surface_read_selection returned null text");
-        return -3;
-    }
-
-    char *selection_copy = calloc(text.text_len + 1, sizeof(char));
-    if (selection_copy == NULL) {
-        surface->app->library->ghostty_surface_free_text(surface->surface, &text);
-        write_error(error_buffer, error_buffer_len, "allocation failed");
-        return -4;
-    }
-
-    memcpy(selection_copy, text.text, text.text_len);
-    selection_copy[text.text_len] = '\0';
-    *out_text = selection_copy;
-    *out_text_len = text.text_len;
-
-    surface->app->library->ghostty_surface_free_text(surface->surface, &text);
-    return 0;
+    return balagan_copy_out_text(
+        surface, &text, "ghostty_surface_read_selection", out_text, out_text_len, error_buffer, error_buffer_len
+    );
 }
 
 int balagan_ghostty_surface_read_text(
@@ -1455,26 +1467,9 @@ int balagan_ghostty_surface_read_text(
         write_error(error_buffer, error_buffer_len, "ghostty_surface_read_text returned false");
         return -3;
     }
-    if (text.text == NULL) {
-        surface->app->library->ghostty_surface_free_text(surface->surface, &text);
-        write_error(error_buffer, error_buffer_len, "ghostty_surface_read_text returned null text");
-        return -3;
-    }
-
-    char *copy = calloc(text.text_len + 1, sizeof(char));
-    if (copy == NULL) {
-        surface->app->library->ghostty_surface_free_text(surface->surface, &text);
-        write_error(error_buffer, error_buffer_len, "allocation failed");
-        return -4;
-    }
-
-    memcpy(copy, text.text, text.text_len);
-    copy[text.text_len] = '\0';
-    *out_text = copy;
-    *out_text_len = text.text_len;
-
-    surface->app->library->ghostty_surface_free_text(surface->surface, &text);
-    return 0;
+    return balagan_copy_out_text(
+        surface, &text, "ghostty_surface_read_text", out_text, out_text_len, error_buffer, error_buffer_len
+    );
 }
 
 void balagan_ghostty_string_free(char *text) {
