@@ -131,6 +131,11 @@ Real keystrokes/focus (keyboard nav, IME, the palette's ↑/↓/⏎/Esc, drag-re
 titlebar buttons — those need the user's live run. The accessibility UI driver needs Accessibility
 permission, which isn't granted in this environment.
 
+For a terminal, the unlisted control method `terminal.key` gets most of the way: `--text a` types a
+character and `--code 36` presses a key by hardware key code (36 = Return), through the focused
+host's own `keyDown` (AppKit text input, then libghostty's key encoder). It skips only AppKit
+delivering the event to the first responder.
+
 ## Launching the app directly
 
 ```bash
@@ -142,6 +147,12 @@ permission, which isn't granted in this environment.
 Other flags: `--fixture <name>`, `--database <path>`, `--ui-test-mode` (deterministic; disables real
 processes), `--capture-terminal-state`, `--run-ui-flow-smoke`, `--run-agent-reopen-capture-smoke`,
 `--record-selected-resume`, `--agent-wrapper-path`, `--session-report-socket`.
+
+**A live launch takes the keyboard.** The app activates itself when its window opens, and again on
+`open` and `terminal.drop`, so whoever is at the Mac ends up typing into the scratch instance, and
+into a real shell if that's what its tab runs. Note the frontmost app's bundle id before launching
+and hand focus back with `open -b <id>` right after each of those, and give scratch tabs a command
+that never reads its input unless input is what's being tested.
 
 Built-in fixtures (`BoardFixtures.seed(named:)`): `empty-board`, `resumable-task`, and the default
 (multi-task) board. The non-empty fixtures **auto-select task[0]** (so the app opens into that
@@ -298,6 +309,13 @@ and all the SwiftUI views.
   `include/ghostty.h` against the newest row's (the action enum, plus every struct and callback the
   shim mirrors) and add a row. 1.4 also changed `read_clipboard_cb` to return an enum where 0 means
   "started", so the "no read" answer is in the row too.
+- **`ghostty_surface_set_occlusion` takes `visible`, the opposite of our `setOcclusion(occluded)`**, and
+  the shim flips it. It went through unflipped until 1.4, so every active terminal was reported
+  hidden. 1.3 redrew a hidden surface anyway; 1.4 stops rebuilding it, so the screen froze from the
+  first key press while the keys still reached the process. A host is marked hidden when it leaves
+  its window and visible again in `viewDidMoveToWindow` (an inactive split pane gets no other call),
+  on `setActive(true)`, and before input. Checking input therefore means looking at pixels, not only
+  at what the process received: `screencapture -l<window id>` works on a window that isn't on screen.
 - The shim's runtime `action_cb` is wired and routes events to Swift (via a global event callback +
   per-surface `userdata`): `SET_TITLE`, `PWD`, `DESKTOP_NOTIFICATION`, `RING_BELL`.
   Mouse (`mouse_button`/`mouse_pos`/`mouse_scroll`), selection (`has_selection`/`read_selection`),

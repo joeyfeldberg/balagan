@@ -82,6 +82,8 @@ extension BalaganApplication {
             return controlTerminalDrop(params: params)
         case "terminal.search":
             return controlTerminalSearch(params: params)
+        case "terminal.key":
+            return controlTerminalKey(params: params)
         case "task.send", "task.prompt":
             return controlSend(method: method, params: params, viewModel: viewModel)
         case "review.send":
@@ -196,6 +198,24 @@ extension BalaganApplication {
         if let total = host.searchTotal { result["total"] = total }
         if let selected = host.searchSelected { result["selected"] = selected }
         return ok(result)
+    }
+
+    /// Unlisted: a key press through the focused terminal's own `keyDown` (AppKit text input, then
+    /// libghostty's key encoder), since real keystrokes can't be sent headlessly. `--text a` types a
+    /// character; `--code 36` presses a key by hardware key code (36 = Return), with `--text` as its
+    /// characters when it has any.
+    private func controlTerminalKey(params: [String: String]) -> [String: Any] {
+        guard let host = TerminalHostRegistry.shared.activeHost() else { return err("no focused terminal") }
+        let text = params["text"] ?? ""
+        guard let event = NSEvent.keyEvent(
+            with: .keyDown, location: .zero, modifierFlags: [],
+            timestamp: ProcessInfo.processInfo.systemUptime,
+            windowNumber: host.window?.windowNumber ?? 0, context: nil,
+            characters: text, charactersIgnoringModifiers: text,
+            isARepeat: false, keyCode: UInt16(params["code"] ?? "") ?? 0
+        ) else { return err("could not build the key event") }
+        host.keyDown(with: event)
+        return ok(["sent": true])
     }
 
     /// What auto-sleep sees for each task with live terminals, and what it would sleep right now.

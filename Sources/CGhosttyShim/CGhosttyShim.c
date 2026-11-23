@@ -1144,7 +1144,10 @@ void balagan_ghostty_surface_set_occlusion(balagan_ghostty_surface_t *surface, b
     if (surface == NULL) {
         return;
     }
-    surface->app->library->ghostty_surface_set_occlusion(surface->surface, occluded);
+    // libghostty's argument is "visible", the opposite of ours. Passing it through unflipped told
+    // Ghostty every active terminal was hidden; 1.3 redrew a hidden surface anyway, 1.4 doesn't, so
+    // the screen froze from the first key press while the keys still reached the process.
+    surface->app->library->ghostty_surface_set_occlusion(surface->surface, !occluded);
 }
 
 bool balagan_ghostty_surface_binding_action(balagan_ghostty_surface_t *surface, const char *action, uintptr_t len) {

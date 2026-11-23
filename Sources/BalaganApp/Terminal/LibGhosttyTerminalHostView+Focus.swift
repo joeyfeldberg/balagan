@@ -36,6 +36,11 @@ extension LibGhosttyTerminalHostView {
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
+        // Undo viewWillMove's "hidden": libghostty doesn't redraw a hidden surface, and a pane that
+        // isn't the active one (the other side of a split) gets no other call that shows it again.
+        if window != nil {
+            surfaceHandle?.setOcclusion(false)
+        }
         if isActive {
             requestActiveFocus()
         } else {
