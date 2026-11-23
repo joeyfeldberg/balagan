@@ -73,7 +73,7 @@ extension BalaganApplication {
                 "missingSymbols": selection.libGhostty.missingSymbols,
                 "diagnostic": selection.libGhostty.diagnostic.map { $0 as Any } ?? NSNull(),
                 "version": selection.libGhostty.version.map { $0 as Any } ?? NSNull(),
-                "pinnedVersion": LibGhosttyVersionCheck.pinnedVersion,
+                "verifiedVersions": LibGhosttyVersionCheck.verifiedVersions,
             ],
         ]
     }

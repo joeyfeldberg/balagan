@@ -13,11 +13,18 @@ typedef struct balagan_ghostty_library balagan_ghostty_library_t;
 typedef struct balagan_ghostty_app balagan_ghostty_app_t;
 typedef struct balagan_ghostty_surface balagan_ghostty_surface_t;
 
-// The Ghostty release whose include/ghostty.h the shim's action-tag numbers (GHOSTTY_ACTION_* in
-// CGhosttyShim.c) were taken from. Ghostty.app updates itself, so the app compares this with what
-// ghostty_info() reports at launch (LibGhosttyVersionCheck) and warns when the major.minor differs.
-// Bump it after re-verifying the tags against the newer header.
-#define BALAGAN_GHOSTTY_PINNED_VERSION "1.3.1"
+// libghostty's embedding API has no stable numbering, and Ghostty.app updates itself. The shim keeps
+// its action-tag numbers per Ghostty release (the table in CGhosttyShim.c) and uses the row for
+// whatever ghostty_info() reports when the library opens. A release with no row gets no terminal
+// events at all (title, folder, notification, bell, search) instead of another release's numbers:
+// under those, a payload is read as the wrong type, which crashed the app when 1.4 renumbered the
+// enum. The app says so at launch (LibGhosttyVersionCheck).
+//
+// The releases that have a row, oldest first; NULL past the end.
+const char *balagan_ghostty_verified_version(size_t index);
+// Whether `version`, as ghostty_info() reports it, has a row. A patch release shares the row of its
+// major.minor.
+bool balagan_ghostty_version_is_verified(const char *version);
 
 typedef enum {
     BALAGAN_GHOSTTY_KEY_ENTER,

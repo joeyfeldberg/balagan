@@ -280,18 +280,26 @@ and all the SwiftUI views.
   derived, never stored: `ResumeBinding.agentName` (wrapper-reported) → `AgentLaunchMetadata.agentName` →
   a per-*token* scan of the launch command (`balagan-agent codex`); token-wise so
   `tmux attach -t task_resume_codex` isn't mistaken for an agent.
-- Target version: **Ghostty 1.3.1** (`/Applications/Ghostty.app/...`), pinned as
-  `BALAGAN_GHOSTTY_PINNED_VERSION` in `CGhosttyShim.h`. Action-tag values in the shim
-  (`GHOSTTY_ACTION_*`) are positions in that header's enum, so a release that reorders it breaks the
-  title/bell/pwd/search events silently, and Ghostty.app updates itself (Sparkle). So at launch the
-  probe reads `ghostty_info()` into `LibGhosttyRuntimeStatus.version` and `LibGhosttyVersionCheck`
-  (Core, pure) compares major.minor with the pin. The result is logged, `balagan status` prints it
-  (`Ghostty: 1.3.1 (Balagan verified against 1.3.1)` plus a ⚠ line), `app-ready.json` carries
-  `version`/`pinnedVersion`, and a mismatch shows an alert once per reported version
-  (`AppPreferences.Keys.libGhosttyVersionWarned`). Upgrading = re-verify the tags against the new
-  `include/ghostty.h`, then bump the pin.
+- Verified versions: **Ghostty 1.3 and 1.4** (`/Applications/Ghostty.app/...`). An action's tag is its
+  position in `ghostty_action_tag_e`, and Ghostty.app updates itself (Sparkle), so the shim keeps the
+  numbers **per release** in one table (`k_verified_abis` in `CGhosttyShim.c`) and picks the row from
+  `ghostty_info()` when the library opens. A release with no row gets **no** title / pwd / bell /
+  notification / search events, rather than another release's numbers. That rule comes from 1.4,
+  which inserted three actions mid-enum: 1.3's `START_SEARCH` (59) became `PROGRESS_REPORT`, the shim
+  read its payload as a `char *`, and the app died whenever an agent cleared its OSC 9;4 progress bar.
+  It died with **exit status 1 and no macOS crash report**, because libghostty's Sentry/Breakpad
+  catches the fault first and calls `_exit(EXC_BAD_ACCESS)`. The evidence for a crash like that is a
+  minidump in `~/.local/state/ghostty/crash/*.ghosttycrash`, written out on the *next* launch (split
+  the envelope, then `lldb -c <dump>`). `LibGhosttyVersionCheck` (Core, pure) makes the same
+  major.minor comparison for the wording: the result is logged, `balagan status` prints it
+  (`Ghostty: 1.4.0 (Balagan verified against 1.3.1, 1.4.0)` plus a ⚠ line), `app-ready.json` carries
+  `version`/`verifiedVersions`, and a mismatch shows an alert once per reported version
+  (`AppPreferences.Keys.libGhosttyVersionWarned`). Supporting a new release = diff its
+  `include/ghostty.h` against the newest row's (the action enum, plus every struct and callback the
+  shim mirrors) and add a row. 1.4 also changed `read_clipboard_cb` to return an enum where 0 means
+  "started", so the "no read" answer is in the row too.
 - The shim's runtime `action_cb` is wired and routes events to Swift (via a global event callback +
-  per-surface `userdata`): `SET_TITLE` (32), `PWD` (35), `DESKTOP_NOTIFICATION` (31), `RING_BELL` (50).
+  per-surface `userdata`): `SET_TITLE`, `PWD`, `DESKTOP_NOTIFICATION`, `RING_BELL`.
   Mouse (`mouse_button`/`mouse_pos`/`mouse_scroll`), selection (`has_selection`/`read_selection`),
   and `process_exited` (polled for exit detection) are also exposed.
 - **Notifications** come from two sources, both through `SystemNotificationPresenter` and both only
@@ -740,10 +748,10 @@ awake display, because surfaces don't mount otherwise; `caffeinate -u -t 120 &` 
 ## Terminal search (⌘F)
 
 `ShortcutAction.findInTerminal` (⌘F, rebindable) opens `TerminalSearchBar` over the focused pane
-(`LibGhosttyTerminalHostView+Search.swift`). libghostty 1.3 does the matching, highlighting and
+(`LibGhosttyTerminalHostView+Search.swift`). libghostty (1.3+) does the matching, highlighting and
 scrolling. We drive it with binding actions (`search:<text>`, `navigate_search:next|previous`,
 `end_search`), and it reports back through four runtime actions the shim forwards as events:
-`START_SEARCH` 59 (with a needle), `END_SEARCH` 60, `SEARCH_TOTAL` 61 and `SEARCH_SELECTED` 62
+`START_SEARCH` (with a needle), `END_SEARCH`, `SEARCH_TOTAL` and `SEARCH_SELECTED`
 (0-based; -1 = unknown). The bar shows `selected+1/total` like Ghostty's own overlay. ⏎ = next,
 ⇧⏎ = previous, Esc closes. While the field has focus, the host view hands key equivalents to it, so
 ⌘V/⌘A edit the query instead of reaching the terminal. The unlisted control method `terminal.search`

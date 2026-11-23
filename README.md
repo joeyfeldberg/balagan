@@ -240,10 +240,11 @@ macOS refuses notifications for ad-hoc signed apps, and for apps registered more
 shows the current permission state.
 
 **Ghostty updated itself. Is that a problem?**
-Usually not. Balagan is verified against one Ghostty release (1.3.1 today), and at launch it
-compares that with the version Ghostty.app reports. A different major.minor shows an alert once,
-because Ghostty's event numbering could have changed and terminal titles, bells and search might
-stop reaching Balagan. `balagan status` prints both versions.
+Usually not. Balagan is verified against specific Ghostty releases (1.3 and 1.4 today), and at
+launch it compares those with the version Ghostty.app reports. Ghostty's event numbering can change
+between releases, so on one Balagan hasn't been verified against it shows an alert once and
+switches off terminal titles, bells and search until it's updated. Terminals themselves keep
+working. `balagan status` prints the versions.
 
 ## Development
 

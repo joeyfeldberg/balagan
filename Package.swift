@@ -59,7 +59,7 @@ let package = Package(
         ),
         .testTarget(
             name: "BalaganCoreTests",
-            dependencies: ["BalaganCore"]
+            dependencies: ["BalaganCore", "CGhosttyShim"]
         ),
         .testTarget(
             name: "BalaganAppTests",

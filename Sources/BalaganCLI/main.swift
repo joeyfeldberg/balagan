@@ -94,7 +94,7 @@ func printResult(method: String, result: Any?) {
             print("Notifications:  \(notifications)")
         }
         if let ghostty = dict["ghostty"] as? String {
-            print("Ghostty:        \(ghostty) (Balagan verified against \(dict["ghosttyPinned"] as? String ?? "?"))")
+            print("Ghostty:        \(ghostty) (Balagan verified against \(dict["ghosttyVerified"] as? String ?? "?"))")
         }
         if let warning = dict["ghosttyWarning"] as? String {
             print("  ⚠ \(warning)")

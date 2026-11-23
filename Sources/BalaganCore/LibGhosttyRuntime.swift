@@ -16,8 +16,8 @@ public struct LibGhosttyRuntimeStatus: Codable, Equatable, Sendable {
     public var resolvedSymbols: [String]
     public var missingSymbols: [String]
     public var diagnostic: String?
-    /// What `ghostty_info()` reports (e.g. "1.3.1"); nil when unavailable. Compared with the shim's
-    /// pin by `LibGhosttyVersionCheck`.
+    /// What `ghostty_info()` reports (e.g. "1.4.0"); nil when unavailable. Compared with the
+    /// releases the shim is verified against by `LibGhosttyVersionCheck`.
     public var version: String?
 
     public init(

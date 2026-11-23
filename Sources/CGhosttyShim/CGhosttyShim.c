@@ -98,10 +98,8 @@ typedef enum {
     GHOSTTY_CLIPBOARD_REQUEST_OSC_52_WRITE,
 } ghostty_clipboard_request_e;
 
-typedef struct {
-    const char *mime;
-    const char *data;
-} ghostty_clipboard_content_s;
+// Opaque here: 1.4 added a length to it, and the shim never reads clipboard contents.
+typedef struct ghostty_clipboard_content ghostty_clipboard_content_s;
 
 typedef struct {
     const char *key;
@@ -182,18 +180,82 @@ typedef struct {
     const char *body;
 } ghostty_action_desktop_notification_s;
 
-// Action tag values from include/ghostty.h (ghostty_action_tag_e) at BALAGAN_GHOSTTY_PINNED_VERSION
-// (CGhosttyShim.h). They're positions in an enum, so a release that reorders it silently breaks every
-// event below; the app compares the pin with ghostty_info() at launch and warns on a different
-// major.minor. Re-verify here and bump the pin when upgrading.
-#define GHOSTTY_ACTION_DESKTOP_NOTIFICATION 31
-#define GHOSTTY_ACTION_SET_TITLE 32
-#define GHOSTTY_ACTION_PWD 35
-#define GHOSTTY_ACTION_RING_BELL 50
-#define GHOSTTY_ACTION_START_SEARCH 59
-#define GHOSTTY_ACTION_END_SEARCH 60
-#define GHOSTTY_ACTION_SEARCH_TOTAL 61
-#define GHOSTTY_ACTION_SEARCH_SELECTED 62
+// What differs between the Ghostty releases the shim has been checked against. An action's tag is
+// its position in ghostty_action_tag_e (include/ghostty.h), and a release can insert actions
+// mid-enum: 1.4 did, which turned 1.3's START_SEARCH (59) into PROGRESS_REPORT. So the numbers are
+// kept per release, the row is picked from what ghostty_info() reports when the library opens, and a
+// release with no row has none of its actions routed (see CGhosttyShim.h).
+//
+// To add a release, diff its include/ghostty.h against the newest one here: the action enum, plus
+// every struct and callback this file mirrors.
+typedef struct {
+    const char *version;        // the release whose header the row was read from
+    int clipboard_read_refused; // what read_clipboard_cb returns for "no read was started"
+    int desktop_notification;
+    int set_title;
+    int pwd;
+    int ring_bell;
+    int start_search;
+    int end_search;
+    int search_total;
+    int search_selected;
+} balagan_ghostty_abi_t;
+
+static const balagan_ghostty_abi_t k_verified_abis[] = {
+    {
+        .version = "1.3.1",
+        .clipboard_read_refused = 0, // false
+        .desktop_notification = 31,
+        .set_title = 32,
+        .pwd = 35,
+        .ring_bell = 50,
+        .start_search = 59,
+        .end_search = 60,
+        .search_total = 61,
+        .search_selected = 62,
+    },
+    {
+        .version = "1.4.0",
+        .clipboard_read_refused = 2, // GHOSTTY_CLIPBOARD_READ_UNSUPPORTED; 0 now means "started"
+        .desktop_notification = 32,
+        .set_title = 33,
+        .pwd = 37,
+        .ring_bell = 52,
+        .start_search = 62,
+        .end_search = 63,
+        .search_total = 64,
+        .search_selected = 65,
+    },
+};
+static const size_t k_verified_abi_count = sizeof(k_verified_abis) / sizeof(k_verified_abis[0]);
+
+// The loaded release's row; NULL until a library opens, and when it reports a release with no row.
+static const balagan_ghostty_abi_t *g_abi = NULL;
+
+static const balagan_ghostty_abi_t *balagan_abi_for_version(const char *version) {
+    int major = 0;
+    int minor = 0;
+    if (version == NULL || sscanf(version, "%d.%d", &major, &minor) != 2) {
+        return NULL;
+    }
+    for (size_t i = 0; i < k_verified_abi_count; i++) {
+        int row_major = 0;
+        int row_minor = 0;
+        if (sscanf(k_verified_abis[i].version, "%d.%d", &row_major, &row_minor) == 2 &&
+            row_major == major && row_minor == minor) {
+            return &k_verified_abis[i];
+        }
+    }
+    return NULL;
+}
+
+const char *balagan_ghostty_verified_version(size_t index) {
+    return index < k_verified_abi_count ? k_verified_abis[index].version : NULL;
+}
+
+bool balagan_ghostty_version_is_verified(const char *version) {
+    return balagan_abi_for_version(version) != NULL;
+}
 
 typedef struct {
     const char *needle;
@@ -204,10 +266,20 @@ typedef struct {
 } ghostty_action_search_count_s;
 
 typedef void (*ghostty_runtime_wakeup_cb)(void *);
-typedef bool (*ghostty_runtime_read_clipboard_cb)(void *, ghostty_clipboard_e, void *);
+// The 1.4 signature. 1.3 passes only the first three arguments and reads the result as a bool, which
+// both architectures we build for allow, as long as the value returned is the one that release
+// expects (clipboard_read_refused above).
+typedef int (*ghostty_runtime_read_clipboard_cb)(
+    void *,
+    ghostty_clipboard_e,
+    void *,
+    const char *const *,
+    size_t,
+    bool
+);
 typedef void (*ghostty_runtime_confirm_read_clipboard_cb)(
     void *,
-    const char *,
+    const void *, // the text in 1.3, a ghostty_clipboard_confirm_s from 1.4; unread either way
     void *,
     ghostty_clipboard_request_e
 );
@@ -361,6 +433,8 @@ static bool balagan_ghostty_surface_key_text_with_mods(
     ghostty_input_mods_e consumed_mods
 );
 
+static bool read_version_from_handle(void *handle, char *buffer, size_t buffer_len);
+
 static void write_error(char *buffer, size_t len, const char *message) {
     if (buffer == NULL || len == 0) {
         return;
@@ -372,25 +446,34 @@ static void balagan_runtime_wakeup(void *userdata) {
     (void)userdata;
 }
 
-static bool balagan_runtime_read_clipboard(
+static int balagan_runtime_read_clipboard(
     void *userdata,
     ghostty_clipboard_e clipboard,
-    void *request
+    void *request,
+    const char *const *mime_types,
+    size_t mime_type_count,
+    bool list_available
 ) {
     (void)userdata;
     (void)clipboard;
     (void)request;
-    return false;
+    (void)mime_types;
+    (void)mime_type_count;
+    (void)list_available;
+    // The shim serves no clipboard reads (the app pastes with ghostty_surface_text). How to say so
+    // differs per release; one with no row is most likely newer, so it gets the newest answer.
+    const balagan_ghostty_abi_t *abi = g_abi != NULL ? g_abi : &k_verified_abis[k_verified_abi_count - 1];
+    return abi->clipboard_read_refused;
 }
 
 static void balagan_runtime_confirm_read_clipboard(
     void *userdata,
-    const char *title,
+    const void *confirmation,
     void *request,
     ghostty_clipboard_request_e request_type
 ) {
     (void)userdata;
-    (void)title;
+    (void)confirmation;
     (void)request;
     (void)request_type;
 }
@@ -428,27 +511,34 @@ static bool balagan_runtime_action(
         return false;
     }
 
+    // A release with no row: its tag numbers are unknown, and a payload read under the wrong tag is
+    // a wild pointer, so nothing is routed.
+    const balagan_ghostty_abi_t *abi = g_abi;
+    if (abi == NULL) {
+        return false;
+    }
+
     void *context = g_surface_userdata_fn(target.target.surface);
     if (context == NULL) {
         return false;
     }
 
-    switch ((int)action.tag) {
-    case GHOSTTY_ACTION_SET_TITLE: {
+    const int tag = action.tag;
+    if (tag == abi->set_title) {
         const ghostty_action_set_title_s *payload = (const ghostty_action_set_title_s *)&action.action;
         if (payload->title != NULL) {
             g_event_cb(context, BALAGAN_GHOSTTY_EVENT_TITLE, payload->title, NULL);
         }
-        break;
+        return false;
     }
-    case GHOSTTY_ACTION_PWD: {
+    if (tag == abi->pwd) {
         const ghostty_action_pwd_s *payload = (const ghostty_action_pwd_s *)&action.action;
         if (payload->pwd != NULL) {
             g_event_cb(context, BALAGAN_GHOSTTY_EVENT_PWD, payload->pwd, NULL);
         }
-        break;
+        return false;
     }
-    case GHOSTTY_ACTION_DESKTOP_NOTIFICATION: {
+    if (tag == abi->desktop_notification) {
         const ghostty_action_desktop_notification_s *payload =
             (const ghostty_action_desktop_notification_s *)&action.action;
         g_event_cb(context, BALAGAN_GHOSTTY_EVENT_NOTIFICATION, payload->title, payload->body);
@@ -456,38 +546,32 @@ static bool balagan_runtime_action(
         // surfaces a single controlled banner + the in-app tab/task/project highlight instead.
         return true;
     }
-    case GHOSTTY_ACTION_RING_BELL: {
+    if (tag == abi->ring_bell) {
         g_event_cb(context, BALAGAN_GHOSTTY_EVENT_BELL, NULL, NULL);
         // Handled: the app does its own NSSound.beep(), so suppress libghostty's default bell.
         return true;
     }
     // Scrollback search: the app draws the search bar; libghostty does the matching and highlights.
-    case GHOSTTY_ACTION_START_SEARCH: {
+    if (tag == abi->start_search) {
         const ghostty_action_start_search_s *payload = (const ghostty_action_start_search_s *)&action.action;
         g_event_cb(context, BALAGAN_GHOSTTY_EVENT_SEARCH_START, payload->needle, NULL);
         return true;
     }
-    case GHOSTTY_ACTION_END_SEARCH: {
+    if (tag == abi->end_search) {
         g_event_cb(context, BALAGAN_GHOSTTY_EVENT_SEARCH_END, NULL, NULL);
         return true;
     }
-    case GHOSTTY_ACTION_SEARCH_TOTAL:
-    case GHOSTTY_ACTION_SEARCH_SELECTED: {
+    if (tag == abi->search_total || tag == abi->search_selected) {
         const ghostty_action_search_count_s *payload = (const ghostty_action_search_count_s *)&action.action;
         char count[32];
         snprintf(count, sizeof count, "%ld", (long)payload->value);
         g_event_cb(
             context,
-            (int)action.tag == GHOSTTY_ACTION_SEARCH_TOTAL
-                ? BALAGAN_GHOSTTY_EVENT_SEARCH_TOTAL
-                : BALAGAN_GHOSTTY_EVENT_SEARCH_SELECTED,
+            tag == abi->search_total ? BALAGAN_GHOSTTY_EVENT_SEARCH_TOTAL : BALAGAN_GHOSTTY_EVENT_SEARCH_SELECTED,
             count,
             NULL
         );
         return true;
-    }
-    default:
-        break;
     }
 
     return false;
@@ -721,6 +805,10 @@ int balagan_ghostty_library_open(
         balagan_ghostty_library_close(library);
         return result;
     }
+
+    // Before any surface exists, so no action can arrive under another release's numbers.
+    char version[64];
+    g_abi = read_version_from_handle(handle, version, sizeof(version)) ? balagan_abi_for_version(version) : NULL;
 
     *out_library = library;
     return 0;

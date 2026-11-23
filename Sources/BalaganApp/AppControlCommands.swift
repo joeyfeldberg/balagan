@@ -478,11 +478,11 @@ extension BalaganApplication {
             "projectCount": viewModel.projects.count,
             "notifications": SystemNotificationPresenter.shared.authorizationState.description,
         ]
-        // The libghostty in use vs. the version the shim's action tags were verified against.
+        // The libghostty in use vs. the releases the shim's action tags were verified against.
         if let runtime = terminalRuntime, runtime.selection.kind == .libghostty {
             let compatibility = LibGhosttyVersionCheck.check(reported: runtime.selection.libGhostty.version)
             payload["ghostty"] = compatibility.reported ?? "unknown"
-            payload["ghosttyPinned"] = LibGhosttyVersionCheck.pinnedVersion
+            payload["ghosttyVerified"] = LibGhosttyVersionCheck.verifiedVersions.joined(separator: ", ")
             payload["ghosttyWarning"] = compatibility.warning.map { $0 as Any } ?? NSNull()
         }
         return ok(payload)
